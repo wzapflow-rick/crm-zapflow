@@ -11,15 +11,28 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import {
-  conversas,
-  tarefas,
-  membroPorId,
-  eventos,
+  type Conversa,
+  type Tarefa,
+  type Evento,
+  type Membro,
 } from "@/lib/zapflow-data"
 import { useApp } from "@/components/crm/providers"
 
-export function Overview() {
+export function Overview({
+  conversas,
+  tarefas,
+  eventos,
+  membros,
+}: {
+  conversas: Conversa[]
+  tarefas: Tarefa[]
+  eventos: Evento[]
+  membros: Membro[]
+}) {
   const { usuario, isAdmin } = useApp()
+
+  const membroPorId = (id: string | null) =>
+    id ? membros.find((m) => m.id === id) : undefined
 
   const abertas = conversas.filter((c) => c.status === "aberta").length
   const pendentes = conversas.filter((c) => c.status === "pendente").length

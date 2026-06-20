@@ -23,13 +23,16 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import {
-  conversas as conversasIniciais,
-  membros,
-  membroPorId,
   type Conversa,
+  type Membro,
   type StatusConversa,
 } from "@/lib/zapflow-data"
 import { useApp } from "@/components/crm/providers"
+import {
+  enviarMensagem,
+  atribuirConversa,
+  mudarStatusConversa,
+} from "@/app/actions/crm"
 
 const statusLabel: Record<StatusConversa, string> = {
   aberta: "Aberta",
@@ -45,12 +48,23 @@ const statusCor: Record<StatusConversa, string> = {
 
 type Filtro = "todas" | "minhas" | "nao_atribuidas"
 
-export function Inbox() {
+export function Inbox({
+  conversasIniciais,
+  membros,
+}: {
+  conversasIniciais: Conversa[]
+  membros: Membro[]
+}) {
   const { usuario } = useApp()
   const [lista, setLista] = useState<Conversa[]>(conversasIniciais)
-  const [selecionadaId, setSelecionadaId] = useState<string>(conversasIniciais[0].id)
+  const [selecionadaId, setSelecionadaId] = useState<string>(
+    conversasIniciais[0]?.id ?? "",
+  )
   const [rascunho, setRascunho] = useState("")
   const [filtro, setFiltro] = useState<Filtro>("todas")
+
+  const membroPorId = (id: string | null) =>
+    id ? membros.find((m) => m.id === id) : undefined
 
   const conversasFiltradas = useMemo(() => {
     if (filtro === "minhas")
@@ -63,19 +77,20 @@ export function Inbox() {
   const selecionada = lista.find((c) => c.id === selecionadaId) ?? lista[0]
 
   function enviar() {
-    if (!rascunho.trim()) return
+    if (!rascunho.trim() || !selecionada) return
+    const texto = rascunho
     setLista((prev) =>
       prev.map((c) =>
         c.id === selecionada.id
           ? {
               ...c,
-              ultimaMensagem: rascunho,
+              ultimaMensagem: texto,
               ultimaHora: "agora",
               mensagens: [
                 ...c.mensagens,
                 {
                   id: `m${c.mensagens.length + 1}`,
-                  conteudo: rascunho,
+                  conteudo: texto,
                   hora: "agora",
                   deMim: true,
                   autor: usuario.nome,
@@ -86,21 +101,35 @@ export function Inbox() {
       ),
     )
     setRascunho("")
+    void enviarMensagem(selecionada.id, texto, usuario.id)
   }
 
   function atribuir(membroId: string | null) {
+    if (!selecionada) return
+    const novoId = !membroId || membroId === "none" ? null : membroId
     setLista((prev) =>
       prev.map((c) =>
-        c.id === selecionada.id
-          ? { ...c, responsavelId: !membroId || membroId === "none" ? null : membroId }
-          : c,
+        c.id === selecionada.id ? { ...c, responsavelId: novoId } : c,
       ),
     )
+    void atribuirConversa(selecionada.id, novoId)
   }
 
   function mudarStatus(status: StatusConversa) {
+    if (!selecionada) return
     setLista((prev) =>
       prev.map((c) => (c.id === selecionada.id ? { ...c, status } : c)),
+    )
+    void mudarStatusConversa(selecionada.id, status)
+  }
+
+  if (!selecionada) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-10">
+        <p className="text-sm text-muted-foreground">
+          Nenhuma conversa por aqui ainda.
+        </p>
+      </div>
     )
   }
 

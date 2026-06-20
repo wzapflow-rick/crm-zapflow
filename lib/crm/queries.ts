@@ -19,57 +19,88 @@ import {
 } from "@/lib/zapflow-data"
 
 // ---------------------------------------------------------------------------
+// Helper de resiliência: tenta ler do banco; se a conexão falhar (ex.: preview
+// do v0, que não alcança o Postgres da VPS), cai no fallback (mock) sem quebrar
+// a página. Em produção, onde o banco é acessível, retorna os dados reais.
+// ---------------------------------------------------------------------------
+async function comFallback<T>(
+  consulta: () => Promise<T>,
+  fallback: T,
+  rotulo: string,
+): Promise<T> {
+  if (!isDbConfigured) return fallback
+  try {
+    return await consulta()
+  } catch (err) {
+    console.log(
+      `[v0] CRM: falha ao ler "${rotulo}" do banco, usando dados de exemplo. Detalhe:`,
+      err instanceof Error ? err.message : err,
+    )
+    return fallback
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Empresa (tenant) ativa. No protótipo usamos a empresa de slug "zapflow".
 // Quando houver login real, troque por: empresa do usuário autenticado.
 // ---------------------------------------------------------------------------
 export async function getEmpresaAtivaId(): Promise<string | null> {
-  if (!isDbConfigured) return "demo"
-  const row = await queryOne<{ id: string }>(
-    `SELECT id FROM empresas WHERE slug = $1 LIMIT 1`,
-    ["zapflow"],
+  return comFallback(
+    async () => {
+      const row = await queryOne<{ id: string }>(
+        `SELECT id FROM empresas WHERE slug = $1 LIMIT 1`,
+        ["zapflow"],
+      )
+      return row?.id ?? null
+    },
+    "demo",
+    "empresa ativa",
   )
-  return row?.id ?? null
 }
 
 // ---------------------------------------------------------------------------
 // Membros
 // ---------------------------------------------------------------------------
 export async function getMembros(empresaId: string): Promise<Membro[]> {
-  if (!isDbConfigured) return membrosMock
+  return comFallback(
+    async () => {
+      const rows = await query<{
+        id: string
+        nome: string
+        papel: Papel
+        iniciais: string | null
+        cor: string | null
+        online: boolean
+        email: string
+        telefone: string | null
+        cargo: string | null
+        entrou_em: Date | null
+        status: Membro["status"]
+      }>(
+        `SELECT id, nome, papel, iniciais, cor, online, email, telefone, cargo, entrou_em, status
+         FROM membros WHERE empresa_id = $1 ORDER BY papel, nome`,
+        [empresaId],
+      )
 
-  const rows = await query<{
-    id: string
-    nome: string
-    papel: Papel
-    iniciais: string | null
-    cor: string | null
-    online: boolean
-    email: string
-    telefone: string | null
-    cargo: string | null
-    entrou_em: Date | null
-    status: Membro["status"]
-  }>(
-    `SELECT id, nome, papel, iniciais, cor, online, email, telefone, cargo, entrou_em, status
-     FROM membros WHERE empresa_id = $1 ORDER BY papel, nome`,
-    [empresaId],
+      return rows.map((r) => ({
+        id: r.id,
+        nome: r.nome,
+        papel: r.papel,
+        iniciais: r.iniciais ?? r.nome.slice(0, 2).toUpperCase(),
+        cor: r.cor ?? "bg-chart-1",
+        online: r.online,
+        email: r.email,
+        telefone: r.telefone ?? "",
+        cargo: r.cargo ?? "",
+        entrouEm: r.entrou_em
+          ? r.entrou_em.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
+          : "",
+        status: r.status,
+      }))
+    },
+    membrosMock,
+    "membros",
   )
-
-  return rows.map((r) => ({
-    id: r.id,
-    nome: r.nome,
-    papel: r.papel,
-    iniciais: r.iniciais ?? r.nome.slice(0, 2).toUpperCase(),
-    cor: r.cor ?? "bg-chart-1",
-    online: r.online,
-    email: r.email,
-    telefone: r.telefone ?? "",
-    cargo: r.cargo ?? "",
-    entrouEm: r.entrou_em
-      ? r.entrou_em.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })
-      : "",
-    status: r.status,
-  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -79,8 +110,7 @@ const horaBR = (d: Date) =>
   d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
 export async function getConversas(empresaId: string): Promise<Conversa[]> {
-  if (!isDbConfigured) return conversasMock
-
+  return comFallback(async () => {
   const convs = await query<{
     id: string
     contato_nome: string
@@ -146,6 +176,7 @@ export async function getConversas(empresaId: string): Promise<Conversa[]> {
       mensagens,
     }
   })
+  }, conversasMock, "conversas")
 }
 
 // ---------------------------------------------------------------------------
@@ -162,8 +193,7 @@ const tituloParaEtapaId: Record<string, Negocio["etapa"]> = {
 }
 
 export async function getNegocios(empresaId: string): Promise<Negocio[]> {
-  if (!isDbConfigured) return negociosMock
-
+  return comFallback(async () => {
   const rows = await query<{
     id: string
     nome_lead: string
@@ -199,18 +229,18 @@ export async function getNegocios(empresaId: string): Promise<Negocio[]> {
     atualizadoEm: r.updated_at.toLocaleDateString("pt-BR"),
     tags: r.tags ?? [],
   }))
+  }, negociosMock, "negócios")
 }
 
 // ---------------------------------------------------------------------------
 // Eventos (agenda)
 // ---------------------------------------------------------------------------
 export async function getEventos(empresaId: string): Promise<Evento[]> {
-  if (!isDbConfigured) return eventosMock
-
+  return comFallback(async () => {
   const rows = await query<{
     id: string
     titulo: string
-    tipo: TipoEvento
+    tipo: string
     responsavel_id: string | null
     inicio: Date
     fim: Date | null
@@ -223,10 +253,12 @@ export async function getEventos(empresaId: string): Promise<Evento[]> {
   return rows.map((r) => {
     // getDay(): 0=domingo..6=sábado. UI usa 0=segunda..4=sexta.
     const dia = (r.inicio.getDay() + 6) % 7
+    // Banco usa "follow_up"; a UI usa "follow-up".
+    const tipo = (r.tipo === "follow_up" ? "follow-up" : r.tipo) as TipoEvento
     return {
       id: r.id,
       titulo: r.titulo,
-      tipo: r.tipo,
+      tipo,
       inicio: horaBR(r.inicio),
       fim: r.fim ? horaBR(r.fim) : "",
       responsavelId: r.responsavel_id ?? "",
@@ -234,14 +266,14 @@ export async function getEventos(empresaId: string): Promise<Evento[]> {
       concluido: false,
     }
   })
+  }, eventosMock, "eventos")
 }
 
 // ---------------------------------------------------------------------------
 // Tarefas (pendências)
 // ---------------------------------------------------------------------------
 export async function getTarefas(empresaId: string): Promise<Tarefa[]> {
-  if (!isDbConfigured) return tarefasMock
-
+  return comFallback(async () => {
   const rows = await query<{
     id: string
     titulo: string
@@ -262,6 +294,7 @@ export async function getTarefas(empresaId: string): Promise<Tarefa[]> {
     prioridade: "media",
     status: r.status,
   }))
+  }, tarefasMock, "tarefas")
 }
 
 // Etapas do pipeline (para colunas dinâmicas no futuro).

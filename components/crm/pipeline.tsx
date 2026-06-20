@@ -12,20 +12,29 @@ import { cn } from "@/lib/utils"
 import { useApp } from "@/components/crm/providers"
 import {
   etapas,
-  negocios as negociosIniciais,
-  membroPorId,
   formatarBRL,
   type Negocio,
+  type Membro,
   type EtapaId,
 } from "@/lib/zapflow-data"
+import { moverNegocio } from "@/app/actions/crm"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 
-export function Pipeline() {
+export function Pipeline({
+  negociosIniciais,
+  membros,
+}: {
+  negociosIniciais: Negocio[]
+  membros: Membro[]
+}) {
   const { usuario, isAdmin } = useApp()
   const [negocios, setNegocios] = useState<Negocio[]>(negociosIniciais)
   const [arrastando, setArrastando] = useState<string | null>(null)
   const [sobreEtapa, setSobreEtapa] = useState<EtapaId | null>(null)
+
+  const membroPorId = (id: string | null) =>
+    id ? membros.find((m) => m.id === id) : undefined
 
   // Atendente vê apenas os próprios negócios; admin vê todos.
   const visiveis = useMemo(
@@ -43,11 +52,14 @@ export function Pipeline() {
 
   function moverPara(etapa: EtapaId) {
     if (!arrastando) return
+    const id = arrastando
     setNegocios((prev) =>
-      prev.map((n) => (n.id === arrastando ? { ...n, etapa } : n)),
+      prev.map((n) => (n.id === id ? { ...n, etapa } : n)),
     )
     setArrastando(null)
     setSobreEtapa(null)
+    const titulo = etapas.find((e) => e.id === etapa)?.titulo
+    if (titulo) void moverNegocio(id, titulo)
   }
 
   return (
@@ -130,6 +142,7 @@ export function Pipeline() {
                     <CartaoNegocio
                       key={n.id}
                       negocio={n}
+                      responsavel={membroPorId(n.responsavelId)}
                       arrastando={arrastando === n.id}
                       onDragStart={() => setArrastando(n.id)}
                       onDragEnd={() => {
@@ -176,16 +189,17 @@ function Kpi({
 
 function CartaoNegocio({
   negocio,
+  responsavel,
   arrastando,
   onDragStart,
   onDragEnd,
 }: {
   negocio: Negocio
+  responsavel: Membro | undefined
   arrastando: boolean
   onDragStart: () => void
   onDragEnd: () => void
 }) {
-  const responsavel = membroPorId(negocio.responsavelId)
   return (
     <div
       draggable

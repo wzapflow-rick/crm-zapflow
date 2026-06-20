@@ -26,13 +26,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import {
-  membros as membrosIniciais,
-  conversas,
-  negocios,
-  tarefas,
   type Membro,
+  type Conversa,
+  type Negocio,
+  type Tarefa,
   type Papel,
 } from "@/lib/zapflow-data"
+import {
+  alterarPapel as alterarPapelAction,
+  convidarMembro,
+} from "@/app/actions/crm"
 import { useApp } from "@/components/crm/providers"
 
 const statusLabel: Record<Membro["status"], string> = {
@@ -47,7 +50,17 @@ const statusClasses: Record<Membro["status"], string> = {
   inativo: "bg-muted text-muted-foreground",
 }
 
-export function Equipe() {
+export function Equipe({
+  membrosIniciais,
+  conversas,
+  negocios,
+  tarefas,
+}: {
+  membrosIniciais: Membro[]
+  conversas: Conversa[]
+  negocios: Negocio[]
+  tarefas: Tarefa[]
+}) {
   const { isAdmin } = useApp()
   const [membros, setMembros] = useState<Membro[]>(membrosIniciais)
   const [convite, setConvite] = useState("")
@@ -56,6 +69,7 @@ export function Equipe() {
     setMembros((prev) =>
       prev.map((m) => (m.id === id ? { ...m, papel } : m)),
     )
+    void alterarPapelAction(id, papel)
   }
 
   function convidar() {
@@ -81,6 +95,7 @@ export function Equipe() {
       },
     ])
     setConvite("")
+    void convidarMembro(nome, email)
   }
 
   if (!isAdmin) {

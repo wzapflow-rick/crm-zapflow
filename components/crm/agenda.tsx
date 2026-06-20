@@ -15,13 +15,13 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
-  eventos as eventosIniciais,
-  tarefas as tarefasIniciais,
   diasSemana,
-  membroPorId,
   type TipoEvento,
   type Tarefa,
+  type Evento,
+  type Membro,
 } from "@/lib/zapflow-data"
+import { alternarTarefa as alternarTarefaAction } from "@/app/actions/crm"
 import { useApp } from "@/components/crm/providers"
 
 const tipoConfig: Record<
@@ -40,9 +40,20 @@ const prioridadeCor: Record<Tarefa["prioridade"], string> = {
   baixa: "bg-muted text-muted-foreground",
 }
 
-export function Agenda() {
+export function Agenda({
+  eventosIniciais,
+  tarefasIniciais,
+  membros,
+}: {
+  eventosIniciais: Evento[]
+  tarefasIniciais: Tarefa[]
+  membros: Membro[]
+}) {
   const { usuario, isAdmin } = useApp()
   const [tarefas, setTarefas] = useState(tarefasIniciais)
+
+  const membroPorId = (id: string | null) =>
+    id ? membros.find((m) => m.id === id) : undefined
 
   // Atendente vê só os próprios itens; admin vê tudo.
   const eventosVisiveis = isAdmin
@@ -53,16 +64,16 @@ export function Agenda() {
     : tarefas.filter((t) => t.responsavelId === usuario.id)
 
   function alternarTarefa(id: string) {
+    let concluida = false
     setTarefas((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              status: t.status === "concluida" ? "pendente" : "concluida",
-            }
-          : t,
-      ),
+      prev.map((t) => {
+        if (t.id !== id) return t
+        const novoStatus = t.status === "concluida" ? "pendente" : "concluida"
+        concluida = novoStatus === "concluida"
+        return { ...t, status: novoStatus }
+      }),
     )
+    void alternarTarefaAction(id, concluida)
   }
 
   return (
