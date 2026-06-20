@@ -88,11 +88,11 @@ export function Inbox() {
     setRascunho("")
   }
 
-  function atribuir(membroId: string) {
+  function atribuir(membroId: string | null) {
     setLista((prev) =>
       prev.map((c) =>
         c.id === selecionada.id
-          ? { ...c, responsavelId: membroId === "none" ? null : membroId }
+          ? { ...c, responsavelId: !membroId || membroId === "none" ? null : membroId }
           : c,
       ),
     )
