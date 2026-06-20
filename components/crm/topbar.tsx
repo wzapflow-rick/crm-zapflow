@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, ChevronDown } from "lucide-react"
+import { Search, ChevronDown, LogOut } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -8,16 +8,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { membros } from "@/lib/zapflow-data"
 import { useApp } from "@/components/crm/providers"
+import { sair } from "@/app/actions/auth"
 
 export function Topbar({ titulo }: { titulo: string }) {
-  const { usuario, setUsuario } = useApp()
+  const { usuario } = useApp()
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-5">
@@ -52,27 +51,24 @@ export function Topbar({ titulo }: { titulo: string }) {
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="text-xs text-muted-foreground">
-            Entrar como (demo de papéis)
-          </DropdownMenuLabel>
+          <div className="px-2 py-1.5">
+            <p className="text-sm font-medium text-foreground">{usuario.nome}</p>
+            {usuario.email ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {usuario.email}
+              </p>
+            ) : null}
+          </div>
           <DropdownMenuSeparator />
-          {membros.map((m) => (
+          <form action={sair}>
             <DropdownMenuItem
-              key={m.id}
-              onClick={() => setUsuario(m)}
-              className="gap-2"
+              render={<button type="submit" className="w-full" />}
+              className="gap-2 text-destructive focus:text-destructive"
             >
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className={cn(m.cor, "text-[10px] text-white")}>
-                  {m.iniciais}
-                </AvatarFallback>
-              </Avatar>
-              <span className="flex-1 text-sm">{m.nome}</span>
-              <span className="text-[10px] capitalize text-muted-foreground">
-                {m.papel}
-              </span>
+              <LogOut className="h-4 w-4" />
+              Sair
             </DropdownMenuItem>
-          ))}
+          </form>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
