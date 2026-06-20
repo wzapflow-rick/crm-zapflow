@@ -187,3 +187,61 @@ export const tarefas: Tarefa[] = [
 ]
 
 export const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
+
+// ---------- Pipeline / Kanban de negócios ----------
+
+export type EtapaId =
+  | "novo"
+  | "qualificacao"
+  | "demo"
+  | "proposta"
+  | "ganho"
+  | "perdido"
+
+export type Etapa = {
+  id: EtapaId
+  titulo: string
+  // classe de cor do indicador da coluna
+  cor: string
+}
+
+export type Negocio = {
+  id: string
+  empresa: string
+  contato: string
+  iniciais: string
+  cor: string
+  valor: number // em reais (MRR estimado ou ticket)
+  etapa: EtapaId
+  responsavelId: string
+  origem: "WhatsApp" | "Indicação" | "Captação ativa" | "Anúncio"
+  atualizadoEm: string
+  tags: string[]
+}
+
+export const etapas: Etapa[] = [
+  { id: "novo", titulo: "Novo lead", cor: "bg-chart-2" },
+  { id: "qualificacao", titulo: "Qualificação", cor: "bg-chart-3" },
+  { id: "demo", titulo: "Demo enviada", cor: "bg-chart-5" },
+  { id: "proposta", titulo: "Proposta", cor: "bg-chart-4" },
+  { id: "ganho", titulo: "Ganho", cor: "bg-chart-1" },
+  { id: "perdido", titulo: "Perdido", cor: "bg-destructive" },
+]
+
+export const negocios: Negocio[] = [
+  { id: "n1", empresa: "Pizzaria do Bairro", contato: "Carlos (dono)", iniciais: "PB", cor: "bg-chart-4", valor: 149, etapa: "proposta", responsavelId: "u2", origem: "WhatsApp", atualizadoEm: "Hoje, 09:42", tags: ["lead quente", "delivery"] },
+  { id: "n2", empresa: "Burger House", contato: "Patrícia", iniciais: "BH", cor: "bg-chart-1", valor: 199, etapa: "qualificacao", responsavelId: "u3", origem: "WhatsApp", atualizadoEm: "Hoje, 09:15", tags: ["agendar ligação"] },
+  { id: "n3", empresa: "Sushi Express", contato: "Henrique", iniciais: "SE", cor: "bg-chart-5", valor: 249, etapa: "novo", responsavelId: "u2", origem: "Captação ativa", atualizadoEm: "Hoje, 08:30", tags: ["migração"] },
+  { id: "n4", empresa: "Mercadinho Central", contato: "Sr. João", iniciais: "MC", cor: "bg-chart-2", valor: 99, etapa: "novo", responsavelId: "u1", origem: "Anúncio", atualizadoEm: "Ontem", tags: ["lead frio"] },
+  { id: "n5", empresa: "Açaí da Praça", contato: "Juliana", iniciais: "AP", cor: "bg-chart-3", valor: 129, etapa: "ganho", responsavelId: "u4", origem: "Indicação", atualizadoEm: "Ontem", tags: ["cliente"] },
+  { id: "n6", empresa: "Hamburgueria 24h", contato: "Téo", iniciais: "H2", cor: "bg-chart-5", valor: 199, etapa: "demo", responsavelId: "u3", origem: "WhatsApp", atualizadoEm: "Ontem", tags: ["delivery"] },
+  { id: "n7", empresa: "Padaria Pão Quente", contato: "Dona Lúcia", iniciais: "PQ", cor: "bg-chart-1", valor: 99, etapa: "demo", responsavelId: "u2", origem: "Captação ativa", atualizadoEm: "Seg, 14:10", tags: [] },
+  { id: "n8", empresa: "Espetinho do Zé", contato: "Zé", iniciais: "EZ", cor: "bg-chart-4", valor: 79, etapa: "qualificacao", responsavelId: "u5", origem: "WhatsApp", atualizadoEm: "Seg, 11:00", tags: ["lead frio"] },
+  { id: "n9", empresa: "Restaurante Sabor & Cia", contato: "Marcos", iniciais: "SC", cor: "bg-chart-2", valor: 299, etapa: "proposta", responsavelId: "u3", origem: "Indicação", atualizadoEm: "Seg, 10:20", tags: ["lead quente"] },
+  { id: "n10", empresa: "Lanchonete da Esquina", contato: "Renata", iniciais: "LE", cor: "bg-chart-3", valor: 129, etapa: "perdido", responsavelId: "u4", origem: "Anúncio", atualizadoEm: "Sem passada", tags: ["preço"] },
+  { id: "n11", empresa: "Pizzaria Forno a Lenha", contato: "Antônio", iniciais: "FL", cor: "bg-chart-5", valor: 179, etapa: "ganho", responsavelId: "u2", origem: "WhatsApp", atualizadoEm: "Sem passada", tags: ["cliente"] },
+  { id: "n12", empresa: "Doceria Sweet", contato: "Camila", iniciais: "DS", cor: "bg-chart-1", valor: 99, etapa: "novo", responsavelId: "u5", origem: "Captação ativa", atualizadoEm: "Hoje, 07:50", tags: [] },
+]
+
+export const formatarBRL = (valor: number) =>
+  valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 })

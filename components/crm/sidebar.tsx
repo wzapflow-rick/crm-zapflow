@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Users,
   LayoutDashboard,
+  KanbanSquare,
   Settings,
   Zap,
 } from "lucide-react"
@@ -17,6 +18,7 @@ import { useApp } from "@/components/crm/providers"
 const navItems = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard, adminOnly: false },
   { href: "/inbox", label: "Inbox WhatsApp", icon: MessageSquare, adminOnly: false },
+  { href: "/pipeline", label: "Pipeline", icon: KanbanSquare, adminOnly: false },
   { href: "/agenda", label: "Planejamento", icon: CalendarDays, adminOnly: false },
   { href: "/equipe", label: "Equipe", icon: Users, adminOnly: true },
 ]
