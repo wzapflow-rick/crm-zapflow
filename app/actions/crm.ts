@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { isDbConfigured, query } from "@/lib/db"
 import { getEmpresaAtivaId } from "@/lib/crm/queries"
+import { getSessao } from "@/lib/crm/auth"
+import type { Papel } from "@/lib/zapflow-data"
 
 // Todas as actions são escopadas por empresa (multi-tenant).
 // Quando CRM_DATABASE_URL não está setada ou o banco está inacessível
@@ -120,6 +122,89 @@ export async function alterarPapel(
   })
   if (r.ok) revalidatePath("/equipe")
   return r
+}
+
+// Cria um usuário real com senha (hash via pgcrypto). Só admin pode.
+// Diferente das demais actions, esta reporta erro de verdade (não é otimista),
+// pois o admin precisa confirmar se o usuário foi criado.
+export async function criarMembro(input: {
+  nome: string
+  email: string
+  senha: string
+  papel: Papel
+  telefone?: string
+  cargo?: string
+}): Promise<Resultado> {
+  const nome = input.nome.trim()
+  const email = input.email.trim().toLowerCase()
+  const senha = input.senha
+  const papel: Papel = input.papel === "admin" ? "admin" : "atendente"
+
+  if (!nome || !email || !senha) {
+    return { ok: false, erro: "Preencha nome, e-mail e senha." }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, erro: "E-mail inválido." }
+  }
+  if (senha.length < 6) {
+    return { ok: false, erro: "A senha deve ter ao menos 6 caracteres." }
+  }
+
+  // Só administradores podem criar usuários.
+  const sessao = await getSessao()
+  if (!sessao || sessao.papel !== "admin") {
+    return { ok: false, erro: "Apenas administradores podem criar usuários." }
+  }
+
+  // Preview/demo (sem banco acessível): simula sucesso para a UI.
+  if (!isDbConfigured || sessao.empresaId === "demo") {
+    return { ok: true }
+  }
+
+  const iniciais = nome
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
+  const cores = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"]
+  const cor = cores[Math.floor(Math.random() * cores.length)]
+
+  try {
+    const existente = await query(
+      `SELECT 1 FROM membros WHERE empresa_id = $1 AND lower(email) = $2 LIMIT 1`,
+      [sessao.empresaId, email],
+    )
+    if (existente.length > 0) {
+      return { ok: false, erro: "Já existe um membro com esse e-mail." }
+    }
+    await query(
+      `INSERT INTO membros
+         (empresa_id, nome, email, telefone, cargo, papel, status, iniciais, cor, senha_hash, entrou_em, online)
+       VALUES ($1, $2, $3, $4, $5, $6, 'ativo', $7, $8, crypt($9, gen_salt('bf')), CURRENT_DATE, false)`,
+      [
+        sessao.empresaId,
+        nome,
+        email,
+        input.telefone?.trim() || null,
+        input.cargo?.trim() || null,
+        papel,
+        iniciais,
+        cor,
+        senha,
+      ],
+    )
+    revalidatePath("/configuracoes")
+    revalidatePath("/equipe")
+    return { ok: true }
+  } catch (err) {
+    console.log(
+      "[v0] CRM: falha ao criar membro:",
+      err instanceof Error ? err.message : err,
+    )
+    return { ok: false, erro: "Não foi possível criar o usuário. Tente novamente." }
+  }
 }
 
 export async function convidarMembro(
