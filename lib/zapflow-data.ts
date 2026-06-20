@@ -11,6 +11,11 @@ export type Membro = {
   iniciais: string
   cor: string // classe de cor de fundo do avatar
   online: boolean
+  email: string
+  telefone: string
+  cargo: string
+  entrouEm: string
+  status: "ativo" | "convite_pendente" | "inativo"
 }
 
 export type StatusConversa = "aberta" | "pendente" | "resolvida"
@@ -61,11 +66,11 @@ export type Tarefa = {
 }
 
 export const membros: Membro[] = [
-  { id: "u1", nome: "Você (Admin)", papel: "admin", iniciais: "AD", cor: "bg-chart-1", online: true },
-  { id: "u2", nome: "Marina Souza", papel: "atendente", iniciais: "MS", cor: "bg-chart-2", online: true },
-  { id: "u3", nome: "Rafael Lima", papel: "atendente", iniciais: "RL", cor: "bg-chart-3", online: true },
-  { id: "u4", nome: "Bianca Alves", papel: "atendente", iniciais: "BA", cor: "bg-chart-4", online: false },
-  { id: "u5", nome: "Diego Martins", papel: "atendente", iniciais: "DM", cor: "bg-chart-5", online: false },
+  { id: "u1", nome: "Você (Admin)", papel: "admin", iniciais: "AD", cor: "bg-chart-1", online: true, email: "admin@zapflow.app", telefone: "+55 79 99999-0001", cargo: "Gestor de operações", entrouEm: "Jan 2024", status: "ativo" },
+  { id: "u2", nome: "Marina Souza", papel: "atendente", iniciais: "MS", cor: "bg-chart-2", online: true, email: "marina@zapflow.app", telefone: "+55 79 99888-0002", cargo: "Atendimento & vendas", entrouEm: "Mar 2024", status: "ativo" },
+  { id: "u3", nome: "Rafael Lima", papel: "atendente", iniciais: "RL", cor: "bg-chart-3", online: true, email: "rafael@zapflow.app", telefone: "+55 79 99777-0003", cargo: "Atendimento & vendas", entrouEm: "Mai 2024", status: "ativo" },
+  { id: "u4", nome: "Bianca Alves", papel: "atendente", iniciais: "BA", cor: "bg-chart-4", online: false, email: "bianca@zapflow.app", telefone: "+55 79 99666-0004", cargo: "Suporte ao cliente", entrouEm: "Ago 2024", status: "ativo" },
+  { id: "u5", nome: "Diego Martins", papel: "atendente", iniciais: "DM", cor: "bg-chart-5", online: false, email: "diego@zapflow.app", telefone: "+55 79 99555-0005", cargo: "Captação ativa", entrouEm: "Out 2024", status: "convite_pendente" },
 ]
 
 export const membroPorId = (id: string | null) =>
