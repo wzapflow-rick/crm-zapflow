@@ -7,6 +7,8 @@ import {
   getTarefas,
 } from "@/lib/crm/queries"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Equipe — ZapFlow CRM",
 }

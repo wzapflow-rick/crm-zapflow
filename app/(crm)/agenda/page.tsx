@@ -7,6 +7,8 @@ import {
   getMembros,
 } from "@/lib/crm/queries"
 
+export const dynamic = "force-dynamic"
+
 export default async function AgendaPage() {
   const empresaId = (await getEmpresaAtivaId()) ?? "demo"
   const [eventos, tarefas, membros] = await Promise.all([

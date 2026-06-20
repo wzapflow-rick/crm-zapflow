@@ -1,6 +1,8 @@
 import { Pipeline } from "@/components/crm/pipeline"
 import { getEmpresaAtivaId, getNegocios, getMembros } from "@/lib/crm/queries"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Pipeline de vendas — ZapFlow CRM",
 }

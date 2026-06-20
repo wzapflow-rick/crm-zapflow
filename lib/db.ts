@@ -16,7 +16,7 @@ const globalForPg = globalThis as unknown as { crmPool?: Pool }
 
 function getPool(): Pool {
   if (!globalForPg.crmPool) {
-    globalForPg.crmPool = new Pool({
+    const pool = new Pool({
       connectionString: process.env.CRM_DATABASE_URL,
       // VPS própria geralmente sem SSL; ative via sslmode=require na URL se precisar.
       ssl: process.env.CRM_DATABASE_SSL === "true"
@@ -24,7 +24,20 @@ function getPool(): Pool {
         : undefined,
       max: 10,
       idleTimeoutMillis: 30_000,
+      // Falha rápido em vez de pendurar a requisição se a VPS não responder.
+      connectionTimeoutMillis: 8_000,
+      // Aborta queries que travarem (ms).
+      statement_timeout: 10_000,
     })
+
+    // CRÍTICO: sem este listener, um erro em conexão ociosa (ex.: a VPS derruba
+    // a conexão) vira exceção não tratada e DERRUBA a função serverless inteira.
+    // Com o listener, o erro é apenas logado e o pool se recupera.
+    pool.on("error", (err) => {
+      console.log("[v0] CRM: erro em conexão ociosa do pool:", err.message)
+    })
+
+    globalForPg.crmPool = pool
   }
   return globalForPg.crmPool
 }
