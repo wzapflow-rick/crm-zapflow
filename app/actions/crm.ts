@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { isDbConfigured, query } from "@/lib/db"
-import { getEmpresaAtivaId } from "@/lib/crm/queries"
+import { getEmpresaAtivaId, getTelefoneConversa } from "@/lib/crm/queries"
 import { getSessao } from "@/lib/crm/auth"
+import { enviarTexto, evolutionConfigurada } from "@/lib/crm/evolution"
 import type { Papel } from "@/lib/zapflow-data"
 
 // Todas as actions são escopadas por empresa (multi-tenant).
@@ -45,11 +46,28 @@ export async function enviarMensagem(
   if (!texto) return { ok: false, erro: "Mensagem vazia" }
 
   const r = await escrever("enviarMensagem", async (empresaId) => {
-    // TODO: ponto de integração com a Evolution API (envio real do WhatsApp).
+    // Envia pelo WhatsApp (Evolution) quando configurada; guarda o id retornado
+    // para casar com o webhook e evitar duplicar a mensagem no inbox.
+    let evolutionId: string | null = null
+    if (evolutionConfigurada) {
+      const telefone = await getTelefoneConversa(empresaId, conversaId)
+      if (telefone) {
+        const envio = await enviarTexto(telefone, texto)
+        if (envio.ok) {
+          evolutionId = envio.messageId ?? null
+        } else {
+          // Não persiste se o WhatsApp recusou — o atendente vê a mensagem
+          // sumir no próximo refresh e pode tentar de novo.
+          console.log("[v0] CRM: envio Evolution falhou:", envio.erro)
+          throw new Error(envio.erro ?? "Falha no envio Evolution")
+        }
+      }
+    }
+
     await query(
-      `INSERT INTO mensagens (empresa_id, conversa_id, autor, membro_id, conteudo)
-       VALUES ($1, $2, 'atendente', $3, $4)`,
-      [empresaId, conversaId, membroId, texto],
+      `INSERT INTO mensagens (empresa_id, conversa_id, autor, membro_id, conteudo, evolution_message_id)
+       VALUES ($1, $2, 'atendente', $3, $4, $5)`,
+      [empresaId, conversaId, membroId, texto, evolutionId],
     )
     await query(
       `UPDATE conversas SET ultima_atividade = now() WHERE id = $1 AND empresa_id = $2`,

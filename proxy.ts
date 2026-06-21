@@ -19,6 +19,7 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Protege tudo, exceto login, assets estáticos e rotas internas do Next.
-  matcher: ["/((?!login|_next/static|_next/image|favicon.ico|.*\\.).*)"],
+  // Protege tudo, exceto login, rotas de API (têm proteção própria por token),
+  // assets estáticos e rotas internas do Next.
+  matcher: ["/((?!login|api|_next/static|_next/image|favicon.ico|.*\\.).*)"],
 }

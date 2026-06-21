@@ -179,6 +179,24 @@ export async function getConversas(empresaId: string): Promise<Conversa[]> {
   }, conversasMock, "conversas")
 }
 
+// Telefone do contato de uma conversa (para o envio via Evolution).
+export async function getTelefoneConversa(
+  empresaId: string,
+  conversaId: string,
+): Promise<string | null> {
+  return comFallback(
+    async () => {
+      const row = await queryOne<{ contato_telefone: string }>(
+        `SELECT contato_telefone FROM conversas WHERE id = $1 AND empresa_id = $2 LIMIT 1`,
+        [conversaId, empresaId],
+      )
+      return row?.contato_telefone ?? null
+    },
+    null,
+    "telefone da conversa",
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Negócios (pipeline)
 // ---------------------------------------------------------------------------
