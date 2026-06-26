@@ -1,12 +1,21 @@
-import { Settings } from "lucide-react"
-import { EmBreve } from "@/components/simple/em-breve"
+import { Topbar } from "@/components/simple/topbar"
+import { Equipe } from "@/components/configuracoes/equipe"
+import { getMembros, type Membro } from "@/lib/membros-db"
 
-export default function ConfiguracoesPage() {
+export const dynamic = "force-dynamic"
+
+export default async function ConfiguracoesPage() {
+  let membros: Membro[] = []
+  try {
+    membros = await getMembros()
+  } catch {
+    membros = []
+  }
+
   return (
-    <EmBreve
-      titulo="Configurações"
-      icon={Settings}
-      descricao="Usuários (os 3 fundadores), permissões, branding do sistema, notificações e integrações futuras."
-    />
+    <>
+      <Topbar titulo="Configurações" />
+      <Equipe membros={membros} />
+    </>
   )
 }

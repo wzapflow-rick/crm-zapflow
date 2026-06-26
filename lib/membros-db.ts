@@ -63,3 +63,26 @@ export async function getMembroPorId(id: string | null | undefined): Promise<Mem
   const membros = await getMembros()
   return membros.find((m) => m.id === id) ?? null
 }
+
+export async function criarMembro(input: { nome: string; cargo?: string }): Promise<void> {
+  const nome = input.nome.trim()
+  await query(
+    `insert into public.membros (nome, cargo, iniciais, cor)
+     values ($1, $2, $3, $4)`,
+    [nome, input.cargo?.trim() || null, iniciaisDe(nome), corPara(nome)],
+  )
+}
+
+export async function atualizarMembro(id: string, input: { nome: string; cargo?: string }): Promise<void> {
+  const nome = input.nome.trim()
+  await query(
+    `update public.membros
+     set nome = $2, cargo = $3, iniciais = $4
+     where id = $1`,
+    [id, nome, input.cargo?.trim() || null, iniciaisDe(nome)],
+  )
+}
+
+export async function excluirMembro(id: string): Promise<void> {
+  await query(`delete from public.membros where id = $1`, [id])
+}

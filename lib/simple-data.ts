@@ -35,6 +35,7 @@ export type Cliente = {
   desde: string // mês/ano de início (exibição)
   desdeISO?: string // YYYY-MM-DD (para edição)
   resumoEstrategico?: string
+  portalToken?: string // link secreto do portal do cliente
 }
 
 export type Meta = {
@@ -92,6 +93,8 @@ export type Mensagem = {
   autorId: string
   data: string
   texto: string
+  deCliente?: boolean // escrita pelo próprio cliente no portal
+  autorNome?: string // nome exibido quando vem do cliente (sem membro)
 }
 
 export type Arquivo = {

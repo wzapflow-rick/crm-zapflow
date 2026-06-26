@@ -28,6 +28,7 @@ type EmpresaRow = {
   telefone: string | null
   desde: Date | null
   resumo_estrategico?: string | null
+  portal_token?: string | null
 }
 
 // Paleta de cores de avatar usada quando o cliente não tem cor definida.
@@ -83,6 +84,7 @@ function mapRow(r: EmpresaRow): Cliente {
     desde: formatarDesde(r.desde),
     desdeISO: r.desde ? new Date(r.desde).toISOString().slice(0, 10) : "",
     resumoEstrategico: r.resumo_estrategico ?? "",
+    portalToken: r.portal_token ?? "",
   }
 }
 
@@ -97,11 +99,25 @@ export async function getClientes(): Promise<Cliente[]> {
 
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico
+    `select id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas
      where id = $1
      limit 1`,
     [id],
+  )
+  return rows[0] ? mapRow(rows[0]) : null
+}
+
+// Busca o cliente pelo token secreto do portal (link enviado ao cliente).
+export async function getClientePorToken(token: string): Promise<Cliente | null> {
+  const limpo = token.trim()
+  if (!limpo) return null
+  const rows = await query<EmpresaRow>(
+    `select id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
+     from public.empresas
+     where portal_token = $1
+     limit 1`,
+    [limpo],
   )
   return rows[0] ? mapRow(rows[0]) : null
 }
@@ -401,11 +417,13 @@ type MensagemRow = {
   autor_id: string | null
   texto: string
   data: string | null
+  de_cliente?: boolean | null
+  autor_nome?: string | null
 }
 
 export async function getMensagens(empresaId: string): Promise<Mensagem[]> {
   const rows = await query<MensagemRow>(
-    `select id, autor_id, texto, data
+    `select id, autor_id, texto, data, de_cliente, autor_nome
      from public.mensagens
      where empresa_id = $1
      order by posicao asc, created_at asc`,
@@ -417,6 +435,8 @@ export async function getMensagens(empresaId: string): Promise<Mensagem[]> {
     autorId: r.autor_id ?? "",
     data: r.data ?? "",
     texto: r.texto,
+    deCliente: r.de_cliente ?? false,
+    autorNome: r.autor_nome ?? "",
   }))
 }
 
@@ -427,14 +447,18 @@ export async function salvarMensagens(empresaId: string, mensagens: MensagemInpu
   const client = await pool.connect()
   try {
     await client.query("begin")
-    await client.query(`delete from public.mensagens where empresa_id = $1`, [empresaId])
+    // Apaga apenas as mensagens da equipe; preserva as escritas pelo cliente no portal.
+    await client.query(
+      `delete from public.mensagens where empresa_id = $1 and coalesce(de_cliente, false) = false`,
+      [empresaId],
+    )
     let posicao = 0
     for (const m of mensagens) {
       const texto = m.texto.trim()
       if (!texto) continue
       await client.query(
-        `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao)
-         values ($1, $2, $3, $4, $5)`,
+        `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao, de_cliente)
+         values ($1, $2, $3, $4, $5, false)`,
         [empresaId, m.autorId || null, texto, m.data?.trim() || null, posicao++],
       )
     }
@@ -445,6 +469,29 @@ export async function salvarMensagens(empresaId: string, mensagens: MensagemInpu
   } finally {
     client.release()
   }
+}
+
+// Mensagem escrita pelo próprio cliente no portal (append-only, não apaga as demais).
+export async function adicionarMensagemCliente(
+  empresaId: string,
+  texto: string,
+  autorNome: string,
+): Promise<void> {
+  const limpo = texto.trim()
+  if (!limpo) return
+  const data = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  await query(
+    `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao, de_cliente, autor_nome)
+     values ($1, null, $2, $3,
+       coalesce((select max(posicao) from public.mensagens where empresa_id = $1), -1) + 1,
+       true, $4)`,
+    [empresaId, limpo, data, autorNome.trim() || "Cliente"],
+  )
 }
 
 // ── Resultados (aba Resultados) ───────────────────────────────────────────
