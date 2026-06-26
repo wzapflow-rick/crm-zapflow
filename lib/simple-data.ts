@@ -76,6 +76,7 @@ export type EventoCliente = {
   tipo: "gravacao" | "post" | "entrega" | "reuniao"
   data: string
   hora: string
+  dataISO?: string // YYYY-MM-DD (para edição)
 }
 
 export type Mensagem = {

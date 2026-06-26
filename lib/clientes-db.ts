@@ -1,6 +1,6 @@
 import "server-only"
 import { query, getPool } from "@/lib/db"
-import type { Cliente, Meta, StatusCliente } from "@/lib/simple-data"
+import type { Cliente, EventoCliente, Meta, StatusCliente } from "@/lib/simple-data"
 
 type EmpresaRow = {
   id: string
@@ -154,6 +154,75 @@ export async function salvarVisaoGeral(
   } catch (e) {
     await client.query("rollback")
     throw e
+  } finally {
+    client.release()
+  }
+}
+
+// ── Eventos (aba Calendário) ──────────────────────────────────────────────
+
+type EventoRow = {
+  id: string
+  titulo: string
+  tipo: string | null
+  data: Date | null
+  hora: string | null
+}
+
+const TIPOS_EVENTO: EventoCliente["tipo"][] = ["gravacao", "post", "entrega", "reuniao"]
+
+function formatarDataCurta(d: Date | null): string {
+  if (!d) return "—"
+  const data = new Date(d)
+  const dia = String(data.getUTCDate()).padStart(2, "0")
+  const mes = String(data.getUTCMonth() + 1).padStart(2, "0")
+  return `${dia}/${mes}`
+}
+
+export async function getEventos(empresaId: string): Promise<EventoCliente[]> {
+  const rows = await query<EventoRow>(
+    `select id, titulo, tipo, data, hora
+     from public.eventos
+     where empresa_id = $1
+     order by data asc nulls last, posicao asc, created_at asc`,
+    [empresaId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    clienteId: empresaId,
+    titulo: r.titulo,
+    tipo: (TIPOS_EVENTO.includes(r.tipo as EventoCliente["tipo"]) ? r.tipo : "gravacao") as EventoCliente["tipo"],
+    data: formatarDataCurta(r.data),
+    hora: r.hora ?? "",
+    // Mantém a data ISO para edição (input type=date).
+    dataISO: r.data ? new Date(r.data).toISOString().slice(0, 10) : "",
+  }))
+}
+
+export type EventoInput = { titulo: string; tipo: string; data?: string; hora?: string }
+
+// Salva a lista de eventos do cliente regravando tudo numa transação.
+export async function salvarEventos(empresaId: string, eventos: EventoInput[]): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    await client.query(`delete from public.eventos where empresa_id = $1`, [empresaId])
+    let posicao = 0
+    for (const e of eventos) {
+      const titulo = e.titulo.trim()
+      if (!titulo) continue
+      const tipo = TIPOS_EVENTO.includes(e.tipo as EventoCliente["tipo"]) ? e.tipo : "gravacao"
+      await client.query(
+        `insert into public.eventos (empresa_id, titulo, tipo, data, hora, posicao)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [empresaId, titulo, tipo, e.data || null, e.hora?.trim() || null, posicao++],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
   } finally {
     client.release()
   }

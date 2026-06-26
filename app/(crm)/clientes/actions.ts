@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache"
 import {
   atualizarCliente,
   criarCliente,
+  salvarEventos,
   salvarVisaoGeral,
   type AtualizarCliente,
+  type EventoInput,
   type MetaInput,
   type NovoCliente,
 } from "@/lib/clientes-db"
@@ -122,6 +124,47 @@ export async function salvarVisaoGeralAction(
 
   try {
     await salvarVisaoGeral(id, resumo, metas)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function salvarEventosAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  let eventos: EventoInput[] = []
+  try {
+    const bruto = String(formData.get("eventos") ?? "[]")
+    const parsed = JSON.parse(bruto) as unknown
+    if (Array.isArray(parsed)) {
+      eventos = parsed
+        .map((e) => {
+          const item = e as Record<string, unknown>
+          return {
+            titulo: String(item.titulo ?? ""),
+            tipo: String(item.tipo ?? "gravacao"),
+            data: item.data ? String(item.data) : undefined,
+            hora: item.hora ? String(item.hora) : undefined,
+          }
+        })
+        .filter((e) => e.titulo.trim())
+    }
+  } catch {
+    return { ok: false, erro: "Não foi possível ler os eventos." }
+  }
+
+  try {
+    await salvarEventos(id, eventos)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
