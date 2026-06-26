@@ -9,6 +9,7 @@ import {
   salvarEstrategia,
   salvarEventos,
   salvarMensagens,
+  salvarResultados,
   salvarVisaoGeral,
   type ArquivoInput,
   type AtualizarCliente,
@@ -17,6 +18,7 @@ import {
   type MensagemInput,
   type MetaInput,
   type NovoCliente,
+  type ResultadoInput,
 } from "@/lib/clientes-db"
 import type { StatusCliente } from "@/lib/simple-data"
 
@@ -325,6 +327,45 @@ export async function salvarMensagensAction(
 
   try {
     await salvarMensagens(id, mensagens)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function salvarResultadosAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  let resultados: ResultadoInput[] = []
+  try {
+    const parsed = JSON.parse(String(formData.get("resultados") ?? "[]")) as unknown
+    if (Array.isArray(parsed)) {
+      resultados = parsed
+        .map((r) => {
+          const item = r as Record<string, unknown>
+          return {
+            rotulo: String(item.rotulo ?? ""),
+            valor: String(item.valor ?? ""),
+            variacao: Number(item.variacao) || 0,
+          }
+        })
+        .filter((r) => r.rotulo.trim())
+    }
+  } catch {
+    return { ok: false, erro: "Não foi possível ler os resultados." }
+  }
+
+  try {
+    await salvarResultados(id, resultados)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }

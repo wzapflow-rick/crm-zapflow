@@ -28,6 +28,7 @@ import {
   type Estrategia,
   type EventoCliente,
   type Mensagem,
+  type MetricaResultado,
   type Meta,
   type StatusConteudo,
 } from "@/lib/simple-data"
@@ -39,6 +40,7 @@ import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
 import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
 import { ComunicacaoDialog } from "@/components/clientes/comunicacao-dialog"
+import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
@@ -75,6 +77,7 @@ export function ClienteDetalhe({
   estrategia,
   arquivos,
   mensagens,
+  resultados,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -84,6 +87,7 @@ export function ClienteDetalhe({
   estrategia: Estrategia
   arquivos: Arquivo[]
   mensagens: Mensagem[]
+  resultados: MetricaResultado[]
 }) {
   const resp = membros.find((m) => m.id === cliente.responsavelId)
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
@@ -469,23 +473,41 @@ export function ClienteDetalhe({
 
           {/* Resultados */}
           <TabsContent value="resultados" className="mt-5">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {detalhe.resultados.map((r) => {
-                const positivo = r.variacao >= 0
-                return (
-                  <div key={r.rotulo} className="rounded-xl border border-border bg-card p-5">
-                    <p className="text-sm text-muted-foreground">{r.rotulo}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{r.valor}</p>
-                    {r.variacao !== 0 && (
-                      <p className={cn("mt-1.5 inline-flex items-center gap-0.5 text-xs font-medium", positivo ? "text-chart-4" : "text-destructive")}>
-                        {positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                        {Math.abs(r.variacao)}% vs. mês anterior
-                      </p>
-                    )}
-                  </div>
-                )
-              })}
+            <div className="mb-3 flex justify-end">
+              <ResultadosDialog
+                clienteId={cliente.id}
+                resultados={resultados}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar resultados
+                  </Button>
+                }
+              />
             </div>
+            {resultados.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {resultados.map((r) => {
+                  const positivo = r.variacao >= 0
+                  return (
+                    <div key={r.id ?? r.rotulo} className="rounded-xl border border-border bg-card p-5">
+                      <p className="text-sm text-muted-foreground">{r.rotulo}</p>
+                      <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{r.valor}</p>
+                      {r.variacao !== 0 && (
+                        <p className={cn("mt-1.5 inline-flex items-center gap-0.5 text-xs font-medium", positivo ? "text-chart-4" : "text-destructive")}>
+                          {positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                          {Math.abs(r.variacao)}% vs. mês anterior
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <Card titulo="Métricas de desempenho">
+                <Vazio texto="Nenhum resultado registrado. Clique em Editar resultados para adicionar métricas." />
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

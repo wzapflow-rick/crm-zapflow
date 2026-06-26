@@ -104,6 +104,7 @@ export type Arquivo = {
 }
 
 export type MetricaResultado = {
+  id?: string
   rotulo: string
   valor: string
   variacao: number // % vs mês anterior

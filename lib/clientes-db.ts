@@ -7,6 +7,7 @@ import type {
   Estrategia,
   EventoCliente,
   Mensagem,
+  MetricaResultado,
   Meta,
   StatusCliente,
   StatusConteudo,
@@ -435,6 +436,58 @@ export async function salvarMensagens(empresaId: string, mensagens: MensagemInpu
         `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao)
          values ($1, $2, $3, $4, $5)`,
         [empresaId, m.autorId || null, texto, m.data?.trim() || null, posicao++],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+// ── Resultados (aba Resultados) ───────────────────────────────────────────
+
+type ResultadoRow = {
+  id: string
+  rotulo: string
+  valor: string | null
+  variacao: string | null
+}
+
+export async function getResultados(empresaId: string): Promise<MetricaResultado[]> {
+  const rows = await query<ResultadoRow>(
+    `select id, rotulo, valor, variacao
+     from public.resultados
+     where empresa_id = $1
+     order by posicao asc, created_at asc`,
+    [empresaId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    rotulo: r.rotulo,
+    valor: r.valor ?? "",
+    variacao: r.variacao ? Number(r.variacao) : 0,
+  }))
+}
+
+export type ResultadoInput = { rotulo: string; valor: string; variacao: number }
+
+export async function salvarResultados(empresaId: string, resultados: ResultadoInput[]): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    await client.query(`delete from public.resultados where empresa_id = $1`, [empresaId])
+    let posicao = 0
+    for (const r of resultados) {
+      const rotulo = r.rotulo.trim()
+      if (!rotulo) continue
+      await client.query(
+        `insert into public.resultados (empresa_id, rotulo, valor, variacao, posicao)
+         values ($1, $2, $3, $4, $5)`,
+        [empresaId, rotulo, r.valor.trim(), r.variacao || 0, posicao++],
       )
     }
     await client.query("commit")

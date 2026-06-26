@@ -9,9 +9,19 @@ import {
   getEstrategia,
   getArquivos,
   getMensagens,
+  getResultados,
 } from "@/lib/clientes-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
-import type { Arquivo, Cliente, ConteudoItem, Estrategia, EventoCliente, Mensagem, Meta } from "@/lib/simple-data"
+import type {
+  Arquivo,
+  Cliente,
+  ConteudoItem,
+  Estrategia,
+  EventoCliente,
+  Mensagem,
+  MetricaResultado,
+  Meta,
+} from "@/lib/simple-data"
 
 export const dynamic = "force-dynamic"
 
@@ -71,6 +81,13 @@ export default async function ClientePage({
     mensagens = []
   }
 
+  let resultados: MetricaResultado[] = []
+  try {
+    resultados = await getResultados(id)
+  } catch {
+    resultados = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -83,6 +100,7 @@ export default async function ClientePage({
         estrategia={estrategia}
         arquivos={arquivos}
         mensagens={mensagens}
+        resultados={resultados}
       />
     </>
   )
