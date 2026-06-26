@@ -2,6 +2,8 @@ import { notFound } from "next/navigation"
 import { Topbar } from "@/components/simple/topbar"
 import { ClienteDetalhe } from "@/components/clientes/cliente-detalhe"
 import { getClientePorId } from "@/lib/clientes-db"
+import { getMembros, type Membro } from "@/lib/membros-db"
+import type { Cliente } from "@/lib/simple-data"
 
 export const dynamic = "force-dynamic"
 
@@ -12,9 +14,10 @@ export default async function ClientePage({
 }) {
   const { id } = await params
 
-  let cliente = null
+  let cliente: Cliente | null = null
+  let membros: Membro[] = []
   try {
-    cliente = await getClientePorId(id)
+    ;[cliente, membros] = await Promise.all([getClientePorId(id), getMembros()])
   } catch {
     cliente = null
   }
@@ -26,7 +29,7 @@ export default async function ClientePage({
   return (
     <>
       <Topbar titulo={cliente.nome} />
-      <ClienteDetalhe cliente={cliente} />
+      <ClienteDetalhe cliente={cliente} membros={membros} />
     </>
   )
 }

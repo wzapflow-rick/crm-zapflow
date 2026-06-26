@@ -32,7 +32,8 @@ export type Cliente = {
   objetivo: string
   contato: string
   telefone: string
-  desde: string // mês/ano de início
+  desde: string // mês/ano de início (exibição)
+  desdeISO?: string // YYYY-MM-DD (para edição)
 }
 
 export const clientes: Cliente[] = [

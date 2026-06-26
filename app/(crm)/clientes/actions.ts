@@ -1,10 +1,21 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { criarCliente, type NovoCliente } from "@/lib/clientes-db"
+import {
+  atualizarCliente,
+  criarCliente,
+  type AtualizarCliente,
+  type NovoCliente,
+} from "@/lib/clientes-db"
 import type { StatusCliente } from "@/lib/simple-data"
 
 export type EstadoForm = { ok: boolean; erro?: string }
+
+function lerMrr(formData: FormData): number {
+  const bruto = String(formData.get("mrr") ?? "").replace(/\./g, "").replace(",", ".")
+  const n = bruto ? Number(bruto) : 0
+  return Number.isFinite(n) ? n : 0
+}
 
 export async function criarClienteAction(
   _prev: EstadoForm,
@@ -15,9 +26,6 @@ export async function criarClienteAction(
     return { ok: false, erro: "Informe o nome do cliente." }
   }
 
-  const mrrBruto = String(formData.get("mrr") ?? "").replace(/\./g, "").replace(",", ".")
-  const mrr = mrrBruto ? Number(mrrBruto) : 0
-
   const dados: NovoCliente = {
     nome,
     segmento: String(formData.get("segmento") ?? "") || undefined,
@@ -25,8 +33,9 @@ export async function criarClienteAction(
     objetivo: String(formData.get("objetivo") ?? "") || undefined,
     contato: String(formData.get("contato") ?? "") || undefined,
     telefone: String(formData.get("telefone") ?? "") || undefined,
-    mrr: Number.isFinite(mrr) ? mrr : 0,
+    mrr: lerMrr(formData),
     desde: String(formData.get("desde") ?? "") || undefined,
+    responsavelId: String(formData.get("responsavelId") ?? "") || undefined,
   }
 
   try {
@@ -37,5 +46,42 @@ export async function criarClienteAction(
   }
 
   revalidatePath("/clientes")
+  return { ok: true }
+}
+
+export async function atualizarClienteAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+  const nome = String(formData.get("nome") ?? "").trim()
+  if (!nome) {
+    return { ok: false, erro: "Informe o nome do cliente." }
+  }
+
+  const dados: AtualizarCliente = {
+    nome,
+    segmento: String(formData.get("segmento") ?? "") || undefined,
+    status: (String(formData.get("status") ?? "") as StatusCliente) || undefined,
+    objetivo: String(formData.get("objetivo") ?? "") || undefined,
+    contato: String(formData.get("contato") ?? "") || undefined,
+    telefone: String(formData.get("telefone") ?? "") || undefined,
+    mrr: lerMrr(formData),
+    desde: String(formData.get("desde") ?? "") || undefined,
+    responsavelId: String(formData.get("responsavelId") ?? "") || null,
+  }
+
+  try {
+    await atualizarCliente(id, dados)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível atualizar no banco: ${msg}` }
+  }
+
+  revalidatePath("/clientes")
+  revalidatePath(`/clientes/${id}`)
   return { ok: true }
 }

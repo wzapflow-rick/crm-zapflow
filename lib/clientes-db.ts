@@ -69,6 +69,7 @@ function mapRow(r: EmpresaRow): Cliente {
     contato: r.contato ?? "",
     telefone: r.telefone ?? "",
     desde: formatarDesde(r.desde),
+    desdeISO: r.desde ? new Date(r.desde).toISOString().slice(0, 10) : "",
   }
 }
 
@@ -101,6 +102,7 @@ export type NovoCliente = {
   telefone?: string
   mrr?: number
   desde?: string // YYYY-MM-DD
+  responsavelId?: string
 }
 
 export async function criarCliente(input: NovoCliente): Promise<Cliente> {
@@ -115,8 +117,8 @@ export async function criarCliente(input: NovoCliente): Promise<Cliente> {
 
   const rows = await query<EmpresaRow>(
     `insert into public.empresas
-       (nome, slug, segmento, status, objetivo, contato, telefone, mrr, iniciais, cor, desde)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       (nome, slug, segmento, status, objetivo, contato, telefone, mrr, iniciais, cor, desde, responsavel_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      returning id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde`,
     [
       nome,
@@ -130,7 +132,56 @@ export async function criarCliente(input: NovoCliente): Promise<Cliente> {
       iniciaisDe(nome),
       corPara(nome),
       input.desde || null,
+      input.responsavelId || null,
     ],
   )
   return mapRow(rows[0])
+}
+
+export type AtualizarCliente = {
+  nome?: string
+  segmento?: string
+  status?: StatusCliente
+  objetivo?: string
+  contato?: string
+  telefone?: string
+  mrr?: number
+  desde?: string // YYYY-MM-DD
+  responsavelId?: string | null
+}
+
+export async function atualizarCliente(id: string, input: AtualizarCliente): Promise<Cliente | null> {
+  const status = STATUS_VALIDOS.includes(input.status as StatusCliente)
+    ? (input.status as StatusCliente)
+    : undefined
+
+  // Atualiza apenas os campos enviados (coalesce mantém o valor atual quando o parâmetro é null).
+  const rows = await query<EmpresaRow>(
+    `update public.empresas set
+       nome           = coalesce($2, nome),
+       segmento       = $3,
+       status         = coalesce($4, status),
+       objetivo       = $5,
+       contato        = $6,
+       telefone       = $7,
+       mrr            = coalesce($8, mrr),
+       desde          = $9,
+       responsavel_id = $10,
+       updated_at     = now()
+     where id = $1
+     returning id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde`,
+    [
+      id,
+      input.nome?.trim() || null,
+      input.segmento?.trim() || null,
+      status ?? null,
+      input.objetivo?.trim() || null,
+      input.contato?.trim() || null,
+      input.telefone?.trim() || null,
+      input.mrr ?? null,
+      input.desde || null,
+      input.responsavelId || null,
+    ],
+  )
+  return rows[0] ? mapRow(rows[0]) : null
 }

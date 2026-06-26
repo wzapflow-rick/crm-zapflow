@@ -10,11 +10,13 @@ import {
   FolderOpen,
   LineChart,
   MessageSquare,
+  Pencil,
   Phone,
   Target,
   Video,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
@@ -27,6 +29,9 @@ import {
   type Cliente,
   type StatusConteudo,
 } from "@/lib/simple-data"
+import type { Membro } from "@/lib/membros-db"
+import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
+import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -55,8 +60,8 @@ const tipoEventoInfo: Record<string, { label: string; icon: typeof Video }> = {
   reuniao: { label: "Reunião", icon: MessageSquare },
 }
 
-export function ClienteDetalhe({ cliente }: { cliente: Cliente }) {
-  const resp = fundadorPorId(cliente.responsavelId)
+export function ClienteDetalhe({ cliente, membros }: { cliente: Cliente; membros: Membro[] }) {
+  const resp = membros.find((m) => m.id === cliente.responsavelId)
   const detalhe = detalheClientePorId(cliente.id)
   const eventos = eventosCliente.filter((e) => e.clienteId === cliente.id)
   const conteudos = conteudosCliente.filter((c) => c.clienteId === cliente.id)
@@ -90,6 +95,20 @@ export function ClienteDetalhe({ cliente }: { cliente: Cliente }) {
               <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", statusClienteInfo[cliente.status].classe)}>
                 {statusClienteInfo[cliente.status].label}
               </span>
+              <ClienteFormDialog
+                membros={membros}
+                cliente={cliente}
+                acao={atualizarClienteAction}
+                titulo="Editar cliente"
+                descricao="Atualize as informações do cliente. As mudanças são salvas no banco da SIMPLE."
+                textoBotao="Salvar alterações"
+                trigger={
+                  <Button variant="outline" size="sm" className="ml-1 gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </Button>
+                }
+              />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {cliente.segmento} · cliente desde {cliente.desde}
@@ -106,21 +125,27 @@ export function ClienteDetalhe({ cliente }: { cliente: Cliente }) {
                 {cliente.mrr > 0 ? brl(cliente.mrr) : "—"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className={cn(resp?.cor, "text-[10px] text-primary-foreground")}>
-                  {resp?.iniciais}
-                </AvatarFallback>
-              </Avatar>
-              <div className="text-right leading-tight">
-                <p className="text-xs font-medium text-foreground">{resp?.nome}</p>
-                <p className="text-[10px] text-muted-foreground">Responsável</p>
+            {resp ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className={cn(resp.cor, "text-[10px] text-primary-foreground")}>
+                    {resp.iniciais}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-right leading-tight">
+                  <p className="text-xs font-medium text-foreground">{resp.nome}</p>
+                  <p className="text-[10px] text-muted-foreground">Responsável</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Phone className="h-3.5 w-3.5" />
-              {cliente.contato} · {cliente.telefone}
-            </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Sem responsável</p>
+            )}
+            {(cliente.contato || cliente.telefone) && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Phone className="h-3.5 w-3.5" />
+                {[cliente.contato, cliente.telefone].filter(Boolean).join(" · ")}
+              </div>
+            )}
           </div>
         </div>
 

@@ -2,17 +2,18 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Search, TriangleAlert, Users } from "lucide-react"
+import { ArrowUpRight, Plus, Search, TriangleAlert, Users } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { fundadores, type Cliente, type StatusCliente } from "@/lib/simple-data"
-import { NovoClienteDialog } from "@/components/clientes/novo-cliente-dialog"
+import { type Cliente, type StatusCliente } from "@/lib/simple-data"
+import type { Membro } from "@/lib/membros-db"
+import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
+import { criarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-
-const fundadorPorId = (id: string) => fundadores.find((f) => f.id === id)
 
 const statusInfo: Record<StatusCliente, { label: string; classe: string }> = {
   ativo: { label: "Ativo", classe: "bg-chart-4/15 text-chart-4" },
@@ -31,13 +32,17 @@ const filtros: { id: Filtro; label: string }[] = [
 
 export function ClientesLista({
   clientes,
+  membros,
   erro,
 }: {
   clientes: Cliente[]
+  membros: Membro[]
   erro?: string | null
 }) {
   const [filtro, setFiltro] = useState<Filtro>("todos")
   const [busca, setBusca] = useState("")
+
+  const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
   const visiveis = clientes.filter((c) => {
     const passaFiltro = filtro === "todos" || c.status === filtro
@@ -61,7 +66,19 @@ export function ClientesLista({
               {clientes.length} clientes · {ativos} ativos · {brl(mrrTotal)} em receita recorrente
             </p>
           </div>
-          <NovoClienteDialog />
+          <ClienteFormDialog
+            membros={membros}
+            acao={criarClienteAction}
+            titulo="Novo cliente"
+            descricao="Cadastre um cliente. Ele será salvo no banco de dados da SIMPLE."
+            textoBotao="Salvar cliente"
+            trigger={
+              <Button size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" />
+                Novo cliente
+              </Button>
+            }
+          />
         </div>
 
         {/* Aviso de conexão */}
@@ -108,7 +125,7 @@ export function ClientesLista({
         {visiveis.length > 0 ? (
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visiveis.map((c) => {
-              const resp = fundadorPorId(c.responsavelId)
+              const resp = membroPorId(c.responsavelId)
               return (
                 <Link
                   key={c.id}
