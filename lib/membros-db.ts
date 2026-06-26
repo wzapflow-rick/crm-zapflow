@@ -40,7 +40,7 @@ export async function getMembros(): Promise<Membro[]> {
   try {
     const rows = await query<MembroRow>(
       `select id, nome, iniciais, cor, cargo
-       from public.membros
+       from public.equipe
        order by nome asc`,
     )
     return rows.map((r) => {
@@ -67,7 +67,7 @@ export async function getMembroPorId(id: string | null | undefined): Promise<Mem
 export async function criarMembro(input: { nome: string; cargo?: string }): Promise<void> {
   const nome = input.nome.trim()
   await query(
-    `insert into public.membros (nome, cargo, iniciais, cor)
+    `insert into public.equipe (nome, cargo, iniciais, cor)
      values ($1, $2, $3, $4)`,
     [nome, input.cargo?.trim() || null, iniciaisDe(nome), corPara(nome)],
   )
@@ -76,7 +76,7 @@ export async function criarMembro(input: { nome: string; cargo?: string }): Prom
 export async function atualizarMembro(id: string, input: { nome: string; cargo?: string }): Promise<void> {
   const nome = input.nome.trim()
   await query(
-    `update public.membros
+    `update public.equipe
      set nome = $2, cargo = $3, iniciais = $4
      where id = $1`,
     [id, nome, input.cargo?.trim() || null, iniciaisDe(nome)],
@@ -84,5 +84,5 @@ export async function atualizarMembro(id: string, input: { nome: string; cargo?:
 }
 
 export async function excluirMembro(id: string): Promise<void> {
-  await query(`delete from public.membros where id = $1`, [id])
+  await query(`delete from public.equipe where id = $1`, [id])
 }
