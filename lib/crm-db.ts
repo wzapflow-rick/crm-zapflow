@@ -90,3 +90,43 @@ export async function moverNegocio(id: string, etapa: string): Promise<void> {
 export async function excluirNegocio(id: string): Promise<void> {
   await query(`delete from public.negocios where id = $1`, [id])
 }
+
+// ── Resumo para o Dashboard ───────────────────────────────────────────────
+
+export type LeadDashboard = {
+  id: string
+  empresa: string
+  etapaLabel: string
+  responsavelId: string
+  valor: number
+}
+
+export type ResumoCrm = {
+  leadsEmAberto: LeadDashboard[]
+  qtdEmAberto: number
+  valorEmAberto: number
+  valorGanho: number
+}
+
+const LABEL_POR_ETAPA = new Map(ETAPAS_CRM.map((e) => [e.id, e.label]))
+
+// "Em aberto" = qualquer negócio que ainda não foi ganho nem perdido.
+export async function getResumoCrm(): Promise<ResumoCrm> {
+  const negocios = await getNegocios()
+  const emAberto = negocios.filter((n) => n.etapa !== "ganho" && n.etapa !== "perdido")
+  const leadsEmAberto: LeadDashboard[] = emAberto
+    .map((n) => ({
+      id: n.id,
+      empresa: n.titulo,
+      etapaLabel: LABEL_POR_ETAPA.get(n.etapa) ?? "Lead novo",
+      responsavelId: n.responsavelId,
+      valor: n.valor,
+    }))
+    .sort((a, b) => b.valor - a.valor)
+  return {
+    leadsEmAberto,
+    qtdEmAberto: emAberto.length,
+    valorEmAberto: emAberto.reduce((acc, n) => acc + n.valor, 0),
+    valorGanho: negocios.filter((n) => n.etapa === "ganho").reduce((acc, n) => acc + n.valor, 0),
+  }
+}

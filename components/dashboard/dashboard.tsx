@@ -18,12 +18,13 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import type { ResumoCrm } from "@/lib/crm-db"
+import type { Membro } from "@/lib/membros-db"
 import {
   clientes,
   clientesAtivos,
   fundadores,
   insightsSemana,
-  leadsAbertos,
   metaMensal,
   proximasGravacoes,
   receitaAtual,
@@ -43,14 +44,6 @@ const prioridadeEstilo: Record<string, string> = {
   baixa: "bg-muted text-muted-foreground",
 }
 
-const statusLeadLabel: Record<string, string> = {
-  novo: "Lead novo",
-  contato: "Primeiro contato",
-  reuniao: "Reunião marcada",
-  proposta: "Proposta enviada",
-  negociacao: "Negociação",
-}
-
 const acoesRapidas = [
   { label: "Novo cliente", icon: UserPlus },
   { label: "Nova proposta", icon: FileText },
@@ -58,10 +51,18 @@ const acoesRapidas = [
   { label: "Novo lead", icon: Target },
 ]
 
-export function Dashboard() {
+export function Dashboard({
+  resumoCrm,
+  membros,
+}: {
+  resumoCrm: ResumoCrm
+  membros: Membro[]
+}) {
   const { usuario } = useApp()
   const progresso = Math.min(100, Math.round((receitaAtual / metaMensal) * 100))
-  const totalLeads = leadsAbertos.reduce((acc, l) => acc + l.valor, 0)
+  const leadsAbertos = resumoCrm.leadsEmAberto
+  const totalLeads = resumoCrm.valorEmAberto
+  const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
@@ -134,7 +135,7 @@ export function Dashboard() {
           />
           <StatCard
             label="Leads em aberto"
-            valor={String(leadsAbertos.length)}
+            valor={String(resumoCrm.qtdEmAberto)}
             icon={Flame}
             hint={`${brl(totalLeads)} em potencial`}
           />
@@ -240,28 +241,35 @@ export function Dashboard() {
             </ul>
           </Painel>
 
-          {/* Leads em aberto */}
+          {/* Leads em aberto (dados reais do CRM) */}
           <Painel titulo="Leads em aberto" icon={Target}>
-            <ul className="divide-y divide-border">
-              {leadsAbertos.map((l) => {
-                const resp = fundadorPorId(l.responsavelId)
-                return (
-                  <li key={l.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {l.empresa}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {statusLeadLabel[l.status]} · {resp?.nome}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-medium text-foreground">
-                      {brl(l.valor)}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
+            {leadsAbertos.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {leadsAbertos.slice(0, 6).map((l) => {
+                  const resp = membroPorId(l.responsavelId)
+                  return (
+                    <li key={l.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {l.empresa}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {l.etapaLabel}
+                          {resp ? ` · ${resp.nome}` : ""}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-medium text-foreground">
+                        {brl(l.valor)}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Nenhum lead em aberto no funil. Adicione negócios no CRM.
+              </p>
+            )}
           </Painel>
         </div>
       </div>
