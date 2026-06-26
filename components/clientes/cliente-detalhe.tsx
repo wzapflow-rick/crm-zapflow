@@ -26,6 +26,7 @@ import {
   mensagensCliente,
   type Cliente,
   type ConteudoItem,
+  type Estrategia,
   type EventoCliente,
   type Meta,
   type StatusConteudo,
@@ -35,6 +36,7 @@ import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
 import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
 import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
+import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
@@ -70,12 +72,14 @@ export function ClienteDetalhe({
   metas,
   eventos,
   conteudos,
+  estrategia,
 }: {
   cliente: Cliente
   membros: Membro[]
   metas: Meta[]
   eventos: EventoCliente[]
   conteudos: ConteudoItem[]
+  estrategia: Estrategia
 }) {
   const resp = membros.find((m) => m.id === cliente.responsavelId)
   const detalhe = detalheClientePorId(cliente.id)
@@ -306,35 +310,62 @@ export function ClienteDetalhe({
 
           {/* Estratégia */}
           <TabsContent value="estrategia" className="mt-5">
+            <div className="mb-3 flex justify-end">
+              <EstrategiaDialog
+                clienteId={cliente.id}
+                estrategia={estrategia}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar estratégia
+                  </Button>
+                }
+              />
+            </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <Card titulo="Plano atual">
-                <ul className="space-y-2.5">
-                  {detalhe.estrategiaAtual.map((item, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm leading-snug text-foreground">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                {estrategia.estrategiaAtual.length > 0 ? (
+                  <ul className="space-y-2.5">
+                    {estrategia.estrategiaAtual.map((item, i) => (
+                      <li key={i} className="flex gap-2.5 text-sm leading-snug text-foreground">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Vazio texto="Nenhum item no plano. Clique em Editar estratégia." />
+                )}
               </Card>
               <Card titulo="Insights">
-                <ul className="space-y-2.5">
-                  {detalhe.insights.map((item, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm leading-snug text-foreground">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-chart-2" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                {estrategia.insights.length > 0 ? (
+                  <ul className="space-y-2.5">
+                    {estrategia.insights.map((item, i) => (
+                      <li key={i} className="flex gap-2.5 text-sm leading-snug text-foreground">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-chart-2" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Vazio texto="Nenhum insight registrado." />
+                )}
               </Card>
               <Card titulo="Concorrentes acompanhados" className="lg:col-span-2">
-                <div className="flex flex-wrap gap-2">
-                  {detalhe.concorrentes.map((c) => (
-                    <span key={c} className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
-                      {c}
-                    </span>
-                  ))}
-                </div>
+                {estrategia.concorrentes.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {estrategia.concorrentes.map((c) => (
+                      <span
+                        key={c}
+                        className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <Vazio texto="Nenhum concorrente mapeado." />
+                )}
               </Card>
             </div>
           </TabsContent>

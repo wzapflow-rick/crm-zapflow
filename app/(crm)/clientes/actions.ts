@@ -5,6 +5,7 @@ import {
   atualizarCliente,
   criarCliente,
   salvarConteudos,
+  salvarEstrategia,
   salvarEventos,
   salvarVisaoGeral,
   type AtualizarCliente,
@@ -208,6 +209,40 @@ export async function salvarConteudosAction(
 
   try {
     await salvarConteudos(id, conteudos)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Converte um textarea (uma linha por item) em lista limpa.
+function linhasParaLista(valor: string): string[] {
+  return valor
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+export async function salvarEstrategiaAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  const estrategia = {
+    estrategiaAtual: linhasParaLista(String(formData.get("estrategiaAtual") ?? "")),
+    insights: linhasParaLista(String(formData.get("insights") ?? "")),
+    concorrentes: linhasParaLista(String(formData.get("concorrentes") ?? "")),
+  }
+
+  try {
+    await salvarEstrategia(id, estrategia)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }

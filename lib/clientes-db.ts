@@ -1,6 +1,14 @@
 import "server-only"
 import { query, getPool } from "@/lib/db"
-import type { Cliente, ConteudoItem, EventoCliente, Meta, StatusCliente, StatusConteudo } from "@/lib/simple-data"
+import type {
+  Cliente,
+  ConteudoItem,
+  Estrategia,
+  EventoCliente,
+  Meta,
+  StatusCliente,
+  StatusConteudo,
+} from "@/lib/simple-data"
 
 type EmpresaRow = {
   id: string
@@ -93,6 +101,40 @@ export async function getClientePorId(id: string): Promise<Cliente | null> {
     [id],
   )
   return rows[0] ? mapRow(rows[0]) : null
+}
+
+// ── Estratégia (aba Estratégia) ───────────────────────────────────────────
+
+type EstrategiaRow = {
+  estrategia_atual: string[] | null
+  insights: string[] | null
+  concorrentes: string[] | null
+}
+
+export async function getEstrategia(empresaId: string): Promise<Estrategia> {
+  const rows = await query<EstrategiaRow>(
+    `select estrategia_atual, insights, concorrentes
+     from public.empresas
+     where id = $1
+     limit 1`,
+    [empresaId],
+  )
+  const r = rows[0]
+  return {
+    estrategiaAtual: r?.estrategia_atual ?? [],
+    insights: r?.insights ?? [],
+    concorrentes: r?.concorrentes ?? [],
+  }
+}
+
+export async function salvarEstrategia(empresaId: string, input: Estrategia): Promise<void> {
+  const limpar = (arr: string[]) => arr.map((s) => s.trim()).filter(Boolean)
+  await query(
+    `update public.empresas
+     set estrategia_atual = $2, insights = $3, concorrentes = $4, updated_at = now()
+     where id = $1`,
+    [empresaId, limpar(input.estrategiaAtual), limpar(input.insights), limpar(input.concorrentes)],
+  )
 }
 
 // ── Metas (aba Visão geral) ───────────────────────────────────────────────

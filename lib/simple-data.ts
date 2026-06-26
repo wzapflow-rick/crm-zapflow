@@ -45,6 +45,12 @@ export type Meta = {
   unidade?: string
 }
 
+export type Estrategia = {
+  estrategiaAtual: string[]
+  insights: string[]
+  concorrentes: string[]
+}
+
 export const clientes: Cliente[] = [
   { id: "c1", nome: "Studio Verde", segmento: "Arquitetura", status: "ativo", responsavelId: "u2", mrr: 4800, iniciais: "SV", cor: "bg-chart-4", objetivo: "Posicionar como referência em arquitetura sustentável e gerar 8 reuniões qualificadas por mês.", contato: "Renata Vidal", telefone: "(11) 98812-4410", desde: "Fev 2025" },
   { id: "c2", nome: "Clínica Aurora", segmento: "Saúde", status: "ativo", responsavelId: "u1", mrr: 6200, iniciais: "CA", cor: "bg-primary", objetivo: "Aumentar agendamentos de consultas estéticas em 30% via conteúdo educativo.", contato: "Dr. André Mota", telefone: "(11) 99731-2200", desde: "Nov 2024" },
