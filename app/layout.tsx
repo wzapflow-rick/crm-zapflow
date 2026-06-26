@@ -1,6 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Fraunces } from 'next/font/google'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -8,11 +8,16 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+})
 
 export const metadata: Metadata = {
-  title: 'ZapFlow CRM — Operação da Equipe',
+  title: 'SIMPLE OS — Sistema Operacional da SIMPLE',
   description:
-    'CRM interno da equipe ZapFlow: inbox de WhatsApp compartilhado, planejamento e agenda.',
+    'O cérebro operacional da SIMPLE: estratégia, clientes, marketing, comercial, financeiro, processos e conteúdo em um só lugar.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -49,7 +54,7 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-      className={`light ${geistSans.variable} ${geistMono.variable} bg-background`}
+      className={`light ${geistSans.variable} ${geistMono.variable} ${fraunces.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         {children}

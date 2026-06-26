@@ -1,11 +1,11 @@
-import { Topbar } from "@/components/crm/topbar"
-import { Overview } from "@/components/crm/overview"
+import { Topbar } from "@/components/simple/topbar"
+import { Dashboard } from "@/components/dashboard/dashboard"
 
-export default function HomePage() {
+export default function DashboardPage() {
   return (
     <>
-      <Topbar titulo="Visão geral" />
-      <Overview />
+      <Topbar titulo="Dashboard" />
+      <Dashboard />
     </>
   )
 }

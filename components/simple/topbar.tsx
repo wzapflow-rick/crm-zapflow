@@ -2,7 +2,6 @@
 
 import { Search, ChevronDown } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -13,20 +12,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { membros } from "@/lib/zapflow-data"
-import { useApp } from "@/components/crm/providers"
+import { fundadores } from "@/lib/simple-data"
+import { useApp } from "@/components/simple/providers"
 
 export function Topbar({ titulo }: { titulo: string }) {
   const { usuario, setUsuario } = useApp()
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-5">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-5">
       <h1 className="text-sm font-semibold text-foreground">{titulo}</h1>
 
       <div className="relative hidden max-w-sm flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Buscar contatos, conversas..."
+          placeholder="Buscar clientes, tarefas, conteúdo..."
           className="h-9 bg-background pl-9 text-sm"
         />
       </div>
@@ -34,7 +33,7 @@ export function Topbar({ titulo }: { titulo: string }) {
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 outline-none transition-colors hover:bg-accent">
           <Avatar className="h-8 w-8">
-            <AvatarFallback className={cn(usuario.cor, "text-xs text-white")}>
+            <AvatarFallback className={cn(usuario.cor, "text-xs text-primary-foreground")}>
               {usuario.iniciais}
             </AvatarFallback>
           </Avatar>
@@ -42,35 +41,30 @@ export function Topbar({ titulo }: { titulo: string }) {
             <span className="text-sm font-medium text-foreground">
               {usuario.nome}
             </span>
-            <Badge
-              variant="secondary"
-              className="h-4 px-1.5 text-[10px] font-normal capitalize"
-            >
+            <span className="text-[10px] text-muted-foreground">
               {usuario.papel}
-            </Badge>
+            </span>
           </div>
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="text-xs text-muted-foreground">
-            Entrar como (demo de papéis)
+            Entrar como (demo)
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {membros.map((m) => (
+          {fundadores.map((f) => (
             <DropdownMenuItem
-              key={m.id}
-              onClick={() => setUsuario(m)}
+              key={f.id}
+              onClick={() => setUsuario(f)}
               className="gap-2"
             >
               <Avatar className="h-6 w-6">
-                <AvatarFallback className={cn(m.cor, "text-[10px] text-white")}>
-                  {m.iniciais}
+                <AvatarFallback className={cn(f.cor, "text-[10px] text-primary-foreground")}>
+                  {f.iniciais}
                 </AvatarFallback>
               </Avatar>
-              <span className="flex-1 text-sm">{m.nome}</span>
-              <span className="text-[10px] capitalize text-muted-foreground">
-                {m.papel}
-              </span>
+              <span className="flex-1 text-sm">{f.nome}</span>
+              <span className="text-[10px] text-muted-foreground">{f.papel}</span>
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

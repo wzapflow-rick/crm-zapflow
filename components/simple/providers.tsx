@@ -1,23 +1,20 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import { membros, type Membro } from "@/lib/zapflow-data"
+import { fundadores, type Fundador } from "@/lib/simple-data"
 
 type AppContextValue = {
-  usuario: Membro
-  setUsuario: (m: Membro) => void
-  isAdmin: boolean
+  usuario: Fundador
+  setUsuario: (f: Fundador) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
 export function Providers({ children }: { children: ReactNode }) {
-  const [usuario, setUsuario] = useState<Membro>(membros[0])
+  const [usuario, setUsuario] = useState<Fundador>(fundadores[0])
 
   return (
-    <AppContext.Provider
-      value={{ usuario, setUsuario, isAdmin: usuario.papel === "admin" }}
-    >
+    <AppContext.Provider value={{ usuario, setUsuario }}>
       {children}
     </AppContext.Provider>
   )
