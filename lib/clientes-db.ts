@@ -1,6 +1,6 @@
 import "server-only"
 import { query, getPool } from "@/lib/db"
-import type { Cliente, EventoCliente, Meta, StatusCliente } from "@/lib/simple-data"
+import type { Cliente, ConteudoItem, EventoCliente, Meta, StatusCliente, StatusConteudo } from "@/lib/simple-data"
 
 type EmpresaRow = {
   id: string
@@ -217,6 +217,70 @@ export async function salvarEventos(empresaId: string, eventos: EventoInput[]): 
         `insert into public.eventos (empresa_id, titulo, tipo, data, hora, posicao)
          values ($1, $2, $3, $4, $5, $6)`,
         [empresaId, titulo, tipo, e.data || null, e.hora?.trim() || null, posicao++],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+// ── Conteúdos (aba Conteúdo) ──────────────────────────────────────────────
+
+type ConteudoRow = {
+  id: string
+  titulo: string
+  formato: string | null
+  status: string | null
+  data: Date | null
+}
+
+const FORMATOS_CONTEUDO: ConteudoItem["formato"][] = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"]
+const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edicao", "aprovacao", "publicado"]
+
+export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
+  const rows = await query<ConteudoRow>(
+    `select id, titulo, formato, status, data
+     from public.conteudos
+     where empresa_id = $1
+     order by data asc nulls last, posicao asc, created_at asc`,
+    [empresaId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    clienteId: empresaId,
+    titulo: r.titulo,
+    formato: (FORMATOS_CONTEUDO.includes(r.formato as ConteudoItem["formato"])
+      ? r.formato
+      : "Reels") as ConteudoItem["formato"],
+    status: (STATUS_CONTEUDO.includes(r.status as StatusConteudo) ? r.status : "ideia") as StatusConteudo,
+    data: formatarDataCurta(r.data),
+    dataISO: r.data ? new Date(r.data).toISOString().slice(0, 10) : "",
+  }))
+}
+
+export type ConteudoInput = { titulo: string; formato: string; status: string; data?: string }
+
+// Salva a lista de conteúdos do cliente regravando tudo numa transação.
+export async function salvarConteudos(empresaId: string, conteudos: ConteudoInput[]): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    await client.query(`delete from public.conteudos where empresa_id = $1`, [empresaId])
+    let posicao = 0
+    for (const c of conteudos) {
+      const titulo = c.titulo.trim()
+      if (!titulo) continue
+      const formato = FORMATOS_CONTEUDO.includes(c.formato as ConteudoItem["formato"]) ? c.formato : "Reels"
+      const status = STATUS_CONTEUDO.includes(c.status as StatusConteudo) ? c.status : "ideia"
+      await client.query(
+        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [empresaId, titulo, formato, status, c.data || null, posicao++],
       )
     }
     await client.query("commit")

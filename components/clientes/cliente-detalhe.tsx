@@ -21,11 +21,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
   arquivosCliente,
-  conteudosCliente,
   detalheClientePorId,
   fundadores,
   mensagensCliente,
   type Cliente,
+  type ConteudoItem,
   type EventoCliente,
   type Meta,
   type StatusConteudo,
@@ -34,6 +34,7 @@ import type { Membro } from "@/lib/membros-db"
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
 import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
 import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
+import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
@@ -68,15 +69,16 @@ export function ClienteDetalhe({
   membros,
   metas,
   eventos,
+  conteudos,
 }: {
   cliente: Cliente
   membros: Membro[]
   metas: Meta[]
   eventos: EventoCliente[]
+  conteudos: ConteudoItem[]
 }) {
   const resp = membros.find((m) => m.id === cliente.responsavelId)
   const detalhe = detalheClientePorId(cliente.id)
-  const conteudos = conteudosCliente.filter((c) => c.clienteId === cliente.id)
   const mensagens = mensagensCliente.filter((m) => m.clienteId === cliente.id)
   const arquivos = arquivosCliente.filter((a) => a.clienteId === cliente.id)
 
@@ -269,6 +271,18 @@ export function ClienteDetalhe({
 
           {/* Conteúdo */}
           <TabsContent value="conteudo" className="mt-5">
+            <div className="mb-3 flex justify-end">
+              <ConteudoDialog
+                clienteId={cliente.id}
+                conteudos={conteudos}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar conteúdo
+                  </Button>
+                }
+              />
+            </div>
             <Card titulo="Pipeline de conteúdo">
               {conteudos.length > 0 ? (
                 <ul className="divide-y divide-border">

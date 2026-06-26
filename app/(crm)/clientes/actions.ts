@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache"
 import {
   atualizarCliente,
   criarCliente,
+  salvarConteudos,
   salvarEventos,
   salvarVisaoGeral,
   type AtualizarCliente,
+  type ConteudoInput,
   type EventoInput,
   type MetaInput,
   type NovoCliente,
@@ -165,6 +167,47 @@ export async function salvarEventosAction(
 
   try {
     await salvarEventos(id, eventos)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function salvarConteudosAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  let conteudos: ConteudoInput[] = []
+  try {
+    const bruto = String(formData.get("conteudos") ?? "[]")
+    const parsed = JSON.parse(bruto) as unknown
+    if (Array.isArray(parsed)) {
+      conteudos = parsed
+        .map((c) => {
+          const item = c as Record<string, unknown>
+          return {
+            titulo: String(item.titulo ?? ""),
+            formato: String(item.formato ?? "Reels"),
+            status: String(item.status ?? "ideia"),
+            data: item.data ? String(item.data) : undefined,
+          }
+        })
+        .filter((c) => c.titulo.trim())
+    }
+  } catch {
+    return { ok: false, erro: "Não foi possível ler os conteúdos." }
+  }
+
+  try {
+    await salvarConteudos(id, conteudos)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }

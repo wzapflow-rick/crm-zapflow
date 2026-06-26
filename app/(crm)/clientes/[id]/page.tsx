@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation"
 import { Topbar } from "@/components/simple/topbar"
 import { ClienteDetalhe } from "@/components/clientes/cliente-detalhe"
-import { getClientePorId, getMetas, getEventos } from "@/lib/clientes-db"
+import { getClientePorId, getMetas, getEventos, getConteudos } from "@/lib/clientes-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
-import type { Cliente, EventoCliente, Meta } from "@/lib/simple-data"
+import type { Cliente, ConteudoItem, EventoCliente, Meta } from "@/lib/simple-data"
 
 export const dynamic = "force-dynamic"
 
@@ -27,7 +27,7 @@ export default async function ClientePage({
     notFound()
   }
 
-  // Eventos em try/catch separado: se a tabela ainda não existir, a página não quebra.
+  // Eventos e conteúdos em try/catch próprio: se a tabela ainda não existir, a página não quebra.
   let eventos: EventoCliente[] = []
   try {
     eventos = await getEventos(id)
@@ -35,10 +35,23 @@ export default async function ClientePage({
     eventos = []
   }
 
+  let conteudos: ConteudoItem[] = []
+  try {
+    conteudos = await getConteudos(id)
+  } catch {
+    conteudos = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
-      <ClienteDetalhe cliente={cliente} membros={membros} metas={metas} eventos={eventos} />
+      <ClienteDetalhe
+        cliente={cliente}
+        membros={membros}
+        metas={metas}
+        eventos={eventos}
+        conteudos={conteudos}
+      />
     </>
   )
 }

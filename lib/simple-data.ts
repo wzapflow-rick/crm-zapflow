@@ -67,6 +67,7 @@ export type ConteudoItem = {
   formato: "Reels" | "Carrossel" | "Story" | "Vídeo" | "Estático"
   status: StatusConteudo
   data: string
+  dataISO?: string // YYYY-MM-DD (para edição)
 }
 
 export type EventoCliente = {
