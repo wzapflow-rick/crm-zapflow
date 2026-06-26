@@ -28,7 +28,7 @@ type TarefaRow = {
   id: string
   titulo: string
   descricao: string | null
-  cliente_id: string | null
+  empresa_id: string | null
   responsavel_id: string | null
   prazo: string | null
   prioridade: string | null
@@ -40,7 +40,7 @@ function mapRow(r: TarefaRow): Tarefa {
     id: r.id,
     titulo: r.titulo,
     descricao: r.descricao ?? "",
-    clienteId: r.cliente_id ?? "",
+    clienteId: r.empresa_id ?? "",
     responsavelId: r.responsavel_id ?? "",
     prazo: r.prazo ?? "",
     prioridade: normalizarPrioridade(r.prioridade),
@@ -48,7 +48,7 @@ function mapRow(r: TarefaRow): Tarefa {
   }
 }
 
-const SELECT_COLS = `id, titulo, descricao, cliente_id, responsavel_id,
+const SELECT_COLS = `id, titulo, descricao, empresa_id, responsavel_id,
   to_char(prazo, 'YYYY-MM-DD') as prazo, prioridade, status`
 
 export async function getTarefas(): Promise<Tarefa[]> {
@@ -64,7 +64,7 @@ export async function criarTarefa(input: TarefaInput): Promise<void> {
   const titulo = input.titulo.trim()
   if (!titulo) return
   await query(
-    `insert into public.tarefas (titulo, descricao, cliente_id, responsavel_id, prazo, prioridade, status)
+    `insert into public.tarefas (titulo, descricao, empresa_id, responsavel_id, prazo, prioridade, status)
      values ($1, $2, $3, $4, $5, $6, $7)`,
     [
       titulo,
@@ -83,7 +83,7 @@ export async function atualizarTarefa(id: string, input: TarefaInput): Promise<v
   if (!titulo) return
   await query(
     `update public.tarefas
-     set titulo = $2, descricao = $3, cliente_id = $4, responsavel_id = $5,
+     set titulo = $2, descricao = $3, empresa_id = $4, responsavel_id = $5,
          prazo = $6, prioridade = $7, status = $8, updated_at = now()
      where id = $1`,
     [
@@ -146,11 +146,11 @@ function descreverPrazo(prazo: string | null): { label: string; atrasada: boolea
 
 export async function getResumoTarefas(limite = 5): Promise<ResumoTarefas> {
   const rows = await query<ResumoRow>(
-    `select t.id, t.titulo, t.descricao, t.cliente_id, t.responsavel_id,
+    `select t.id, t.titulo, t.descricao, t.empresa_id, t.responsavel_id,
             to_char(t.prazo, 'YYYY-MM-DD') as prazo, t.prioridade, t.status,
             e.nome as cliente_nome
      from public.tarefas t
-     left join public.empresas e on e.id = t.cliente_id
+     left join public.empresas e on e.id = t.empresa_id
      where t.status <> 'concluida'`,
   )
   const ordenadas = rows
