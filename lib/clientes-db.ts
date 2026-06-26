@@ -424,7 +424,7 @@ type MensagemRow = {
 export async function getMensagens(empresaId: string): Promise<Mensagem[]> {
   const rows = await query<MensagemRow>(
     `select id, autor_id, texto, data, de_cliente, autor_nome
-     from public.mensagens
+     from public.comunicacoes
      where empresa_id = $1
      order by posicao asc, created_at asc`,
     [empresaId],
@@ -449,7 +449,7 @@ export async function salvarMensagens(empresaId: string, mensagens: MensagemInpu
     await client.query("begin")
     // Apaga apenas as mensagens da equipe; preserva as escritas pelo cliente no portal.
     await client.query(
-      `delete from public.mensagens where empresa_id = $1 and coalesce(de_cliente, false) = false`,
+      `delete from public.comunicacoes where empresa_id = $1 and coalesce(de_cliente, false) = false`,
       [empresaId],
     )
     let posicao = 0
@@ -457,7 +457,7 @@ export async function salvarMensagens(empresaId: string, mensagens: MensagemInpu
       const texto = m.texto.trim()
       if (!texto) continue
       await client.query(
-        `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao, de_cliente)
+        `insert into public.comunicacoes (empresa_id, autor_id, texto, data, posicao, de_cliente)
          values ($1, $2, $3, $4, $5, false)`,
         [empresaId, m.autorId || null, texto, m.data?.trim() || null, posicao++],
       )
@@ -486,9 +486,9 @@ export async function adicionarMensagemCliente(
     minute: "2-digit",
   })
   await query(
-    `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao, de_cliente, autor_nome)
+    `insert into public.comunicacoes (empresa_id, autor_id, texto, data, posicao, de_cliente, autor_nome)
      values ($1, null, $2, $3,
-       coalesce((select max(posicao) from public.mensagens where empresa_id = $1), -1) + 1,
+       coalesce((select max(posicao) from public.comunicacoes where empresa_id = $1), -1) + 1,
        true, $4)`,
     [empresaId, limpo, data, autorNome.trim() || "Cliente"],
   )
