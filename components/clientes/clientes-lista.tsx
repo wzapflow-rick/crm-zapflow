@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowUpRight, Plus, Search, Users } from "lucide-react"
+import { ArrowUpRight, Search, TriangleAlert, Users } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { clientes, fundadores, type StatusCliente } from "@/lib/simple-data"
+import { fundadores, type Cliente, type StatusCliente } from "@/lib/simple-data"
+import { NovoClienteDialog } from "@/components/clientes/novo-cliente-dialog"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -29,7 +29,13 @@ const filtros: { id: Filtro; label: string }[] = [
   { id: "pausado", label: "Pausados" },
 ]
 
-export function ClientesLista() {
+export function ClientesLista({
+  clientes,
+  erro,
+}: {
+  clientes: Cliente[]
+  erro?: string | null
+}) {
   const [filtro, setFiltro] = useState<Filtro>("todos")
   const [busca, setBusca] = useState("")
 
@@ -50,18 +56,24 @@ export function ClientesLista() {
         {/* Cabeçalho */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-              Clientes
-            </h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground">Clientes</h2>
             <p className="mt-1.5 text-pretty text-sm leading-relaxed text-muted-foreground">
               {clientes.length} clientes · {ativos} ativos · {brl(mrrTotal)} em receita recorrente
             </p>
           </div>
-          <Button size="sm" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            Novo cliente
-          </Button>
+          <NovoClienteDialog />
         </div>
+
+        {/* Aviso de conexão */}
+        {erro && (
+          <div className="mt-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="text-sm">
+              <p className="font-medium text-destructive">Não foi possível conectar ao banco de dados</p>
+              <p className="mt-0.5 text-pretty leading-relaxed text-muted-foreground">{erro}</p>
+            </div>
+          </div>
+        )}
 
         {/* Filtros + busca */}
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -115,25 +127,29 @@ export function ClientesLista() {
                   </div>
 
                   <div className="mt-4 flex items-center gap-1.5">
-                    <h3 className="text-base font-semibold tracking-tight text-foreground">
-                      {c.nome}
-                    </h3>
+                    <h3 className="text-base font-semibold tracking-tight text-foreground">{c.nome}</h3>
                     <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
                   <p className="text-xs text-muted-foreground">{c.segmento}</p>
 
-                  <p className="mt-3 line-clamp-2 text-pretty text-sm leading-snug text-muted-foreground">
-                    {c.objetivo}
+                  <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-pretty text-sm leading-snug text-muted-foreground">
+                    {c.objetivo || "Sem objetivo definido."}
                   </p>
 
                   <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className={cn(resp?.cor, "text-[10px] text-primary-foreground")}>
-                          {resp?.iniciais}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs text-muted-foreground">{resp?.nome}</span>
+                      {resp ? (
+                        <>
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className={cn(resp.cor, "text-[10px] text-primary-foreground")}>
+                              {resp.iniciais}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs text-muted-foreground">{resp.nome}</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Sem responsável</span>
+                      )}
                     </div>
                     <span className="text-sm font-medium text-foreground">
                       {c.mrr > 0 ? `${brl(c.mrr)}/mês` : "—"}
@@ -149,7 +165,9 @@ export function ClientesLista() {
               <Users className="h-5 w-5" />
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              Nenhum cliente encontrado com esses filtros.
+              {clientes.length === 0 && !erro
+                ? "Nenhum cliente cadastrado ainda. Crie o primeiro com o botão acima."
+                : "Nenhum cliente encontrado com esses filtros."}
             </p>
           </div>
         )}

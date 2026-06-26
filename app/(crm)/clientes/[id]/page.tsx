@@ -1,11 +1,9 @@
 import { notFound } from "next/navigation"
 import { Topbar } from "@/components/simple/topbar"
 import { ClienteDetalhe } from "@/components/clientes/cliente-detalhe"
-import { clientePorId, clientes } from "@/lib/simple-data"
+import { getClientePorId } from "@/lib/clientes-db"
 
-export function generateStaticParams() {
-  return clientes.map((c) => ({ id: c.id }))
-}
+export const dynamic = "force-dynamic"
 
 export default async function ClientePage({
   params,
@@ -13,7 +11,13 @@ export default async function ClientePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const cliente = clientePorId(id)
+
+  let cliente = null
+  try {
+    cliente = await getClientePorId(id)
+  } catch {
+    cliente = null
+  }
 
   if (!cliente) {
     notFound()
