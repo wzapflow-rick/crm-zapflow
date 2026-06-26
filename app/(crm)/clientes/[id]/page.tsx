@@ -1,9 +1,17 @@
 import { notFound } from "next/navigation"
 import { Topbar } from "@/components/simple/topbar"
 import { ClienteDetalhe } from "@/components/clientes/cliente-detalhe"
-import { getClientePorId, getMetas, getEventos, getConteudos, getEstrategia } from "@/lib/clientes-db"
+import {
+  getClientePorId,
+  getMetas,
+  getEventos,
+  getConteudos,
+  getEstrategia,
+  getArquivos,
+  getMensagens,
+} from "@/lib/clientes-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
-import type { Cliente, ConteudoItem, Estrategia, EventoCliente, Meta } from "@/lib/simple-data"
+import type { Arquivo, Cliente, ConteudoItem, Estrategia, EventoCliente, Mensagem, Meta } from "@/lib/simple-data"
 
 export const dynamic = "force-dynamic"
 
@@ -49,6 +57,20 @@ export default async function ClientePage({
     estrategia = { estrategiaAtual: [], insights: [], concorrentes: [] }
   }
 
+  let arquivos: Arquivo[] = []
+  try {
+    arquivos = await getArquivos(id)
+  } catch {
+    arquivos = []
+  }
+
+  let mensagens: Mensagem[] = []
+  try {
+    mensagens = await getMensagens(id)
+  } catch {
+    mensagens = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -59,6 +81,8 @@ export default async function ClientePage({
         eventos={eventos}
         conteudos={conteudos}
         estrategia={estrategia}
+        arquivos={arquivos}
+        mensagens={mensagens}
       />
     </>
   )

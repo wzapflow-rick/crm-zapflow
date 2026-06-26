@@ -4,13 +4,17 @@ import { revalidatePath } from "next/cache"
 import {
   atualizarCliente,
   criarCliente,
+  salvarArquivos,
   salvarConteudos,
   salvarEstrategia,
   salvarEventos,
+  salvarMensagens,
   salvarVisaoGeral,
+  type ArquivoInput,
   type AtualizarCliente,
   type ConteudoInput,
   type EventoInput,
+  type MensagemInput,
   type MetaInput,
   type NovoCliente,
 } from "@/lib/clientes-db"
@@ -243,6 +247,84 @@ export async function salvarEstrategiaAction(
 
   try {
     await salvarEstrategia(id, estrategia)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function salvarArquivosAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  let arquivos: ArquivoInput[] = []
+  try {
+    const parsed = JSON.parse(String(formData.get("arquivos") ?? "[]")) as unknown
+    if (Array.isArray(parsed)) {
+      arquivos = parsed
+        .map((a) => {
+          const item = a as Record<string, unknown>
+          return {
+            nome: String(item.nome ?? ""),
+            tipo: String(item.tipo ?? "Material"),
+            url: item.url ? String(item.url) : undefined,
+          }
+        })
+        .filter((a) => a.nome.trim())
+    }
+  } catch {
+    return { ok: false, erro: "Não foi possível ler os arquivos." }
+  }
+
+  try {
+    await salvarArquivos(id, arquivos)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function salvarMensagensAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  let mensagens: MensagemInput[] = []
+  try {
+    const parsed = JSON.parse(String(formData.get("mensagens") ?? "[]")) as unknown
+    if (Array.isArray(parsed)) {
+      mensagens = parsed
+        .map((m) => {
+          const item = m as Record<string, unknown>
+          return {
+            autorId: item.autorId ? String(item.autorId) : undefined,
+            texto: String(item.texto ?? ""),
+            data: item.data ? String(item.data) : undefined,
+          }
+        })
+        .filter((m) => m.texto.trim())
+    }
+  } catch {
+    return { ok: false, erro: "Não foi possível ler as mensagens." }
+  }
+
+  try {
+    await salvarMensagens(id, mensagens)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }

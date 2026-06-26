@@ -6,6 +6,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarDays,
+  Download,
   FileText,
   FolderOpen,
   LineChart,
@@ -20,14 +21,13 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
-  arquivosCliente,
   detalheClientePorId,
-  fundadores,
-  mensagensCliente,
+  type Arquivo,
   type Cliente,
   type ConteudoItem,
   type Estrategia,
   type EventoCliente,
+  type Mensagem,
   type Meta,
   type StatusConteudo,
 } from "@/lib/simple-data"
@@ -37,12 +37,12 @@ import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
 import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
+import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
+import { ComunicacaoDialog } from "@/components/clientes/comunicacao-dialog"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
-
-const fundadorPorId = (id: string) => fundadores.find((f) => f.id === id)
 
 const statusClienteInfo: Record<Cliente["status"], { label: string; classe: string }> = {
   ativo: { label: "Ativo", classe: "bg-chart-4/15 text-chart-4" },
@@ -73,6 +73,8 @@ export function ClienteDetalhe({
   eventos,
   conteudos,
   estrategia,
+  arquivos,
+  mensagens,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -80,11 +82,12 @@ export function ClienteDetalhe({
   eventos: EventoCliente[]
   conteudos: ConteudoItem[]
   estrategia: Estrategia
+  arquivos: Arquivo[]
+  mensagens: Mensagem[]
 }) {
   const resp = membros.find((m) => m.id === cliente.responsavelId)
+  const membroPorId = (id: string) => membros.find((m) => m.id === id)
   const detalhe = detalheClientePorId(cliente.id)
-  const mensagens = mensagensCliente.filter((m) => m.clienteId === cliente.id)
-  const arquivos = arquivosCliente.filter((a) => a.clienteId === cliente.id)
 
   // Usa dados reais do banco; sem dados ainda, mostra estado vazio editável.
   const resumo = cliente.resumoEstrategico?.trim() || ""
@@ -372,7 +375,19 @@ export function ClienteDetalhe({
 
           {/* Arquivos */}
           <TabsContent value="arquivos" className="mt-5">
-            <Card titulo="Materiais e branding">
+            <div className="mb-3 flex justify-end">
+              <ArquivosDialog
+                clienteId={cliente.id}
+                arquivos={arquivos}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar arquivos
+                  </Button>
+                }
+              />
+            </div>
+            <Card titulo="Materiais e arquivos">
               {arquivos.length > 0 ? (
                 <ul className="divide-y divide-border">
                   {arquivos.map((a) => (
@@ -384,33 +399,58 @@ export function ClienteDetalhe({
                         <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
                         <p className="text-xs text-muted-foreground">{a.tipo}</p>
                       </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">{a.tamanho}</span>
+                      {a.url ? (
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Baixar / Abrir
+                        </a>
+                      ) : (
+                        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
+                      )}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <Vazio texto="Nenhum arquivo enviado." />
+                <Vazio texto="Nenhum arquivo. Clique em Editar arquivos para adicionar um link." />
               )}
             </Card>
           </TabsContent>
 
           {/* Comunicação */}
           <TabsContent value="comunicacao" className="mt-5">
+            <div className="mb-3 flex justify-end">
+              <ComunicacaoDialog
+                clienteId={cliente.id}
+                mensagens={mensagens}
+                membros={membros}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar comunicação
+                  </Button>
+                }
+              />
+            </div>
             <Card titulo="Histórico de alinhamentos">
               {mensagens.length > 0 ? (
                 <ul className="space-y-4">
                   {mensagens.map((m) => {
-                    const autor = fundadorPorId(m.autorId)
+                    const autor = membroPorId(m.autorId)
                     return (
                       <li key={m.id} className="flex gap-3">
                         <Avatar className="h-8 w-8 shrink-0">
                           <AvatarFallback className={cn(autor?.cor, "text-[10px] text-primary-foreground")}>
-                            {autor?.iniciais}
+                            {autor?.iniciais ?? "?"}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-foreground">{autor?.nome}</span>
+                            <span className="text-sm font-medium text-foreground">{autor?.nome ?? "Sem autor"}</span>
                             <span className="text-[11px] text-muted-foreground">{m.data}</span>
                           </div>
                           <p className="mt-0.5 text-pretty text-sm leading-relaxed text-muted-foreground">

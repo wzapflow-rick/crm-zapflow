@@ -1,10 +1,12 @@
 import "server-only"
 import { query, getPool } from "@/lib/db"
 import type {
+  Arquivo,
   Cliente,
   ConteudoItem,
   Estrategia,
   EventoCliente,
+  Mensagem,
   Meta,
   StatusCliente,
   StatusConteudo,
@@ -323,6 +325,116 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
         `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao)
          values ($1, $2, $3, $4, $5, $6)`,
         [empresaId, titulo, formato, status, c.data || null, posicao++],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+// ── Arquivos (aba Arquivos · por link) ────────────────────────────────────
+
+type ArquivoRow = {
+  id: string
+  nome: string
+  tipo: string | null
+  url: string | null
+}
+
+const TIPOS_ARQUIVO: Arquivo["tipo"][] = ["Branding", "Material", "Drive", "Contrato"]
+
+export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
+  const rows = await query<ArquivoRow>(
+    `select id, nome, tipo, url
+     from public.arquivos
+     where empresa_id = $1
+     order by posicao asc, created_at asc`,
+    [empresaId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    clienteId: empresaId,
+    nome: r.nome,
+    tipo: (TIPOS_ARQUIVO.includes(r.tipo as Arquivo["tipo"]) ? r.tipo : "Material") as Arquivo["tipo"],
+    tamanho: "",
+    url: r.url ?? "",
+  }))
+}
+
+export type ArquivoInput = { nome: string; tipo: string; url?: string }
+
+export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    await client.query(`delete from public.arquivos where empresa_id = $1`, [empresaId])
+    let posicao = 0
+    for (const a of arquivos) {
+      const nome = a.nome.trim()
+      if (!nome) continue
+      const tipo = TIPOS_ARQUIVO.includes(a.tipo as Arquivo["tipo"]) ? a.tipo : "Material"
+      await client.query(
+        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao)
+         values ($1, $2, $3, $4, $5)`,
+        [empresaId, nome, tipo, a.url?.trim() || null, posicao++],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+// ── Mensagens (aba Comunicação) ───────────────────────────────────────────
+
+type MensagemRow = {
+  id: string
+  autor_id: string | null
+  texto: string
+  data: string | null
+}
+
+export async function getMensagens(empresaId: string): Promise<Mensagem[]> {
+  const rows = await query<MensagemRow>(
+    `select id, autor_id, texto, data
+     from public.mensagens
+     where empresa_id = $1
+     order by posicao asc, created_at asc`,
+    [empresaId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    clienteId: empresaId,
+    autorId: r.autor_id ?? "",
+    data: r.data ?? "",
+    texto: r.texto,
+  }))
+}
+
+export type MensagemInput = { autorId?: string; texto: string; data?: string }
+
+export async function salvarMensagens(empresaId: string, mensagens: MensagemInput[]): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    await client.query(`delete from public.mensagens where empresa_id = $1`, [empresaId])
+    let posicao = 0
+    for (const m of mensagens) {
+      const texto = m.texto.trim()
+      if (!texto) continue
+      await client.query(
+        `insert into public.mensagens (empresa_id, autor_id, texto, data, posicao)
+         values ($1, $2, $3, $4, $5)`,
+        [empresaId, m.autorId || null, texto, m.data?.trim() || null, posicao++],
       )
     }
     await client.query("commit")

@@ -100,6 +100,7 @@ export type Arquivo = {
   nome: string
   tipo: "Branding" | "Material" | "Drive" | "Contrato"
   tamanho: string
+  url?: string // link para baixar/abrir (Drive, YouTube, Dropbox...)
 }
 
 export type MetricaResultado = {
