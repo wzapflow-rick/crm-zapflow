@@ -100,7 +100,7 @@ export function ClienteDetalhe({
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
-      <div className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
         <Link
           href="/clientes"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -110,8 +110,8 @@ export function ClienteDetalhe({
         </Link>
 
         {/* Cabeçalho do cliente */}
-        <div className="mt-4 flex flex-col gap-5 rounded-xl border border-border bg-card p-6 sm:flex-row sm:items-start">
-          <Avatar className="h-16 w-16">
+        <div className="mt-4 flex flex-col gap-5 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-start sm:p-6">
+          <Avatar className="h-14 w-14 sm:h-16 sm:w-16">
             <AvatarFallback className={cn(cliente.cor, "text-xl font-semibold text-primary-foreground")}>
               {cliente.iniciais}
             </AvatarFallback>
@@ -188,7 +188,7 @@ export function ClienteDetalhe({
 
         {/* Abas */}
         <Tabs defaultValue="visao" className="mt-6">
-          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+          <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
             <TabTrigger value="visao" icon={Target} label="Visão geral" />
             <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
             <TabTrigger value="conteudo" icon={Video} label="Conteúdo" />
@@ -528,7 +528,7 @@ function TabTrigger({ value, icon: Icon, label }: { value: string; icon: typeof 
   return (
     <TabsTrigger
       value={value}
-      className="gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+      className="shrink-0 gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
     >
       <Icon className="h-3.5 w-3.5" />
       {label}

@@ -13,7 +13,7 @@ export function EmBreve({
   return (
     <>
       <Topbar titulo={titulo} />
-      <main className="flex flex-1 items-center justify-center overflow-y-auto p-6">
+      <main className="flex flex-1 items-center justify-center overflow-y-auto px-4 py-10 md:p-6">
         <div className="flex max-w-md flex-col items-center text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
             <Icon className="h-6 w-6" />

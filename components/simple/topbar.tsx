@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, ChevronDown } from "lucide-react"
+import { Search, ChevronDown, Menu } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import {
@@ -16,11 +16,20 @@ import { fundadores } from "@/lib/simple-data"
 import { useApp } from "@/components/simple/providers"
 
 export function Topbar({ titulo }: { titulo: string }) {
-  const { usuario, setUsuario } = useApp()
+  const { usuario, setUsuario, setNavAberta } = useApp()
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-5">
-      <h1 className="text-sm font-semibold text-foreground">{titulo}</h1>
+    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-5">
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={() => setNavAberta(true)}
+          className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:hidden"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <h1 className="truncate text-sm font-semibold text-foreground">{titulo}</h1>
+      </div>
 
       <div className="relative hidden max-w-sm flex-1 md:block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

@@ -82,16 +82,16 @@ export function PortalCliente({
     <div className="flex min-h-screen flex-col bg-background">
       {/* Cabeçalho do portal */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 px-6 py-4">
+        <div className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-4 md:px-6">
           <span className="font-serif text-lg font-semibold tracking-tight text-foreground">SIMPLE</span>
           <span className="text-sm text-muted-foreground">· Portal do cliente</span>
         </div>
       </header>
 
       <main className="flex-1">
-        <div className="mx-auto max-w-4xl px-6 py-8">
+        <div className="mx-auto max-w-4xl px-4 py-6 md:px-6 md:py-8">
           {/* Identificação do cliente */}
-          <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:p-6">
             <Avatar className="h-14 w-14">
               <AvatarFallback className={cn(cliente.cor, "text-lg font-semibold text-primary-foreground")}>
                 {cliente.iniciais}
@@ -110,7 +110,7 @@ export function PortalCliente({
           )}
 
           <Tabs defaultValue="mensagens" className="mt-6">
-            <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+            <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
               <TabTrigger value="mensagens" icon={MessageSquare} label="Mensagens" />
               <TabTrigger value="materiais" icon={FolderOpen} label="Materiais" />
               <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
@@ -395,7 +395,7 @@ function TabTrigger({ value, icon: Icon, label }: { value: string; icon: typeof 
   return (
     <TabsTrigger
       value={value}
-      className="gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+      className="shrink-0 gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
     >
       <Icon className="h-3.5 w-3.5" />
       {label}

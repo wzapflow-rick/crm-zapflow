@@ -58,7 +58,7 @@ export function ClientesLista({
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
         {/* Cabeçalho */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

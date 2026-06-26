@@ -82,7 +82,7 @@ export function CrmKanban({
 
   return (
     <main className="flex-1 overflow-hidden bg-background">
-      <div className="flex h-full flex-col px-6 py-8">
+      <div className="flex h-full flex-col px-4 py-6 md:px-6 md:py-8">
         {/* Cabeçalho */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -131,7 +131,7 @@ export function CrmKanban({
                 onDragLeave={() => setSobre((s) => (s === etapa.id ? null : s))}
                 onDrop={() => soltarEm(etapa.id)}
                 className={cn(
-                  "flex w-72 shrink-0 flex-col rounded-xl border bg-card/50 transition-colors",
+                  "flex w-[80vw] max-w-[20rem] shrink-0 flex-col rounded-xl border bg-card/50 transition-colors sm:w-72",
                   sobre === etapa.id ? "border-primary/50 bg-accent/40" : "border-border",
                 )}
               >
@@ -185,7 +185,7 @@ export function CrmKanban({
                               {n.titulo}
                             </h3>
                           </div>
-                          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                          <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                             <NegocioDialog
                               membros={membros}
                               negocio={n}

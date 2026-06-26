@@ -66,7 +66,7 @@ export function Dashboard({
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
         {/* Saudação + missão + ações */}
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
