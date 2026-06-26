@@ -133,10 +133,10 @@ export function TarefasView({
   const clientePorId = (id: string) => clientes.find((c) => c.id === id)
 
   function toggleConcluida(t: Tarefa) {
-    const concluida = t.status !== "concluida"
+    const concluida = t.status !== "concluido"
     // Atualização otimista
     setTarefas((atual) =>
-      atual.map((x) => (x.id === t.id ? { ...x, status: concluida ? "concluida" : "pendente" } : x)),
+      atual.map((x) => (x.id === t.id ? { ...x, status: concluida ? "concluido" : "pendente" } : x)),
     )
     startTransition(async () => {
       await alternarConclusaoAction(t.id, concluida)
@@ -165,7 +165,7 @@ export function TarefasView({
   const pendentes = useMemo(
     () =>
       filtradas
-        .filter((t) => t.status !== "concluida")
+        .filter((t) => t.status !== "concluido")
         .sort((a, b) => {
           const pa = descreverPrazo(a.prazo).atrasada ? 0 : 1
           const pb = descreverPrazo(b.prazo).atrasada ? 0 : 1
@@ -176,7 +176,7 @@ export function TarefasView({
         }),
     [filtradas],
   )
-  const concluidas = useMemo(() => filtradas.filter((t) => t.status === "concluida"), [filtradas])
+  const concluidas = useMemo(() => filtradas.filter((t) => t.status === "concluido"), [filtradas])
 
   const novoTrigger = (
     <Button>
@@ -186,7 +186,7 @@ export function TarefasView({
   )
 
   function LinhaTarefa({ t }: { t: Tarefa }) {
-    const concluida = t.status === "concluida"
+    const concluida = t.status === "concluido"
     const prazo = descreverPrazo(t.prazo)
     const cliente = clientePorId(t.clienteId)
     const resp = membroPorId(t.responsavelId)
@@ -215,7 +215,7 @@ export function TarefasView({
             {t.titulo}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            {t.status === "fazendo" && !concluida && (
+            {t.status === "em_andamento" && !concluida && (
               <span className="rounded-full bg-chart-4/15 px-2 py-0.5 font-medium text-chart-4">Em andamento</span>
             )}
             <span

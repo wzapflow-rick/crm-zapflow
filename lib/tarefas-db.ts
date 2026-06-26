@@ -103,7 +103,7 @@ export async function atualizarTarefa(id: string, input: TarefaInput): Promise<v
 export async function alternarConclusao(id: string, concluida: boolean): Promise<void> {
   await query(`update public.tarefas set status = $2, updated_at = now() where id = $1`, [
     id,
-    concluida ? "concluida" : "pendente",
+    concluida ? "concluido" : "pendente",
   ])
 }
 
@@ -151,7 +151,7 @@ export async function getResumoTarefas(limite = 5): Promise<ResumoTarefas> {
             e.nome as cliente_nome
      from public.tarefas t
      left join public.empresas e on e.id = t.empresa_id
-     where t.status <> 'concluida'`,
+     where t.status <> 'concluido'`,
   )
   const ordenadas = rows
     .map((r) => {

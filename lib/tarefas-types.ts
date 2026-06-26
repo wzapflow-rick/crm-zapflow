@@ -10,8 +10,8 @@ export type Prioridade = (typeof PRIORIDADES)[number]["id"]
 
 export const STATUS_TAREFA = [
   { id: "pendente", label: "A fazer" },
-  { id: "fazendo", label: "Em andamento" },
-  { id: "concluida", label: "Concluída" },
+  { id: "em_andamento", label: "Em andamento" },
+  { id: "concluido", label: "Concluída" },
 ] as const
 
 export type StatusTarefa = (typeof STATUS_TAREFA)[number]["id"]
