@@ -1,0 +1,363 @@
+"use client"
+
+import Link from "next/link"
+import {
+  ArrowLeft,
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarDays,
+  FileText,
+  FolderOpen,
+  LineChart,
+  MessageSquare,
+  Phone,
+  Target,
+  Video,
+} from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
+import {
+  arquivosCliente,
+  conteudosCliente,
+  detalheClientePorId,
+  eventosCliente,
+  fundadores,
+  mensagensCliente,
+  type Cliente,
+  type StatusConteudo,
+} from "@/lib/simple-data"
+
+const brl = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+
+const fundadorPorId = (id: string) => fundadores.find((f) => f.id === id)
+
+const statusClienteInfo: Record<Cliente["status"], { label: string; classe: string }> = {
+  ativo: { label: "Ativo", classe: "bg-chart-4/15 text-chart-4" },
+  onboarding: { label: "Onboarding", classe: "bg-primary/10 text-primary" },
+  pausado: { label: "Pausado", classe: "bg-muted text-muted-foreground" },
+}
+
+const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = {
+  ideia: { label: "Ideia", classe: "bg-muted text-muted-foreground" },
+  roteiro: { label: "Roteiro", classe: "bg-chart-3/15 text-chart-3" },
+  gravacao: { label: "Gravação", classe: "bg-chart-2/15 text-chart-2" },
+  edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
+  aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
+  publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
+}
+
+const tipoEventoInfo: Record<string, { label: string; icon: typeof Video }> = {
+  gravacao: { label: "Gravação", icon: Video },
+  post: { label: "Post", icon: FileText },
+  entrega: { label: "Entrega", icon: FolderOpen },
+  reuniao: { label: "Reunião", icon: MessageSquare },
+}
+
+export function ClienteDetalhe({ cliente }: { cliente: Cliente }) {
+  const resp = fundadorPorId(cliente.responsavelId)
+  const detalhe = detalheClientePorId(cliente.id)
+  const eventos = eventosCliente.filter((e) => e.clienteId === cliente.id)
+  const conteudos = conteudosCliente.filter((c) => c.clienteId === cliente.id)
+  const mensagens = mensagensCliente.filter((m) => m.clienteId === cliente.id)
+  const arquivos = arquivosCliente.filter((a) => a.clienteId === cliente.id)
+
+  return (
+    <main className="flex-1 overflow-y-auto bg-background">
+      <div className="mx-auto max-w-5xl px-6 py-8">
+        <Link
+          href="/clientes"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Clientes
+        </Link>
+
+        {/* Cabeçalho do cliente */}
+        <div className="mt-4 flex flex-col gap-5 rounded-xl border border-border bg-card p-6 sm:flex-row sm:items-start">
+          <Avatar className="h-16 w-16">
+            <AvatarFallback className={cn(cliente.cor, "text-xl font-semibold text-primary-foreground")}>
+              {cliente.iniciais}
+            </AvatarFallback>
+          </Avatar>
+
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                {cliente.nome}
+              </h2>
+              <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", statusClienteInfo[cliente.status].classe)}>
+                {statusClienteInfo[cliente.status].label}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {cliente.segmento} · cliente desde {cliente.desde}
+            </p>
+            <p className="mt-3 max-w-xl text-pretty text-sm leading-relaxed text-foreground">
+              {cliente.objetivo}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:items-end">
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Receita mensal</p>
+              <p className="text-lg font-semibold text-foreground">
+                {cliente.mrr > 0 ? brl(cliente.mrr) : "—"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className={cn(resp?.cor, "text-[10px] text-primary-foreground")}>
+                  {resp?.iniciais}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-right leading-tight">
+                <p className="text-xs font-medium text-foreground">{resp?.nome}</p>
+                <p className="text-[10px] text-muted-foreground">Responsável</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" />
+              {cliente.contato} · {cliente.telefone}
+            </div>
+          </div>
+        </div>
+
+        {/* Abas */}
+        <Tabs defaultValue="visao" className="mt-6">
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0">
+            <TabTrigger value="visao" icon={Target} label="Visão geral" />
+            <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
+            <TabTrigger value="conteudo" icon={Video} label="Conteúdo" />
+            <TabTrigger value="estrategia" icon={LineChart} label="Estratégia" />
+            <TabTrigger value="arquivos" icon={FolderOpen} label="Arquivos" />
+            <TabTrigger value="comunicacao" icon={MessageSquare} label="Comunicação" />
+            <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
+          </TabsList>
+
+          {/* Visão geral */}
+          <TabsContent value="visao" className="mt-5">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <Card titulo="Resumo estratégico" className="lg:col-span-2">
+                <p className="text-pretty text-sm leading-relaxed text-foreground">
+                  {detalhe.resumoEstrategico}
+                </p>
+              </Card>
+              <Card titulo="Metas do cliente">
+                <ul className="space-y-4">
+                  {detalhe.metas.map((m) => {
+                    const pct = Math.min(100, Math.round((m.atual / m.alvo) * 100))
+                    return (
+                      <li key={m.rotulo}>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{m.rotulo}</span>
+                          <span className="font-medium text-foreground">{pct}%</span>
+                        </div>
+                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Calendário */}
+          <TabsContent value="calendario" className="mt-5">
+            <Card titulo="Próximas entregas e gravações">
+              {eventos.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {eventos.map((e) => {
+                    const info = tipoEventoInfo[e.tipo]
+                    const Icon = info.icon
+                    return (
+                      <li key={e.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{e.titulo}</p>
+                          <p className="text-xs text-muted-foreground">{info.label}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-medium text-foreground">{e.data}</p>
+                          <p className="text-[11px] text-muted-foreground">{e.hora}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <Vazio texto="Nenhuma entrega agendada." />
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Conteúdo */}
+          <TabsContent value="conteudo" className="mt-5">
+            <Card titulo="Pipeline de conteúdo">
+              {conteudos.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {conteudos.map((c) => (
+                    <li key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{c.titulo}</p>
+                        <p className="text-xs text-muted-foreground">{c.formato} · {c.data}</p>
+                      </div>
+                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", conteudoInfo[c.status].classe)}>
+                        {conteudoInfo[c.status].label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Vazio texto="Nenhum conteúdo em produção." />
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Estratégia */}
+          <TabsContent value="estrategia" className="mt-5">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card titulo="Plano atual">
+                <ul className="space-y-2.5">
+                  {detalhe.estrategiaAtual.map((item, i) => (
+                    <li key={i} className="flex gap-2.5 text-sm leading-snug text-foreground">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card titulo="Insights">
+                <ul className="space-y-2.5">
+                  {detalhe.insights.map((item, i) => (
+                    <li key={i} className="flex gap-2.5 text-sm leading-snug text-foreground">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-chart-2" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card titulo="Concorrentes acompanhados" className="lg:col-span-2">
+                <div className="flex flex-wrap gap-2">
+                  {detalhe.concorrentes.map((c) => (
+                    <span key={c} className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Arquivos */}
+          <TabsContent value="arquivos" className="mt-5">
+            <Card titulo="Materiais e branding">
+              {arquivos.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {arquivos.map((a) => (
+                    <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                        <FolderOpen className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
+                        <p className="text-xs text-muted-foreground">{a.tipo}</p>
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">{a.tamanho}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Vazio texto="Nenhum arquivo enviado." />
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Comunicação */}
+          <TabsContent value="comunicacao" className="mt-5">
+            <Card titulo="Histórico de alinhamentos">
+              {mensagens.length > 0 ? (
+                <ul className="space-y-4">
+                  {mensagens.map((m) => {
+                    const autor = fundadorPorId(m.autorId)
+                    return (
+                      <li key={m.id} className="flex gap-3">
+                        <Avatar className="h-8 w-8 shrink-0">
+                          <AvatarFallback className={cn(autor?.cor, "text-[10px] text-primary-foreground")}>
+                            {autor?.iniciais}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{autor?.nome}</span>
+                            <span className="text-[11px] text-muted-foreground">{m.data}</span>
+                          </div>
+                          <p className="mt-0.5 text-pretty text-sm leading-relaxed text-muted-foreground">
+                            {m.texto}
+                          </p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <Vazio texto="Nenhum alinhamento registrado." />
+              )}
+            </Card>
+          </TabsContent>
+
+          {/* Resultados */}
+          <TabsContent value="resultados" className="mt-5">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {detalhe.resultados.map((r) => {
+                const positivo = r.variacao >= 0
+                return (
+                  <div key={r.rotulo} className="rounded-xl border border-border bg-card p-5">
+                    <p className="text-sm text-muted-foreground">{r.rotulo}</p>
+                    <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{r.valor}</p>
+                    {r.variacao !== 0 && (
+                      <p className={cn("mt-1.5 inline-flex items-center gap-0.5 text-xs font-medium", positivo ? "text-chart-4" : "text-destructive")}>
+                        {positivo ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                        {Math.abs(r.variacao)}% vs. mês anterior
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </main>
+  )
+}
+
+function TabTrigger({ value, icon: Icon, label }: { value: string; icon: typeof Target; label: string }) {
+  return (
+    <TabsTrigger
+      value={value}
+      className="gap-1.5 rounded-lg border border-transparent px-3 py-1.5 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </TabsTrigger>
+  )
+}
+
+function Card({ titulo, children, className }: { titulo: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <h3 className="mb-3 text-sm font-semibold text-foreground">{titulo}</h3>
+      {children}
+    </div>
+  )
+}
+
+function Vazio({ texto }: { texto: string }) {
+  return <p className="py-6 text-center text-sm text-muted-foreground">{texto}</p>
+}

@@ -1,12 +1,11 @@
-import { Users } from "lucide-react"
-import { EmBreve } from "@/components/simple/em-breve"
+import { Topbar } from "@/components/simple/topbar"
+import { ClientesLista } from "@/components/clientes/clientes-lista"
 
 export default function ClientesPage() {
   return (
-    <EmBreve
-      titulo="Clientes"
-      icon={Users}
-      descricao="O core do SIMPLE OS: uma página por cliente com visão geral, calendário, conteúdo, estratégia, arquivos e resultados. Vamos construir este módulo na próxima leva."
-    />
+    <>
+      <Topbar titulo="Clientes" />
+      <ClientesLista />
+    </>
   )
 }
