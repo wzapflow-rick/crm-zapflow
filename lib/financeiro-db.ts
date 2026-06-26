@@ -102,7 +102,7 @@ export async function excluirLancamento(id: string): Promise<void> {
 // Lê a meta de um mês (0 se não houver)
 export async function getMeta(mes: string): Promise<number> {
   const rows = await query<{ valor: string | number | null }>(
-    `select valor::text as valor from public.financeiro_metas where mes = $1`,
+    `select valor::text as valor from public.financeiro_metas where competencia = $1`,
     [mes],
   )
   return rows.length && rows[0].valor != null ? Number(rows[0].valor) : 0
@@ -111,9 +111,9 @@ export async function getMeta(mes: string): Promise<number> {
 // Salva (upsert) a meta de um mês
 export async function salvarMeta(mes: string, valor: number): Promise<void> {
   await query(
-    `insert into public.financeiro_metas (mes, valor)
+    `insert into public.financeiro_metas (competencia, valor)
      values ($1, $2)
-     on conflict (mes) do update set valor = excluded.valor, updated_at = now()`,
+     on conflict (competencia) do update set valor = excluded.valor, updated_at = now()`,
     [mes, valor],
   )
 }
