@@ -40,7 +40,7 @@ const SELECT_COLS = `id, titulo, descricao, tipo,
 export async function getEventos(): Promise<Evento[]> {
   const rows = await query<EventoRow>(
     `select ${SELECT_COLS}
-     from public.eventos
+     from public.agenda_compromissos
      order by data asc nulls last, hora asc nulls last`,
   )
   return rows.map(mapRow)
@@ -50,7 +50,7 @@ export async function criarEvento(input: EventoInput): Promise<void> {
   const titulo = input.titulo.trim()
   if (!titulo) return
   await query(
-    `insert into public.eventos (titulo, descricao, tipo, data, hora, empresa_id, responsavel_id)
+    `insert into public.agenda_compromissos (titulo, descricao, tipo, data, hora, empresa_id, responsavel_id)
      values ($1, $2, $3, $4, $5, $6, $7)`,
     [
       titulo,
@@ -68,7 +68,7 @@ export async function atualizarEvento(id: string, input: EventoInput): Promise<v
   const titulo = input.titulo.trim()
   if (!titulo) return
   await query(
-    `update public.eventos
+    `update public.agenda_compromissos
      set titulo = $2, descricao = $3, tipo = $4, data = $5, hora = $6,
          empresa_id = $7, responsavel_id = $8, updated_at = now()
      where id = $1`,
@@ -86,5 +86,5 @@ export async function atualizarEvento(id: string, input: EventoInput): Promise<v
 }
 
 export async function excluirEvento(id: string): Promise<void> {
-  await query(`delete from public.eventos where id = $1`, [id])
+  await query(`delete from public.agenda_compromissos where id = $1`, [id])
 }
