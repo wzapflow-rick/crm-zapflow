@@ -34,6 +34,15 @@ export type Cliente = {
   telefone: string
   desde: string // mês/ano de início (exibição)
   desdeISO?: string // YYYY-MM-DD (para edição)
+  resumoEstrategico?: string
+}
+
+export type Meta = {
+  id: string
+  rotulo: string
+  atual: number
+  alvo: number
+  unidade?: string
 }
 
 export const clientes: Cliente[] = [

@@ -27,10 +27,12 @@ import {
   fundadores,
   mensagensCliente,
   type Cliente,
+  type Meta,
   type StatusConteudo,
 } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
+import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
@@ -60,13 +62,24 @@ const tipoEventoInfo: Record<string, { label: string; icon: typeof Video }> = {
   reuniao: { label: "Reunião", icon: MessageSquare },
 }
 
-export function ClienteDetalhe({ cliente, membros }: { cliente: Cliente; membros: Membro[] }) {
+export function ClienteDetalhe({
+  cliente,
+  membros,
+  metas,
+}: {
+  cliente: Cliente
+  membros: Membro[]
+  metas: Meta[]
+}) {
   const resp = membros.find((m) => m.id === cliente.responsavelId)
   const detalhe = detalheClientePorId(cliente.id)
   const eventos = eventosCliente.filter((e) => e.clienteId === cliente.id)
   const conteudos = conteudosCliente.filter((c) => c.clienteId === cliente.id)
   const mensagens = mensagensCliente.filter((m) => m.clienteId === cliente.id)
   const arquivos = arquivosCliente.filter((a) => a.clienteId === cliente.id)
+
+  // Usa dados reais do banco; sem dados ainda, mostra estado vazio editável.
+  const resumo = cliente.resumoEstrategico?.trim() || ""
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
@@ -163,29 +176,48 @@ export function ClienteDetalhe({ cliente, membros }: { cliente: Cliente; membros
 
           {/* Visão geral */}
           <TabsContent value="visao" className="mt-5">
+            <div className="mb-3 flex justify-end">
+              <VisaoGeralDialog
+                clienteId={cliente.id}
+                resumoEstrategico={resumo}
+                metas={metas}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar visão geral
+                  </Button>
+                }
+              />
+            </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Card titulo="Resumo estratégico" className="lg:col-span-2">
-                <p className="text-pretty text-sm leading-relaxed text-foreground">
-                  {detalhe.resumoEstrategico}
-                </p>
+                {resumo ? (
+                  <p className="text-pretty text-sm leading-relaxed text-foreground">{resumo}</p>
+                ) : (
+                  <Vazio texto="Nenhum resumo estratégico definido. Clique em Editar visão geral para adicionar." />
+                )}
               </Card>
               <Card titulo="Metas do cliente">
-                <ul className="space-y-4">
-                  {detalhe.metas.map((m) => {
-                    const pct = Math.min(100, Math.round((m.atual / m.alvo) * 100))
-                    return (
-                      <li key={m.rotulo}>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{m.rotulo}</span>
-                          <span className="font-medium text-foreground">{pct}%</span>
-                        </div>
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
+                {metas.length > 0 ? (
+                  <ul className="space-y-4">
+                    {metas.map((m) => {
+                      const pct = m.alvo > 0 ? Math.min(100, Math.round((m.atual / m.alvo) * 100)) : 0
+                      return (
+                        <li key={m.id}>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{m.rotulo}</span>
+                            <span className="font-medium text-foreground">{pct}%</span>
+                          </div>
+                          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <Vazio texto="Nenhuma meta definida." />
+                )}
               </Card>
             </div>
           </TabsContent>

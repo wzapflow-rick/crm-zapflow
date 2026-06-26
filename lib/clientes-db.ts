@@ -1,6 +1,6 @@
 import "server-only"
-import { query } from "@/lib/db"
-import type { Cliente, StatusCliente } from "@/lib/simple-data"
+import { query, getPool } from "@/lib/db"
+import type { Cliente, Meta, StatusCliente } from "@/lib/simple-data"
 
 type EmpresaRow = {
   id: string
@@ -16,6 +16,7 @@ type EmpresaRow = {
   contato: string | null
   telefone: string | null
   desde: Date | null
+  resumo_estrategico?: string | null
 }
 
 // Paleta de cores de avatar usada quando o cliente não tem cor definida.
@@ -70,6 +71,7 @@ function mapRow(r: EmpresaRow): Cliente {
     telefone: r.telefone ?? "",
     desde: formatarDesde(r.desde),
     desdeISO: r.desde ? new Date(r.desde).toISOString().slice(0, 10) : "",
+    resumoEstrategico: r.resumo_estrategico ?? "",
   }
 }
 
@@ -84,13 +86,77 @@ export async function getClientes(): Promise<Cliente[]> {
 
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde
+    `select id, nome, slug, segmento, status, responsavel_id, mrr, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico
      from public.empresas
      where id = $1
      limit 1`,
     [id],
   )
   return rows[0] ? mapRow(rows[0]) : null
+}
+
+// ── Metas (aba Visão geral) ───────────────────────────────────────────────
+
+type MetaRow = {
+  id: string
+  rotulo: string
+  atual: string | null
+  alvo: string | null
+  unidade: string | null
+}
+
+export async function getMetas(empresaId: string): Promise<Meta[]> {
+  const rows = await query<MetaRow>(
+    `select id, rotulo, atual, alvo, unidade
+     from public.metas
+     where empresa_id = $1
+     order by posicao asc, created_at asc`,
+    [empresaId],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    rotulo: r.rotulo,
+    atual: r.atual ? Number(r.atual) : 0,
+    alvo: r.alvo ? Number(r.alvo) : 0,
+    unidade: r.unidade ?? "",
+  }))
+}
+
+export type MetaInput = { rotulo: string; atual: number; alvo: number; unidade?: string }
+
+// Salva a aba "Visão geral": resumo estratégico + lista de metas.
+// As metas são regravadas por completo dentro de uma transação.
+export async function salvarVisaoGeral(
+  empresaId: string,
+  resumoEstrategico: string,
+  metas: MetaInput[],
+): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    await client.query(`update public.empresas set resumo_estrategico = $2, updated_at = now() where id = $1`, [
+      empresaId,
+      resumoEstrategico.trim() || null,
+    ])
+    await client.query(`delete from public.metas where empresa_id = $1`, [empresaId])
+    let posicao = 0
+    for (const m of metas) {
+      const rotulo = m.rotulo.trim()
+      if (!rotulo) continue
+      await client.query(
+        `insert into public.metas (empresa_id, rotulo, atual, alvo, unidade, posicao)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [empresaId, rotulo, m.atual || 0, m.alvo || 0, m.unidade?.trim() || null, posicao++],
+      )
+    }
+    await client.query("commit")
+  } catch (e) {
+    await client.query("rollback")
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
 export type NovoCliente = {

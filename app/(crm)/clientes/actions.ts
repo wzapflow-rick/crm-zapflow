@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache"
 import {
   atualizarCliente,
   criarCliente,
+  salvarVisaoGeral,
   type AtualizarCliente,
+  type MetaInput,
   type NovoCliente,
 } from "@/lib/clientes-db"
 import type { StatusCliente } from "@/lib/simple-data"
@@ -82,6 +84,49 @@ export async function atualizarClienteAction(
   }
 
   revalidatePath("/clientes")
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function salvarVisaoGeralAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+
+  const resumo = String(formData.get("resumoEstrategico") ?? "")
+
+  let metas: MetaInput[] = []
+  try {
+    const bruto = String(formData.get("metas") ?? "[]")
+    const parsed = JSON.parse(bruto) as unknown
+    if (Array.isArray(parsed)) {
+      metas = parsed
+        .map((m) => {
+          const item = m as Record<string, unknown>
+          return {
+            rotulo: String(item.rotulo ?? ""),
+            atual: Number(item.atual) || 0,
+            alvo: Number(item.alvo) || 0,
+            unidade: item.unidade ? String(item.unidade) : undefined,
+          }
+        })
+        .filter((m) => m.rotulo.trim())
+    }
+  } catch {
+    return { ok: false, erro: "Não foi possível ler as metas." }
+  }
+
+  try {
+    await salvarVisaoGeral(id, resumo, metas)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
 }
