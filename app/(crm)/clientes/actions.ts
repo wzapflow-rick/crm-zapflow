@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import {
   atualizarCliente,
   criarCliente,
+  excluirCliente,
   salvarArquivos,
   salvarConteudos,
   salvarEstrategia,
@@ -96,6 +97,21 @@ export async function atualizarClienteAction(
 
   revalidatePath("/clientes")
   revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+export async function excluirClienteAction(id: string): Promise<EstadoForm> {
+  const clienteId = id.trim()
+  if (!clienteId) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+  try {
+    await excluirCliente(clienteId)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
+    return { ok: false, erro: `Não foi possível excluir no banco: ${msg}` }
+  }
+  revalidatePath("/clientes")
   return { ok: true }
 }
 

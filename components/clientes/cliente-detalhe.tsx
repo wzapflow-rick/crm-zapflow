@@ -42,6 +42,7 @@ import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
 import { ComunicacaoDialog } from "@/components/clientes/comunicacao-dialog"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
+import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
@@ -139,6 +140,12 @@ export function ClienteDetalhe({
                 }
               />
               <PortalLink token={cliente.portalToken} />
+              <ExcluirClienteButton
+                clienteId={cliente.id}
+                clienteNome={cliente.nome}
+                variant="botao"
+                redirecionarApos="/clientes"
+              />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {cliente.segmento} · cliente desde {cliente.desde}

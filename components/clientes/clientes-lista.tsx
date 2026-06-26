@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { type Cliente, type StatusCliente } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
+import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
 import { criarClienteAction } from "@/app/(crm)/clientes/actions"
 
 const brl = (v: number) =>
@@ -168,9 +169,12 @@ export function ClientesLista({
                         <span className="text-xs text-muted-foreground">Sem responsável</span>
                       )}
                     </div>
-                    <span className="text-sm font-medium text-foreground">
-                      {c.mrr > 0 ? `${brl(c.mrr)}/mês` : "—"}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-foreground">
+                        {c.mrr > 0 ? `${brl(c.mrr)}/mês` : "—"}
+                      </span>
+                      <ExcluirClienteButton clienteId={c.id} clienteNome={c.nome} variant="icone" />
+                    </div>
                   </div>
                 </Link>
               )

@@ -122,6 +122,33 @@ export async function getClientePorToken(token: string): Promise<Cliente | null>
   return rows[0] ? mapRow(rows[0]) : null
 }
 
+// Exclui o cliente e todos os dados vinculados (metas, eventos, conteúdos, etc.).
+export async function excluirCliente(id: string): Promise<void> {
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    // Remove os filhos primeiro (caso não haja ON DELETE CASCADE no schema).
+    for (const tabela of [
+      "public.metas",
+      "public.eventos",
+      "public.conteudos",
+      "public.arquivos",
+      "public.resultados",
+      "public.comunicacoes",
+    ]) {
+      await client.query(`delete from ${tabela} where empresa_id = $1`, [id])
+    }
+    await client.query(`delete from public.empresas where id = $1`, [id])
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
 // ── Estratégia (aba Estratégia) ───────────────────────────────────────────
 
 type EstrategiaRow = {
