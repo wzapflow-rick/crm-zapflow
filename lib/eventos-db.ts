@@ -29,9 +29,12 @@ function mapRow(r: EventoRow): Evento {
   }
 }
 
+// Observação: o PostgreSQL não possui to_char para o tipo `time`, então usamos
+// casts para texto. `data::text` de uma coluna date já sai como YYYY-MM-DD e
+// substring(hora::text, 1, 5) extrai HH:MM de um time (ou de text), de forma robusta.
 const SELECT_COLS = `id, titulo, descricao, tipo,
-  to_char(data, 'YYYY-MM-DD') as data,
-  to_char(hora, 'HH24:MI') as hora,
+  data::text as data,
+  substring(hora::text from 1 for 5) as hora,
   empresa_id, responsavel_id`
 
 export async function getEventos(): Promise<Evento[]> {
