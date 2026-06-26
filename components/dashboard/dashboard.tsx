@@ -19,24 +19,22 @@ import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import type { ResumoCrm } from "@/lib/crm-db"
+import type { ResumoTarefas } from "@/lib/tarefas-db"
 import type { Membro } from "@/lib/membros-db"
 import {
   clientes,
   clientesAtivos,
-  fundadores,
   insightsSemana,
   metaMensal,
   proximasGravacoes,
   receitaAtual,
   receitaMensal,
-  tarefasUrgentes,
 } from "@/lib/simple-data"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
 
 const clientePorId = (id: string | null) => clientes.find((c) => c.id === id)
-const fundadorPorId = (id: string) => fundadores.find((f) => f.id === id)
 
 const prioridadeEstilo: Record<string, string> = {
   alta: "bg-primary/10 text-primary",
@@ -53,9 +51,11 @@ const acoesRapidas = [
 
 export function Dashboard({
   resumoCrm,
+  resumoTarefas,
   membros,
 }: {
   resumoCrm: ResumoCrm
+  resumoTarefas: ResumoTarefas
   membros: Membro[]
 }) {
   const { usuario } = useApp()
@@ -213,32 +213,40 @@ export function Dashboard({
             </ul>
           </Painel>
 
-          {/* Tarefas urgentes */}
+          {/* Tarefas urgentes (dados reais do módulo Tarefas) */}
           <Painel titulo="Tarefas urgentes" icon={Flame}>
-            <ul className="divide-y divide-border">
-              {tarefasUrgentes.map((t) => {
-                const c = clientePorId(t.clienteId)
-                const resp = fundadorPorId(t.responsavelId)
-                return (
-                  <li key={t.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium leading-snug text-foreground">
-                        {t.titulo}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {c ? c.nome : "Interno"} · {resp?.nome}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium capitalize", prioridadeEstilo[t.prioridade])}>
-                        {t.prioridade}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">{t.prazo}</span>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            {resumoTarefas.urgentes.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {resumoTarefas.urgentes.map((t) => {
+                  const resp = membroPorId(t.responsavelId)
+                  return (
+                    <li key={t.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-snug text-foreground">
+                          {t.titulo}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {t.clienteNome ?? "Interno"}
+                          {resp ? ` · ${resp.nome}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium capitalize", prioridadeEstilo[t.prioridade])}>
+                          {t.prioridade}
+                        </span>
+                        <span className={cn("text-[11px]", t.atrasada ? "font-medium text-destructive" : "text-muted-foreground")}>
+                          {t.prazoLabel}
+                        </span>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Nenhuma tarefa pendente. Crie tarefas no módulo Tarefas.
+              </p>
+            )}
           </Painel>
 
           {/* Leads em aberto (dados reais do CRM) */}
