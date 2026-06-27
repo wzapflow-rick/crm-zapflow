@@ -41,13 +41,15 @@ export function ExcluirClienteButton({
 
   const confirmar = () => {
     startTransition(async () => {
-      const res = await excluirClienteAction(clienteId)
-      if (res.ok) {
+      // Com redirecionarApos, a action redireciona no servidor (evita o 404 da rota de detalhe).
+      // Sem ele (lista), apenas revalida e atualizamos a lista no cliente.
+      const res = await excluirClienteAction(clienteId, redirecionarApos)
+      // Só chega aqui quando NÃO houve redirect (ex.: exclusão pela lista ou erro).
+      if (res?.ok) {
         setAberto(false)
-        if (redirecionarApos) router.push(redirecionarApos)
-        else router.refresh()
-      } else {
-        setErro(res.erro ?? "Não foi possível excluir.")
+        router.refresh()
+      } else if (res?.erro) {
+        setErro(res.erro)
       }
     })
   }

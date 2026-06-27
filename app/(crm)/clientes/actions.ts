@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import {
   atualizarCliente,
   criarCliente,
@@ -100,7 +101,7 @@ export async function atualizarClienteAction(
   return { ok: true }
 }
 
-export async function excluirClienteAction(id: string): Promise<EstadoForm> {
+export async function excluirClienteAction(id: string, redirectTo?: string): Promise<EstadoForm> {
   const clienteId = id.trim()
   if (!clienteId) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -112,6 +113,11 @@ export async function excluirClienteAction(id: string): Promise<EstadoForm> {
     return { ok: false, erro: `Não foi possível excluir no banco: ${msg}` }
   }
   revalidatePath("/clientes")
+  // Quando a exclusão parte da página de detalhe (/clientes/[id]), redirecionamos
+  // no servidor para evitar que a rota atual re-renderize e dispare notFound() (tela 404).
+  if (redirectTo) {
+    redirect(redirectTo)
+  }
   return { ok: true }
 }
 
