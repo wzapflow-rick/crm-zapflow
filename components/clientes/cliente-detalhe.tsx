@@ -122,8 +122,13 @@ export function ClienteDetalhe({
               <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                 {cliente.nome}
               </h2>
-              <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", statusClienteInfo[cliente.status].classe)}>
-                {statusClienteInfo[cliente.status].label}
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  cliente.recorrente ? statusClienteInfo[cliente.status].classe : "bg-chart-3/15 text-chart-3",
+                )}
+              >
+                {cliente.recorrente ? statusClienteInfo[cliente.status].label : "Avulso"}
               </span>
               <ClienteFormDialog
                 membros={membros}
@@ -157,7 +162,9 @@ export function ClienteDetalhe({
 
           <div className="flex flex-col gap-3 sm:items-end">
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">Receita mensal</p>
+              <p className="text-xs text-muted-foreground">
+                {cliente.recorrente ? "Receita mensal" : "Valor (avulso)"}
+              </p>
               <p className="text-lg font-semibold text-foreground">
                 {cliente.mrr > 0 ? brl(cliente.mrr) : "—"}
               </p>

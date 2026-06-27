@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   try {
     const clientes = await getClientes()
     totalClientes = clientes.length
-    clientesAtivos = clientes.filter((c) => c.status === "ativo").length
+    clientesAtivos = clientes.filter((c) => c.recorrente && c.status === "ativo").length
   } catch {
     totalClientes = 0
     clientesAtivos = 0

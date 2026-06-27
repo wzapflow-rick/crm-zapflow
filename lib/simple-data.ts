@@ -27,6 +27,7 @@ export type Cliente = {
   status: StatusCliente
   responsavelId: string
   mrr: number
+  recorrente: boolean // false = cliente avulso (sem receita recorrente)
   iniciais: string
   cor: string
   objetivo: string
@@ -53,12 +54,12 @@ export type Estrategia = {
 }
 
 export const clientes: Cliente[] = [
-  { id: "c1", nome: "Studio Verde", segmento: "Arquitetura", status: "ativo", responsavelId: "u2", mrr: 4800, iniciais: "SV", cor: "bg-chart-4", objetivo: "Posicionar como referência em arquitetura sustentável e gerar 8 reuniões qualificadas por mês.", contato: "Renata Vidal", telefone: "(11) 98812-4410", desde: "Fev 2025" },
-  { id: "c2", nome: "Clínica Aurora", segmento: "Saúde", status: "ativo", responsavelId: "u1", mrr: 6200, iniciais: "CA", cor: "bg-primary", objetivo: "Aumentar agendamentos de consultas estéticas em 30% via conteúdo educativo.", contato: "Dr. André Mota", telefone: "(11) 99731-2200", desde: "Nov 2024" },
-  { id: "c3", nome: "Café Norte", segmento: "Alimentação", status: "ativo", responsavelId: "u3", mrr: 3500, iniciais: "CN", cor: "bg-chart-3", objetivo: "Lotar o salão nos fins de semana e lançar o novo blend com bastidores.", contato: "Júlia Prado", telefone: "(11) 98140-7765", desde: "Jan 2025" },
-  { id: "c4", nome: "Lumen Joias", segmento: "Varejo", status: "onboarding", responsavelId: "u2", mrr: 5400, iniciais: "LJ", cor: "bg-chart-5", objetivo: "Construir desejo de marca e preparar a campanha de Dia das Mães.", contato: "Sofia Lemos", telefone: "(11) 99002-8841", desde: "Jun 2025" },
-  { id: "c5", nome: "Forte Academia", segmento: "Fitness", status: "ativo", responsavelId: "u3", mrr: 2900, iniciais: "FA", cor: "bg-chart-4", objetivo: "Captar matrículas com prova social e desafios mensais.", contato: "Bruno Sales", telefone: "(11) 98455-1190", desde: "Mar 2025" },
-  { id: "c6", nome: "Vale Imóveis", segmento: "Imobiliário", status: "pausado", responsavelId: "u1", mrr: 0, iniciais: "VI", cor: "bg-chart-5", objetivo: "Retomada planejada para o 2º semestre com foco em lançamentos.", contato: "Carlos Vale", telefone: "(11) 99680-3321", desde: "Set 2024" },
+  { id: "c1", nome: "Studio Verde", segmento: "Arquitetura", status: "ativo", responsavelId: "u2", mrr: 4800, recorrente: true, iniciais: "SV", cor: "bg-chart-4", objetivo: "Posicionar como referência em arquitetura sustentável e gerar 8 reuniões qualificadas por mês.", contato: "Renata Vidal", telefone: "(11) 98812-4410", desde: "Fev 2025" },
+  { id: "c2", nome: "Clínica Aurora", segmento: "Saúde", status: "ativo", responsavelId: "u1", mrr: 6200, recorrente: true, iniciais: "CA", cor: "bg-primary", objetivo: "Aumentar agendamentos de consultas estéticas em 30% via conteúdo educativo.", contato: "Dr. André Mota", telefone: "(11) 99731-2200", desde: "Nov 2024" },
+  { id: "c3", nome: "Café Norte", segmento: "Alimentação", status: "ativo", responsavelId: "u3", mrr: 3500, recorrente: true, iniciais: "CN", cor: "bg-chart-3", objetivo: "Lotar o salão nos fins de semana e lançar o novo blend com bastidores.", contato: "Júlia Prado", telefone: "(11) 98140-7765", desde: "Jan 2025" },
+  { id: "c4", nome: "Lumen Joias", segmento: "Varejo", status: "onboarding", responsavelId: "u2", mrr: 5400, recorrente: true, iniciais: "LJ", cor: "bg-chart-5", objetivo: "Construir desejo de marca e preparar a campanha de Dia das Mães.", contato: "Sofia Lemos", telefone: "(11) 99002-8841", desde: "Jun 2025" },
+  { id: "c5", nome: "Forte Academia", segmento: "Fitness", status: "ativo", responsavelId: "u3", mrr: 2900, recorrente: true, iniciais: "FA", cor: "bg-chart-4", objetivo: "Captar matrículas com prova social e desafios mensais.", contato: "Bruno Sales", telefone: "(11) 98455-1190", desde: "Mar 2025" },
+  { id: "c6", nome: "Vale Imóveis", segmento: "Imobiliário", status: "pausado", responsavelId: "u1", mrr: 0, recorrente: true, iniciais: "VI", cor: "bg-chart-5", objetivo: "Retomada planejada para o 2º semestre com foco em lançamentos.", contato: "Carlos Vale", telefone: "(11) 99680-3321", desde: "Set 2024" },
 ]
 
 export const clientePorId = (id: string) => clientes.find((c) => c.id === id)

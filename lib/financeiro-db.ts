@@ -123,7 +123,8 @@ async function getReceitaMrr(): Promise<number> {
   const rows = await query<{ total: string | number | null }>(
     `select coalesce(sum(mrr), 0)::text as total
      from public.empresas
-     where coalesce(status, '') not in ('pausado', 'churn', 'encerrado', 'inativo')`,
+     where coalesce(status, '') not in ('pausado', 'churn', 'encerrado', 'inativo')
+       and recorrente is not false`,
   )
   return rows.length && rows[0].total != null ? Number(rows[0].total) : 0
 }

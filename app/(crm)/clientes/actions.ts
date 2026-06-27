@@ -49,6 +49,7 @@ export async function criarClienteAction(
     contato: String(formData.get("contato") ?? "") || undefined,
     telefone: String(formData.get("telefone") ?? "") || undefined,
     mrr: lerMrr(formData),
+    recorrente: formData.get("recorrente") === "on",
     desde: String(formData.get("desde") ?? "") || undefined,
     responsavelId: String(formData.get("responsavelId") ?? "") || undefined,
   }
@@ -85,6 +86,7 @@ export async function atualizarClienteAction(
     contato: String(formData.get("contato") ?? "") || undefined,
     telefone: String(formData.get("telefone") ?? "") || undefined,
     mrr: lerMrr(formData),
+    recorrente: formData.get("recorrente") === "on",
     desde: String(formData.get("desde") ?? "") || undefined,
     responsavelId: String(formData.get("responsavelId") ?? "") || null,
   }

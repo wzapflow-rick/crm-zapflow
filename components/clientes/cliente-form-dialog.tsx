@@ -141,7 +141,7 @@ export function ClienteFormDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label htmlFor="mrr">Receita mensal (R$)</Label>
+              <Label htmlFor="mrr">Valor (R$)</Label>
               <Input id="mrr" name="mrr" inputMode="numeric" placeholder="0" defaultValue={cliente && cliente.mrr > 0 ? cliente.mrr : ""} />
             </div>
             <div className="grid gap-1.5">
@@ -149,6 +149,22 @@ export function ClienteFormDialog({
               <Input id="desde" name="desde" type="date" defaultValue={cliente?.desdeISO} />
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-input bg-muted/30 px-3 py-2.5 transition-colors has-[:checked]:border-primary/40 has-[:checked]:bg-primary/5">
+            <input
+              type="checkbox"
+              name="recorrente"
+              defaultChecked={cliente?.recorrente ?? true}
+              className="mt-0.5 h-4 w-4 accent-primary"
+            />
+            <span className="grid gap-0.5">
+              <span className="text-sm font-medium text-foreground">Receita recorrente (mensal)</span>
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                Desmarque para clientes avulsos — quem contratou um serviço pontual (ex.: cobertura de
+                evento) e não tem mensalidade. Avulsos não entram na receita recorrente.
+              </span>
+            </span>
+          </label>
 
           {estado.erro && (
             <p className={cn("rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive")}>{estado.erro}</p>

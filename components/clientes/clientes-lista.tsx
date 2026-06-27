@@ -22,14 +22,18 @@ const statusInfo: Record<StatusCliente, { label: string; classe: string }> = {
   pausado: { label: "Pausado", classe: "bg-muted text-muted-foreground" },
 }
 
-type Filtro = "todos" | StatusCliente
+type Filtro = "todos" | StatusCliente | "avulso"
 
 const filtros: { id: Filtro; label: string }[] = [
   { id: "todos", label: "Todos" },
   { id: "ativo", label: "Ativos" },
   { id: "onboarding", label: "Onboarding" },
   { id: "pausado", label: "Pausados" },
+  { id: "avulso", label: "Avulsos" },
 ]
+
+// Badge do cartão: clientes avulsos têm rótulo próprio, sobrepondo o status.
+const badgeAvulso = { label: "Avulso", classe: "bg-chart-3/15 text-chart-3" }
 
 export function ClientesLista({
   clientes,
@@ -46,15 +50,21 @@ export function ClientesLista({
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
   const visiveis = clientes.filter((c) => {
-    const passaFiltro = filtro === "todos" || c.status === filtro
+    // Avulsos formam um bucket próprio: aparecem só em "Todos" e "Avulsos".
+    let passaFiltro: boolean
+    if (filtro === "todos") passaFiltro = true
+    else if (filtro === "avulso") passaFiltro = !c.recorrente
+    else passaFiltro = c.recorrente && c.status === filtro
     const passaBusca =
       c.nome.toLowerCase().includes(busca.toLowerCase()) ||
       c.segmento.toLowerCase().includes(busca.toLowerCase())
     return passaFiltro && passaBusca
   })
 
-  const ativos = clientes.filter((c) => c.status === "ativo").length
-  const mrrTotal = clientes.reduce((acc, c) => acc + c.mrr, 0)
+  const ativos = clientes.filter((c) => c.recorrente && c.status === "ativo").length
+  const avulsos = clientes.filter((c) => !c.recorrente).length
+  // Receita recorrente considera apenas clientes recorrentes (avulsos não somam ao MRR).
+  const mrrTotal = clientes.reduce((acc, c) => acc + (c.recorrente ? c.mrr : 0), 0)
 
   return (
     <main className="flex-1 overflow-y-auto bg-background">
@@ -64,7 +74,7 @@ export function ClientesLista({
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-foreground">Clientes</h2>
             <p className="mt-1.5 text-pretty text-sm leading-relaxed text-muted-foreground">
-              {clientes.length} clientes · {ativos} ativos · {brl(mrrTotal)} em receita recorrente
+              {clientes.length} clientes · {ativos} ativos · {avulsos} avulsos · {brl(mrrTotal)} em receita recorrente
             </p>
           </div>
           <ClienteFormDialog
@@ -139,8 +149,13 @@ export function ClientesLista({
                         {c.iniciais}
                       </AvatarFallback>
                     </Avatar>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", statusInfo[c.status].classe)}>
-                      {statusInfo[c.status].label}
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        c.recorrente ? statusInfo[c.status].classe : badgeAvulso.classe,
+                      )}
+                    >
+                      {c.recorrente ? statusInfo[c.status].label : badgeAvulso.label}
                     </span>
                   </div>
 
@@ -171,7 +186,7 @@ export function ClientesLista({
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-medium text-foreground">
-                        {c.mrr > 0 ? `${brl(c.mrr)}/mês` : "—"}
+                        {c.mrr > 0 ? (c.recorrente ? `${brl(c.mrr)}/mês` : brl(c.mrr)) : "—"}
                       </span>
                       <ExcluirClienteButton clienteId={c.id} clienteNome={c.nome} variant="icone" />
                     </div>
