@@ -1,15 +1,72 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { useFormStatus } from "react-dom"
-import { Sparkles, TrendingUp, AlertTriangle, Lightbulb, ListChecks, Clock, AtSign, Loader2 } from "lucide-react"
+import { Sparkles, TrendingUp, AlertTriangle, Lightbulb, ListChecks, Clock, AtSign, Loader2, Brain } from "lucide-react"
 import { gerarInsightsAction, type EstadoInsights } from "@/app/(crm)/marketing/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
+import { ChatEstrategico, type ClienteOpcao } from "@/components/marketing/chat-estrategico"
 
 const estadoInicial: EstadoInsights = { ok: false }
+
+type Aba = "chat" | "insights"
+
+export function MarketingView({ clientes }: { clientes: ClienteOpcao[] }) {
+  const [aba, setAba] = useState<Aba>("chat")
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
+      <header className="mb-5">
+        <h1 className="font-serif text-3xl font-medium text-foreground md:text-4xl">Marketing</h1>
+        <p className="mt-1 text-pretty text-sm text-muted-foreground">
+          Inteligência de marketing da SIMPLE OS: converse com a IA que conhece cada cliente a fundo e gere insights de
+          perfil sob demanda.
+        </p>
+      </header>
+
+      <div className="mb-6 inline-flex rounded-xl border border-border bg-card p-1">
+        <BotaoAba ativo={aba === "chat"} onClick={() => setAba("chat")} icon={<Brain className="h-4 w-4" />}>
+          Chat estratégico
+        </BotaoAba>
+        <BotaoAba ativo={aba === "insights"} onClick={() => setAba("insights")} icon={<AtSign className="h-4 w-4" />}>
+          Insights de Instagram
+        </BotaoAba>
+      </div>
+
+      {aba === "chat" ? <ChatEstrategico clientes={clientes} /> : <InsightsInstagram />}
+    </div>
+  )
+}
+
+function BotaoAba({
+  ativo,
+  onClick,
+  icon,
+  children,
+}: {
+  ativo: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors",
+        ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {icon}
+      {children}
+    </button>
+  )
+}
 
 function BotaoGerar() {
   const { pending } = useFormStatus()
@@ -30,19 +87,11 @@ function BotaoGerar() {
   )
 }
 
-export function MarketingView() {
+function InsightsInstagram() {
   const [estado, formAction] = useActionState(gerarInsightsAction, estadoInicial)
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-6">
-        <h1 className="font-serif text-3xl font-medium text-foreground md:text-4xl">Marketing</h1>
-        <p className="mt-1 text-pretty text-sm text-muted-foreground">
-          Gere insights de Instagram para os clientes usando IA. Informe os números do perfil e receba diagnóstico,
-          ideias de conteúdo e recomendações.
-        </p>
-      </header>
-
+    <div>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_1fr]">
         {/* Formulário de entrada */}
         <form action={formAction} className="h-fit rounded-2xl border border-border bg-card p-5">
