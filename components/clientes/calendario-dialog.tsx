@@ -29,10 +29,11 @@ const TIPOS: { valor: EventoCliente["tipo"]; label: string }[] = [
   { valor: "reuniao", label: "Reunião" },
 ]
 
-type EventoEditavel = { titulo: string; tipo: string; data: string; hora: string }
+type EventoEditavel = { id?: string; titulo: string; tipo: string; data: string; hora: string }
 
 function mapearLinhas(eventos: EventoCliente[]): EventoEditavel[] {
   return eventos.map((e) => ({
+    id: e.id,
     titulo: e.titulo,
     tipo: e.tipo,
     data: e.dataISO ?? "",
@@ -89,7 +90,7 @@ export function CalendarioDialog({
   }
 
   const eventosJson = JSON.stringify(
-    linhas.map((l) => ({ titulo: l.titulo, tipo: l.tipo, data: l.data, hora: l.hora })),
+    linhas.map((l) => ({ id: l.id, titulo: l.titulo, tipo: l.tipo, data: l.data, hora: l.hora })),
   )
 
   return (

@@ -134,6 +134,7 @@ export async function excluirCliente(id: string): Promise<void> {
     for (const tabela of [
       "public.metas",
       "public.eventos",
+      "public.agenda_compromissos",
       "public.conteudos",
       "public.arquivos",
       "public.resultados",
@@ -272,9 +273,9 @@ function formatarDataCurta(d: Date | null): string {
 export async function getEventos(empresaId: string): Promise<EventoCliente[]> {
   const rows = await query<EventoRow>(
     `select id, titulo, tipo, data, hora
-     from public.eventos
+     from public.agenda_compromissos
      where empresa_id = $1
-     order by data asc nulls last, posicao asc, created_at asc`,
+     order by data asc nulls last, hora asc nulls last, created_at asc`,
     [empresaId],
   )
   return rows.map((r) => ({
@@ -283,31 +284,53 @@ export async function getEventos(empresaId: string): Promise<EventoCliente[]> {
     titulo: r.titulo,
     tipo: (TIPOS_EVENTO.includes(r.tipo as EventoCliente["tipo"]) ? r.tipo : "gravacao") as EventoCliente["tipo"],
     data: formatarDataCurta(r.data),
-    hora: r.hora ?? "",
+    // hora vem como time ("HH:MM:SS"); exibimos só HH:MM.
+    hora: r.hora ? r.hora.slice(0, 5) : "",
     // Mantém a data ISO para edição (input type=date).
     dataISO: r.data ? new Date(r.data).toISOString().slice(0, 10) : "",
   }))
 }
 
-export type EventoInput = { titulo: string; tipo: string; data?: string; hora?: string }
+export type EventoInput = { id?: string; titulo: string; tipo: string; data?: string; hora?: string }
 
-// Salva a lista de eventos do cliente regravando tudo numa transação.
+// Salva a lista de eventos do cliente sincronizando por id na tabela compartilhada
+// agenda_compromissos: atualiza os existentes, insere os novos e remove apenas os
+// que foram apagados no editor. Isso preserva responsáveis/descrição dos eventos
+// criados pelo módulo Calendário (que vivem na mesma tabela).
 export async function salvarEventos(empresaId: string, eventos: EventoInput[]): Promise<void> {
   const pool = getPool()
   const client = await pool.connect()
   try {
     await client.query("begin")
-    await client.query(`delete from public.eventos where empresa_id = $1`, [empresaId])
-    let posicao = 0
+    const existentesRes = await client.query<{ id: string }>(
+      `select id from public.agenda_compromissos where empresa_id = $1`,
+      [empresaId],
+    )
+    const existentes = new Set(existentesRes.rows.map((r) => r.id))
+    const mantidos = new Set<string>()
     for (const e of eventos) {
       const titulo = e.titulo.trim()
       if (!titulo) continue
       const tipo = TIPOS_EVENTO.includes(e.tipo as EventoCliente["tipo"]) ? e.tipo : "gravacao"
-      await client.query(
-        `insert into public.eventos (empresa_id, titulo, tipo, data, hora, posicao)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [empresaId, titulo, tipo, e.data || null, e.hora?.trim() || null, posicao++],
-      )
+      if (e.id && existentes.has(e.id)) {
+        await client.query(
+          `update public.agenda_compromissos
+           set titulo = $2, tipo = $3, data = $4, hora = $5, updated_at = now()
+           where id = $1`,
+          [e.id, titulo, tipo, e.data || null, e.hora?.trim() || null],
+        )
+        mantidos.add(e.id)
+      } else {
+        await client.query(
+          `insert into public.agenda_compromissos (empresa_id, titulo, tipo, data, hora)
+           values ($1, $2, $3, $4, $5)`,
+          [empresaId, titulo, tipo, e.data || null, e.hora?.trim() || null],
+        )
+      }
+    }
+    const remover = [...existentes].filter((id) => !mantidos.has(id))
+    if (remover.length > 0) {
+      await client.query(`delete from public.agenda_compromissos where id = any($1::uuid[])`, [remover])
     }
     await client.query("commit")
   } catch (err) {

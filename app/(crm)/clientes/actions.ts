@@ -184,6 +184,7 @@ export async function salvarEventosAction(
         .map((e) => {
           const item = e as Record<string, unknown>
           return {
+            id: item.id ? String(item.id) : undefined,
             titulo: String(item.titulo ?? ""),
             tipo: String(item.tipo ?? "gravacao"),
             data: item.data ? String(item.data) : undefined,
