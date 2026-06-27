@@ -94,7 +94,7 @@ export function CalendarioView({
       hora: e.hora,
       tipo: e.tipo,
       clienteId: e.clienteId,
-      responsavelId: e.responsavelId,
+      responsaveisIds: e.responsaveisIds,
     }))
     const deTarefas: ItemCalendario[] = tarefas
       .filter((t) => t.prazo && t.status !== "concluido")
@@ -106,10 +106,10 @@ export function CalendarioView({
         hora: "",
         tipo: "tarefa",
         clienteId: t.clienteId,
-        responsavelId: t.responsavelId,
+        responsaveisIds: t.responsavelId ? [t.responsavelId] : [],
       }))
     return [...deEventos, ...deTarefas].filter((i) => {
-      if (filtroResp && i.responsavelId !== filtroResp) return false
+      if (filtroResp && !i.responsaveisIds.includes(filtroResp)) return false
       if (filtroTipo && i.tipo !== filtroTipo) return false
       return true
     })
@@ -345,7 +345,7 @@ export function CalendarioView({
             <ul className="mt-4 divide-y divide-border">
               {itensDoDia.map((i) => {
                 const cliente = clientePorId(i.clienteId)
-                const resp = membroPorId(i.responsavelId)
+                const responsaveis = i.responsaveisIds.map((rid) => membroPorId(rid)).filter(Boolean) as Membro[]
                 const ev = i.origem === "evento" ? eventoPorId.get(i.id) : undefined
                 return (
                   <li key={i.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
@@ -368,7 +368,13 @@ export function CalendarioView({
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-0.5">
-                      {resp && <Avatarzinho membro={resp} />}
+                      {responsaveis.length > 0 && (
+                        <div className="mr-1 flex -space-x-1">
+                          {responsaveis.map((m) => (
+                            <Avatarzinho key={m.id} membro={m} />
+                          ))}
+                        </div>
+                      )}
                       {ev && (
                         <>
                           <button

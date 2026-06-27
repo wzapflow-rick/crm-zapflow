@@ -137,17 +137,12 @@ export function EventoDialog({
               </select>
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="responsavelId">Responsável</Label>
-              <select
-                id="responsavelId"
-                name="responsavelId"
-                defaultValue={evento?.responsavelId ?? ""}
-                className={selectClasses}
-              >
-                <option value="">Sem responsável</option>
-                {membros.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nome}
+              <Label htmlFor="clienteId">Cliente</Label>
+              <select id="clienteId" name="clienteId" defaultValue={evento?.clienteId ?? ""} className={selectClasses}>
+                <option value="">Interno (sem cliente)</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome}
                   </option>
                 ))}
               </select>
@@ -155,15 +150,31 @@ export function EventoDialog({
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="clienteId">Cliente</Label>
-            <select id="clienteId" name="clienteId" defaultValue={evento?.clienteId ?? ""} className={selectClasses}>
-              <option value="">Interno (sem cliente)</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome}
-                </option>
-              ))}
-            </select>
+            <Label>Responsáveis</Label>
+            {membros.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {membros.map((m) => {
+                  const marcado = evento?.responsaveisIds?.includes(m.id) ?? false
+                  return (
+                    <label
+                      key={m.id}
+                      className="group flex cursor-pointer items-center gap-2 rounded-full border border-input px-3 py-1.5 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-primary hover:bg-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        name="responsaveis"
+                        value={m.id}
+                        defaultChecked={marcado}
+                        className="h-3.5 w-3.5 accent-primary"
+                      />
+                      {m.nome}
+                    </label>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhum membro na equipe ainda.</p>
+            )}
           </div>
 
           {estado.erro && (

@@ -18,7 +18,7 @@ export type Evento = {
   data: string // YYYY-MM-DD
   hora: string // HH:MM ("" se o dia inteiro)
   clienteId: string
-  responsavelId: string
+  responsaveisIds: string[] // pode ter vários responsáveis
 }
 
 export type EventoInput = {
@@ -28,7 +28,7 @@ export type EventoInput = {
   data?: string
   hora?: string
   clienteId?: string
-  responsavelId?: string
+  responsaveisIds?: string[]
 }
 
 // ── Item unificado do calendário (evento próprio OU tarefa por prazo) ──────────
@@ -43,7 +43,7 @@ export type ItemCalendario = {
   hora: string // "" quando não há horário (ex.: tarefa)
   tipo: string // TipoEvento quando origem = evento; "tarefa" quando origem = tarefa
   clienteId: string
-  responsavelId: string
+  responsaveisIds: string[]
 }
 
 // Estilo (classes Tailwind) por tipo, usado nos badges/pontos do calendário.

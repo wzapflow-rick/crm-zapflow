@@ -6,6 +6,11 @@ import { atualizarEvento, criarEvento, excluirEvento, type EventoInput } from "@
 export type EstadoForm = { ok: boolean; erro?: string }
 
 function lerEvento(formData: FormData): EventoInput {
+  // Vários responsáveis chegam como múltiplos campos "responsaveis"
+  const responsaveisIds = formData
+    .getAll("responsaveis")
+    .map((v) => String(v))
+    .filter(Boolean)
   return {
     titulo: String(formData.get("titulo") ?? ""),
     descricao: String(formData.get("descricao") ?? ""),
@@ -13,7 +18,7 @@ function lerEvento(formData: FormData): EventoInput {
     data: String(formData.get("data") ?? ""),
     hora: String(formData.get("hora") ?? ""),
     clienteId: String(formData.get("clienteId") ?? ""),
-    responsavelId: String(formData.get("responsavelId") ?? ""),
+    responsaveisIds,
   }
 }
 
