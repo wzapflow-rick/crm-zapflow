@@ -8,6 +8,17 @@ import { z } from "zod"
 // tenha acesso a outro (ex.: "gpt-4o-mini" para custo menor, "gpt-4o" padrão).
 const MODELO = "gpt-4o"
 
+// ============================================================================
+// PERSONA DA IA  (prompt padrão — edite o texto entre as crases abaixo)
+// ----------------------------------------------------------------------------
+// Este é o "comando de personalidade" que a IA segue em TODAS as gerações.
+// Escreva aqui quem ela é, no que foca e como deve responder.
+// Ex.: "Você é um Head de Marketing focado em ..., sua missão é ..."
+// ============================================================================
+const PERSONA = `Você é um estrategista de social media sênior, especialista em Instagram para agências.
+Analise os números fornecidos e gere insights práticos, específicos e acionáveis.
+Evite generalidades. Responda sempre em português do Brasil.`
+
 const schemaInsights = z.object({
   resumo: z.string().describe("Diagnóstico geral do perfil em 2 a 3 frases, em português do Brasil."),
   pontosFortes: z.array(z.string()).describe("3 a 5 pontos fortes observados nos números."),
@@ -65,10 +76,7 @@ export async function gerarInsightsAction(
     const { experimental_output } = await generateText({
       model: openai(MODELO),
       experimental_output: Output.object({ schema: schemaInsights }),
-      system:
-        "Você é um estrategista de social media sênior, especialista em Instagram para agências. " +
-        "Analise os números fornecidos e gere insights práticos, específicos e acionáveis. " +
-        "Evite generalidades. Responda sempre em português do Brasil.",
+      system: PERSONA,
       prompt:
         `Analise o perfil de Instagram abaixo e gere um relatório de insights para a equipe da agência.\n\n${dados}`,
     })
