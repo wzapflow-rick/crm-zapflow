@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ArrowUpRight, Plus, Search, TriangleAlert, Users } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -145,6 +145,7 @@ export function ClientesLista({
                 >
                   <div className="flex items-start justify-between">
                     <Avatar className="h-11 w-11">
+                      {c.logoUrl && <AvatarImage src={c.logoUrl || "/placeholder.svg"} alt={`Logo ${c.nome}`} className="object-cover" />}
                       <AvatarFallback className={cn(c.cor, "text-sm font-medium text-primary-foreground")}>
                         {c.iniciais}
                       </AvatarFallback>

@@ -28,6 +28,7 @@ export type Cliente = {
   responsavelId: string
   mrr: number
   recorrente: boolean // false = cliente avulso (sem receita recorrente)
+  logoUrl?: string // logo/foto do cliente (Vercel Blob); vazio = usa iniciais
   iniciais: string
   cor: string
   objetivo: string
@@ -325,7 +326,7 @@ export const insightsSemana = [
   "Lumen Joias está pronta para sair do onboarding na próxima semana.",
 ]
 
-// ── Brand Book ────────────────────────────────────────────────────────────────
+// ── Brand Book ──────��─────────────────────────────────────────────────────────
 
 export type Valor = {
   titulo: string

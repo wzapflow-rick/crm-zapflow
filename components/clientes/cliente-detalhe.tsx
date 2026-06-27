@@ -16,7 +16,7 @@ import {
   Target,
   Video,
 } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
@@ -112,6 +112,7 @@ export function ClienteDetalhe({
         {/* Cabeçalho do cliente */}
         <div className="mt-4 flex flex-col gap-5 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-start sm:p-6">
           <Avatar className="h-14 w-14 sm:h-16 sm:w-16">
+            {cliente.logoUrl && <AvatarImage src={cliente.logoUrl || "/placeholder.svg"} alt={`Logo ${cliente.nome}`} className="object-cover" />}
             <AvatarFallback className={cn(cliente.cor, "text-xl font-semibold text-primary-foreground")}>
               {cliente.iniciais}
             </AvatarFallback>

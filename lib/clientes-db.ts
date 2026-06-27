@@ -22,6 +22,7 @@ type EmpresaRow = {
   responsavel_id: string | null
   mrr: string | null
   recorrente: boolean | null
+  logo_url: string | null
   iniciais: string | null
   cor: string | null
   objetivo: string | null
@@ -78,6 +79,7 @@ function mapRow(r: EmpresaRow): Cliente {
     responsavelId: r.responsavel_id ?? "",
     mrr: r.mrr ? Number(r.mrr) : 0,
     recorrente: r.recorrente !== false, // null/true = recorrente; só false é avulso
+    logoUrl: r.logo_url ?? "",
     iniciais: r.iniciais || iniciaisDe(nome),
     cor: r.cor || corPara(nome),
     objetivo: r.objetivo ?? "",
@@ -92,7 +94,7 @@ function mapRow(r: EmpresaRow): Cliente {
 
 export async function getClientes(): Promise<Cliente[]> {
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, iniciais, cor, objetivo, contato, telefone, desde
+    `select id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde
      from public.empresas
      order by created_at desc nulls last, nome asc`,
   )
@@ -101,7 +103,7 @@ export async function getClientes(): Promise<Cliente[]> {
 
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
+    `select id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas
      where id = $1
      limit 1`,
@@ -115,7 +117,7 @@ export async function getClientePorToken(token: string): Promise<Cliente | null>
   const limpo = token.trim()
   if (!limpo) return null
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
+    `select id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas
      where portal_token = $1
      limit 1`,
@@ -462,7 +464,7 @@ export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]
   }
 }
 
-// ── Mensagens (aba Comunicação) ───────────────────────────────────────────
+// ── Mensagens (aba Comunicação) ───────────────────��───────────────────────
 
 type MensagemRow = {
   id: string
@@ -607,6 +609,7 @@ export type NovoCliente = {
   telefone?: string
   mrr?: number
   recorrente?: boolean
+  logoUrl?: string
   desde?: string // YYYY-MM-DD
   responsavelId?: string
 }
@@ -623,9 +626,9 @@ export async function criarCliente(input: NovoCliente): Promise<Cliente> {
 
   const rows = await query<EmpresaRow>(
     `insert into public.empresas
-       (nome, slug, segmento, status, objetivo, contato, telefone, mrr, recorrente, iniciais, cor, desde, responsavel_id)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-     returning id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, iniciais, cor, objetivo, contato, telefone, desde`,
+       (nome, slug, segmento, status, objetivo, contato, telefone, mrr, recorrente, logo_url, iniciais, cor, desde, responsavel_id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+     returning id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde`,
     [
       nome,
       slug,
@@ -636,6 +639,7 @@ export async function criarCliente(input: NovoCliente): Promise<Cliente> {
       input.telefone?.trim() || null,
       input.mrr ?? 0,
       input.recorrente ?? true,
+      input.logoUrl?.trim() || null,
       iniciaisDe(nome),
       corPara(nome),
       input.desde || null,
@@ -654,6 +658,7 @@ export type AtualizarCliente = {
   telefone?: string
   mrr?: number
   recorrente?: boolean
+  logoUrl?: string
   desde?: string // YYYY-MM-DD
   responsavelId?: string | null
 }
@@ -674,11 +679,12 @@ export async function atualizarCliente(id: string, input: AtualizarCliente): Pro
        telefone       = $7,
        mrr            = coalesce($8, mrr),
        recorrente     = coalesce($11, recorrente),
+       logo_url       = $12,
        desde          = $9,
        responsavel_id = $10,
        updated_at     = now()
      where id = $1
-     returning id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, iniciais, cor, objetivo, contato, telefone, desde`,
+     returning id, nome, slug, segmento, status, responsavel_id, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde`,
     [
       id,
       input.nome?.trim() || null,
@@ -691,6 +697,7 @@ export async function atualizarCliente(id: string, input: AtualizarCliente): Pro
       input.desde || null,
       input.responsavelId || null,
       input.recorrente ?? null,
+      input.logoUrl?.trim() || null,
     ],
   )
   return rows[0] ? mapRow(rows[0]) : null
