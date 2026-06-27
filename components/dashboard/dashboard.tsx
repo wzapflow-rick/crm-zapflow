@@ -20,14 +20,13 @@ import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import type { ResumoCrm } from "@/lib/crm-db"
 import type { ResumoTarefas } from "@/lib/tarefas-db"
+import type { ResumoFinanceiro } from "@/lib/financeiro-db"
 import type { Membro } from "@/lib/membros-db"
 import {
   clientes,
   clientesAtivos,
   insightsSemana,
-  metaMensal,
   proximasGravacoes,
-  receitaAtual,
   receitaMensal,
 } from "@/lib/simple-data"
 
@@ -52,14 +51,20 @@ const acoesRapidas = [
 export function Dashboard({
   resumoCrm,
   resumoTarefas,
+  resumoFinanceiro,
   membros,
 }: {
   resumoCrm: ResumoCrm
   resumoTarefas: ResumoTarefas
+  resumoFinanceiro: ResumoFinanceiro | null
   membros: Membro[]
 }) {
   const { usuario } = useApp()
-  const progresso = Math.min(100, Math.round((receitaAtual / metaMensal) * 100))
+  // Dados financeiros reais do mês (com fallback seguro caso o módulo não carregue)
+  const receitaTotal = resumoFinanceiro?.receitaTotal ?? 0
+  const receitaMrr = resumoFinanceiro?.receitaMrr ?? 0
+  const meta = resumoFinanceiro?.meta ?? 0
+  const progresso = resumoFinanceiro?.progressoMeta ?? 0
   const leadsAbertos = resumoCrm.leadsEmAberto
   const totalLeads = resumoCrm.valorEmAberto
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
@@ -104,10 +109,10 @@ export function Dashboard({
               <Target className="h-4 w-4 text-muted-foreground" />
             </div>
             <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
-              {brl(receitaAtual)}
+              {brl(receitaTotal)}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              de {brl(metaMensal)}
+              {meta > 0 ? `de ${brl(meta)}` : "Defina a meta no Financeiro"}
             </p>
             <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
@@ -122,9 +127,9 @@ export function Dashboard({
 
           <StatCard
             label="Receita mensal (MRR)"
-            valor={brl(receitaAtual)}
+            valor={brl(receitaMrr)}
             icon={TrendingUp}
-            hint="+12% vs. mês anterior"
+            hint="Recorrente dos clientes ativos"
             hintPositivo
           />
           <StatCard

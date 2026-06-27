@@ -2,6 +2,7 @@ import { Topbar } from "@/components/simple/topbar"
 import { Dashboard } from "@/components/dashboard/dashboard"
 import { getResumoCrm, type ResumoCrm } from "@/lib/crm-db"
 import { getResumoTarefas, type ResumoTarefas } from "@/lib/tarefas-db"
+import { getResumoFinanceiro, type ResumoFinanceiro } from "@/lib/financeiro-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
 
 export const dynamic = "force-dynamic"
@@ -21,6 +22,13 @@ export default async function DashboardPage() {
     resumoTarefas = { urgentes: [], pendentes: 0 }
   }
 
+  let resumoFinanceiro: ResumoFinanceiro | null = null
+  try {
+    resumoFinanceiro = await getResumoFinanceiro()
+  } catch {
+    resumoFinanceiro = null
+  }
+
   let membros: Membro[] = []
   try {
     membros = await getMembros()
@@ -31,7 +39,12 @@ export default async function DashboardPage() {
   return (
     <>
       <Topbar titulo="Dashboard" />
-      <Dashboard resumoCrm={resumo} resumoTarefas={resumoTarefas} membros={membros} />
+      <Dashboard
+        resumoCrm={resumo}
+        resumoTarefas={resumoTarefas}
+        resumoFinanceiro={resumoFinanceiro}
+        membros={membros}
+      />
     </>
   )
 }
