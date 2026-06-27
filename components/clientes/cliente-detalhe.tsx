@@ -13,7 +13,9 @@ import {
   MessageSquare,
   Pencil,
   Phone,
+  Sparkles,
   Target,
+  TrendingUp,
   Video,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -43,7 +45,10 @@ import { ComunicacaoDialog } from "@/components/clientes/comunicacao-dialog"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
+import { HistoricoDialog } from "@/components/clientes/historico-dialog"
+import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-button"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
+import type { RegistroHistorico } from "@/lib/historico-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -80,6 +85,7 @@ export function ClienteDetalhe({
   arquivos,
   mensagens,
   resultados,
+  historico,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -90,6 +96,7 @@ export function ClienteDetalhe({
   arquivos: Arquivo[]
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
+  historico: RegistroHistorico[]
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -214,6 +221,7 @@ export function ClienteDetalhe({
             <TabTrigger value="arquivos" icon={FolderOpen} label="Arquivos" />
             <TabTrigger value="comunicacao" icon={MessageSquare} label="Comunicação" />
             <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
+            <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
           </TabsList>
 
           {/* Visão geral */}
@@ -536,9 +544,103 @@ export function ClienteDetalhe({
               </Card>
             )}
           </TabsContent>
+
+          {/* Evolução (histórico interno — não aparece no portal do cliente) */}
+          <TabsContent value="evolucao" className="mt-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Linha do tempo do cliente, organizada pela IA. Visível só para a equipe.
+              </div>
+              <HistoricoDialog
+                clienteId={cliente.id}
+                trigger={
+                  <Button size="sm" className="gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Novo registro
+                  </Button>
+                }
+              />
+            </div>
+
+            {historico.length > 0 ? (
+              <ol className="relative ml-3 space-y-5 border-l border-border pl-6">
+                {historico.map((reg) => (
+                  <li key={reg.id} className="relative">
+                    <span className="absolute -left-[1.69rem] top-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary" />
+                    <div className="rounded-xl border border-border bg-card p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground">{reg.referencia}</h3>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(reg.criadoEm).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <ExcluirRegistroButton id={reg.id} clienteId={cliente.id} />
+                      </div>
+
+                      {reg.metricas.length > 0 && (
+                        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          {reg.metricas.map((m, i) => (
+                            <div key={i} className="rounded-lg border border-border bg-background p-3">
+                              <p className="text-xs text-muted-foreground">{m.rotulo}</p>
+                              <p className="mt-0.5 text-lg font-semibold tracking-tight text-foreground">{m.valor}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {reg.analise && (
+                        <p className="mt-4 text-pretty text-sm leading-relaxed text-foreground">{reg.analise}</p>
+                      )}
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        {reg.resolvidos.length > 0 && (
+                          <ListaEvolucao titulo="Resolvido" itens={reg.resolvidos} cor="text-chart-4" />
+                        )}
+                        {reg.novosProblemas.length > 0 && (
+                          <ListaEvolucao titulo="A resolver" itens={reg.novosProblemas} cor="text-destructive" />
+                        )}
+                      </div>
+
+                      {reg.proximosPassos.length > 0 && (
+                        <div className="mt-4 rounded-lg bg-primary/5 p-3">
+                          <ListaEvolucao titulo="Próximos passos" itens={reg.proximosPassos} cor="text-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <Card titulo="Linha do tempo">
+                <Vazio texto='Nenhum registro ainda. Clique em "Novo registro" e escreva como foi o período — a IA organiza.' />
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
     </main>
+  )
+}
+
+function ListaEvolucao({ titulo, itens, cor }: { titulo: string; itens: string[]; cor: string }) {
+  return (
+    <div>
+      <p className={cn("mb-1.5 text-xs font-semibold uppercase tracking-wide", cor)}>{titulo}</p>
+      <ul className="space-y-1.5">
+        {itens.map((it, i) => (
+          <li key={i} className="flex gap-2 text-sm text-muted-foreground">
+            <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-current", cor)} />
+            <span className="text-pretty leading-relaxed">{it}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

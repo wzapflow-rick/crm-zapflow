@@ -12,6 +12,7 @@ import {
   getResultados,
 } from "@/lib/clientes-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
+import { getHistorico, type RegistroHistorico } from "@/lib/historico-db"
 import type {
   Arquivo,
   Cliente,
@@ -88,6 +89,13 @@ export default async function ClientePage({
     resultados = []
   }
 
+  let historico: RegistroHistorico[] = []
+  try {
+    historico = await getHistorico(id)
+  } catch {
+    historico = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -101,6 +109,7 @@ export default async function ClientePage({
         arquivos={arquivos}
         mensagens={mensagens}
         resultados={resultados}
+        historico={historico}
       />
     </>
   )
