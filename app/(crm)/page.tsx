@@ -4,6 +4,7 @@ import { getResumoCrm, type ResumoCrm } from "@/lib/crm-db"
 import { getResumoTarefas, type ResumoTarefas } from "@/lib/tarefas-db"
 import { getResumoFinanceiro, type ResumoFinanceiro } from "@/lib/financeiro-db"
 import { getClientes } from "@/lib/clientes-db"
+import { getProximasGravacoes, type ProximaGravacao } from "@/lib/eventos-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
 
 export const dynamic = "force-dynamic"
@@ -41,6 +42,13 @@ export default async function DashboardPage() {
     clientesAtivos = 0
   }
 
+  let proximasGravacoes: ProximaGravacao[] = []
+  try {
+    proximasGravacoes = await getProximasGravacoes()
+  } catch {
+    proximasGravacoes = []
+  }
+
   let membros: Membro[] = []
   try {
     membros = await getMembros()
@@ -57,6 +65,7 @@ export default async function DashboardPage() {
         resumoFinanceiro={resumoFinanceiro}
         totalClientes={totalClientes}
         clientesAtivos={clientesAtivos}
+        proximasGravacoes={proximasGravacoes}
         membros={membros}
       />
     </>

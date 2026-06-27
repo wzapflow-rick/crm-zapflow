@@ -21,18 +21,28 @@ import { RevenueChart } from "@/components/dashboard/revenue-chart"
 import type { ResumoCrm } from "@/lib/crm-db"
 import type { ResumoTarefas } from "@/lib/tarefas-db"
 import type { ResumoFinanceiro } from "@/lib/financeiro-db"
+import type { ProximaGravacao } from "@/lib/eventos-db"
 import type { Membro } from "@/lib/membros-db"
-import {
-  clientes,
-  insightsSemana,
-  proximasGravacoes,
-  receitaMensal,
-} from "@/lib/simple-data"
+import { insightsSemana, receitaMensal } from "@/lib/simple-data"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
 
-const clientePorId = (id: string | null) => clientes.find((c) => c.id === id)
+// Iniciais (até 2 letras) a partir do nome do cliente para o avatar da gravação.
+const iniciaisDe = (nome: string) =>
+  nome
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("") || "—"
+
+// "2026-06-27" -> "27/06"
+const formatarDataCurta = (iso: string) => {
+  const partes = iso.split("-")
+  if (partes.length !== 3) return iso
+  return `${partes[2]}/${partes[1]}`
+}
 
 const prioridadeEstilo: Record<string, string> = {
   alta: "bg-primary/10 text-primary",
@@ -53,6 +63,7 @@ export function Dashboard({
   resumoFinanceiro,
   totalClientes,
   clientesAtivos,
+  proximasGravacoes,
   membros,
 }: {
   resumoCrm: ResumoCrm
@@ -60,6 +71,7 @@ export function Dashboard({
   resumoFinanceiro: ResumoFinanceiro | null
   totalClientes: number
   clientesAtivos: number
+  proximasGravacoes: ProximaGravacao[]
   membros: Membro[]
 }) {
   const { usuario } = useApp()
@@ -195,30 +207,35 @@ export function Dashboard({
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Próximas gravações */}
           <Painel titulo="Próximas gravações" icon={Video}>
-            <ul className="divide-y divide-border">
-              {proximasGravacoes.map((g) => {
-                const c = clientePorId(g.clienteId)
-                return (
+            {proximasGravacoes.length > 0 ? (
+              <ul className="divide-y divide-border">
+                {proximasGravacoes.map((g) => (
                   <li key={g.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className={cn(c?.cor, "text-[10px] text-primary-foreground")}>
-                        {c?.iniciais}
+                      <AvatarFallback className="bg-primary text-[10px] text-primary-foreground">
+                        {iniciaisDe(g.clienteNome)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
                         {g.titulo}
                       </p>
-                      <p className="text-xs text-muted-foreground">{c?.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {g.clienteNome || "Interno"}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-medium text-foreground">{g.data}</p>
-                      <p className="text-[11px] text-muted-foreground">{g.hora}</p>
+                      <p className="text-xs font-medium text-foreground">{formatarDataCurta(g.data)}</p>
+                      {g.hora && <p className="text-[11px] text-muted-foreground">{g.hora}</p>}
                     </div>
                   </li>
-                )
-              })}
-            </ul>
+                ))}
+              </ul>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Nenhuma gravação agendada. Crie um compromisso do tipo &quot;Gravação&quot; no Calendário.
+              </p>
+            )}
           </Painel>
 
           {/* Tarefas urgentes (dados reais do módulo Tarefas) */}

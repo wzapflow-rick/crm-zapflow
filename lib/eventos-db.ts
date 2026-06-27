@@ -1,9 +1,15 @@
 import "server-only"
 import { query } from "@/lib/db"
-import { TIPOS_EVENTO, normalizarTipo, type Evento, type EventoInput } from "@/lib/eventos-types"
+import {
+  TIPOS_EVENTO,
+  normalizarTipo,
+  type Evento,
+  type EventoInput,
+  type ProximaGravacao,
+} from "@/lib/eventos-types"
 
 export { TIPOS_EVENTO }
-export type { Evento, EventoInput }
+export type { Evento, EventoInput, ProximaGravacao }
 
 type EventoRow = {
   id: string
@@ -52,6 +58,36 @@ export async function getEventos(): Promise<Evento[]> {
      order by data asc nulls last, hora asc nulls last`,
   )
   return rows.map(mapRow)
+}
+
+// Próximas gravações (tipo = 'gravacao', a partir de hoje) para o Dashboard.
+// Faz LEFT JOIN com empresas para trazer o nome do cliente já pronto.
+export async function getProximasGravacoes(limite = 5): Promise<ProximaGravacao[]> {
+  const rows = await query<{
+    id: string
+    titulo: string
+    data: string | null
+    hora: string | null
+    cliente_nome: string | null
+  }>(
+    `select e.id, e.titulo,
+            e.data::text as data,
+            substring(e.hora::text from 1 for 5) as hora,
+            emp.nome as cliente_nome
+     from public.agenda_compromissos e
+     left join public.empresas emp on emp.id = e.empresa_id
+     where e.tipo = 'gravacao' and e.data >= current_date
+     order by e.data asc nulls last, e.hora asc nulls last
+     limit $1`,
+    [limite],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    titulo: r.titulo,
+    data: r.data ?? "",
+    hora: r.hora ?? "",
+    clienteNome: r.cliente_nome ?? "",
+  }))
 }
 
 export async function criarEvento(input: EventoInput): Promise<void> {

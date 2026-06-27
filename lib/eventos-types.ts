@@ -33,6 +33,15 @@ export type EventoInput = {
 
 // ── Item unificado do calendário (evento próprio OU tarefa por prazo) ──────────
 
+// Gravação enriquecida para o card "Próximas gravações" do Dashboard.
+export type ProximaGravacao = {
+  id: string
+  titulo: string
+  data: string // YYYY-MM-DD
+  hora: string // HH:MM ("" se sem horário)
+  clienteNome: string // "" quando interno (sem cliente)
+}
+
 export type OrigemItem = "evento" | "tarefa"
 
 export type ItemCalendario = {
