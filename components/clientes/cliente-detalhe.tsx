@@ -91,7 +91,9 @@ export function ClienteDetalhe({
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
 }) {
-  const resp = membros.find((m) => m.id === cliente.responsavelId)
+  const responsaveis = (cliente.responsaveisIds ?? [])
+    .map((rid) => membros.find((m) => m.id === rid))
+    .filter(Boolean) as Membro[]
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
   const detalhe = detalheClientePorId(cliente.id)
 
@@ -170,16 +172,24 @@ export function ClienteDetalhe({
                 {cliente.mrr > 0 ? brl(cliente.mrr) : "—"}
               </p>
             </div>
-            {resp ? (
+            {responsaveis.length > 0 ? (
               <div className="flex items-center gap-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className={cn(resp.cor, "text-[10px] text-primary-foreground")}>
-                    {resp.iniciais}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="flex -space-x-1.5">
+                  {responsaveis.map((m) => (
+                    <Avatar key={m.id} className="h-7 w-7 ring-2 ring-card" title={m.nome}>
+                      <AvatarFallback className={cn(m.cor, "text-[10px] text-primary-foreground")}>
+                        {m.iniciais}
+                      </AvatarFallback>
+                    </Avatar>
+                  ))}
+                </div>
                 <div className="text-right leading-tight">
-                  <p className="text-xs font-medium text-foreground">{resp.nome}</p>
-                  <p className="text-[10px] text-muted-foreground">Responsável</p>
+                  <p className="text-xs font-medium text-foreground">
+                    {responsaveis.map((m) => m.nome).join(", ")}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {responsaveis.length > 1 ? "Responsáveis" : "Responsável"}
+                  </p>
                 </div>
               </div>
             ) : (

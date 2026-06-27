@@ -19,7 +19,7 @@ export function Topbar({ titulo }: { titulo: string }) {
   const { usuario, setUsuario, setNavAberta } = useApp()
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-5">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-5">
       <div className="flex min-w-0 items-center gap-2">
         <button
           onClick={() => setNavAberta(true)}

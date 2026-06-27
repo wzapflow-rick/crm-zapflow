@@ -188,21 +188,34 @@ export function ClienteFormDialog({
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="responsavelId">Responsável</Label>
-            <select id="responsavelId" name="responsavelId" defaultValue={cliente?.responsavelId ?? ""} className={selectClasses}>
-              <option value="">Sem responsável</option>
-              {membros.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nome}
-                  {m.cargo ? ` — ${m.cargo}` : ""}
-                </option>
-              ))}
-            </select>
-            {membros.length === 0 && (
+            <Label>Responsáveis</Label>
+            {membros.length > 0 ? (
+              <div className="grid grid-cols-1 gap-1.5 rounded-lg border border-input p-2 sm:grid-cols-2">
+                {membros.map((m) => (
+                  <label
+                    key={m.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent has-[:checked]:bg-primary/5"
+                  >
+                    <input
+                      type="checkbox"
+                      name="responsaveisIds"
+                      value={m.id}
+                      defaultChecked={(cliente?.responsaveisIds ?? []).includes(m.id)}
+                      className="h-4 w-4 shrink-0 accent-primary"
+                    />
+                    <span className="min-w-0 truncate text-sm text-foreground">
+                      {m.nome}
+                      {m.cargo ? <span className="text-muted-foreground"> — {m.cargo}</span> : null}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ) : (
               <p className="text-xs text-muted-foreground">
                 Nenhum membro cadastrado ainda. Adicione membros na tabela do banco para vinculá-los.
               </p>
             )}
+            <p className="text-xs text-muted-foreground">Marque um ou mais responsáveis por este cliente.</p>
           </div>
 
           <div className="grid gap-1.5">

@@ -136,7 +136,7 @@ export function ClientesLista({
         {visiveis.length > 0 ? (
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visiveis.map((c) => {
-              const resp = membroPorId(c.responsavelId)
+              const responsaveis = (c.responsaveisIds ?? []).map(membroPorId).filter(Boolean) as Membro[]
               return (
                 <Link
                   key={c.id}
@@ -171,15 +171,21 @@ export function ClientesLista({
                   </p>
 
                   <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                    <div className="flex items-center gap-2">
-                      {resp ? (
+                    <div className="flex min-w-0 items-center gap-2">
+                      {responsaveis.length > 0 ? (
                         <>
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className={cn(resp.cor, "text-[10px] text-primary-foreground")}>
-                              {resp.iniciais}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground">{resp.nome}</span>
+                          <div className="flex -space-x-1.5">
+                            {responsaveis.map((r) => (
+                              <Avatar key={r.id} className="h-6 w-6 ring-2 ring-card" title={r.nome}>
+                                <AvatarFallback className={cn(r.cor, "text-[10px] text-primary-foreground")}>
+                                  {r.iniciais}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
+                          </div>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {responsaveis.length === 1 ? responsaveis[0].nome : `${responsaveis.length} responsáveis`}
+                          </span>
                         </>
                       ) : (
                         <span className="text-xs text-muted-foreground">Sem responsável</span>

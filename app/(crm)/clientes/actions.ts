@@ -52,7 +52,7 @@ export async function criarClienteAction(
     recorrente: formData.get("recorrente") === "on",
     logoUrl: String(formData.get("logoUrl") ?? "") || undefined,
     desde: String(formData.get("desde") ?? "") || undefined,
-    responsavelId: String(formData.get("responsavelId") ?? "") || undefined,
+    responsaveisIds: formData.getAll("responsaveisIds").map(String).filter(Boolean),
   }
 
   try {
@@ -90,7 +90,7 @@ export async function atualizarClienteAction(
     recorrente: formData.get("recorrente") === "on",
     logoUrl: String(formData.get("logoUrl") ?? ""),
     desde: String(formData.get("desde") ?? "") || undefined,
-    responsavelId: String(formData.get("responsavelId") ?? "") || null,
+    responsaveisIds: formData.getAll("responsaveisIds").map(String).filter(Boolean),
   }
 
   try {

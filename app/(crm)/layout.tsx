@@ -7,7 +7,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <Providers>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">{children}</div>
       </div>
     </Providers>
   )
