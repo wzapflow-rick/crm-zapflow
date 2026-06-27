@@ -24,7 +24,6 @@ import type { ResumoFinanceiro } from "@/lib/financeiro-db"
 import type { Membro } from "@/lib/membros-db"
 import {
   clientes,
-  clientesAtivos,
   insightsSemana,
   proximasGravacoes,
   receitaMensal,
@@ -52,11 +51,15 @@ export function Dashboard({
   resumoCrm,
   resumoTarefas,
   resumoFinanceiro,
+  totalClientes,
+  clientesAtivos,
   membros,
 }: {
   resumoCrm: ResumoCrm
   resumoTarefas: ResumoTarefas
   resumoFinanceiro: ResumoFinanceiro | null
+  totalClientes: number
+  clientesAtivos: number
   membros: Membro[]
 }) {
   const { usuario } = useApp()
@@ -136,7 +139,7 @@ export function Dashboard({
             label="Clientes ativos"
             valor={String(clientesAtivos)}
             icon={Users}
-            hint={`${clientes.length} no total`}
+            hint={`${totalClientes} no total`}
           />
           <StatCard
             label="Leads em aberto"

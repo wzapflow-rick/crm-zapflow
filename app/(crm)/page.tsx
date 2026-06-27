@@ -3,6 +3,7 @@ import { Dashboard } from "@/components/dashboard/dashboard"
 import { getResumoCrm, type ResumoCrm } from "@/lib/crm-db"
 import { getResumoTarefas, type ResumoTarefas } from "@/lib/tarefas-db"
 import { getResumoFinanceiro, type ResumoFinanceiro } from "@/lib/financeiro-db"
+import { getClientes } from "@/lib/clientes-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
 
 export const dynamic = "force-dynamic"
@@ -29,6 +30,17 @@ export default async function DashboardPage() {
     resumoFinanceiro = null
   }
 
+  let totalClientes = 0
+  let clientesAtivos = 0
+  try {
+    const clientes = await getClientes()
+    totalClientes = clientes.length
+    clientesAtivos = clientes.filter((c) => c.status === "ativo").length
+  } catch {
+    totalClientes = 0
+    clientesAtivos = 0
+  }
+
   let membros: Membro[] = []
   try {
     membros = await getMembros()
@@ -43,6 +55,8 @@ export default async function DashboardPage() {
         resumoCrm={resumo}
         resumoTarefas={resumoTarefas}
         resumoFinanceiro={resumoFinanceiro}
+        totalClientes={totalClientes}
+        clientesAtivos={clientesAtivos}
         membros={membros}
       />
     </>
