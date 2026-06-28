@@ -1,22 +1,13 @@
 "use client"
 
-import { Search, ChevronDown, Menu } from "lucide-react"
+import { Search, Menu } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { fundadores } from "@/lib/simple-data"
 import { useApp } from "@/components/simple/providers"
 
 export function Topbar({ titulo }: { titulo: string }) {
-  const { usuario, setUsuario, setNavAberta } = useApp()
+  const { usuario, setNavAberta } = useApp()
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-5">
@@ -39,45 +30,17 @@ export function Topbar({ titulo }: { titulo: string }) {
         />
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1.5 outline-none transition-colors hover:bg-accent">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className={cn(usuario.cor, "text-xs text-primary-foreground")}>
-              {usuario.iniciais}
-            </AvatarFallback>
-          </Avatar>
-          <div className="hidden flex-col items-start leading-tight sm:flex">
-            <span className="text-sm font-medium text-foreground">
-              {usuario.nome}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              {usuario.papel}
-            </span>
-          </div>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="text-xs text-muted-foreground">
-            Entrar como (demo)
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {fundadores.map((f) => (
-            <DropdownMenuItem
-              key={f.id}
-              onClick={() => setUsuario(f)}
-              className="gap-2"
-            >
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className={cn(f.cor, "text-[10px] text-primary-foreground")}>
-                  {f.iniciais}
-                </AvatarFallback>
-              </Avatar>
-              <span className="flex-1 text-sm">{f.nome}</span>
-              <span className="text-[10px] text-muted-foreground">{f.papel}</span>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-2 px-2 py-1.5">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className={cn(usuario.cor, "text-xs text-primary-foreground")}>
+            {usuario.iniciais}
+          </AvatarFallback>
+        </Avatar>
+        <div className="hidden flex-col items-start leading-tight sm:flex">
+          <span className="text-sm font-medium text-foreground">{usuario.nome}</span>
+          <span className="text-[10px] text-muted-foreground">{usuario.papel}</span>
+        </div>
+      </div>
     </header>
   )
 }
