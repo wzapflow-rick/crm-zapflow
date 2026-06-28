@@ -2,7 +2,18 @@
 
 import { useActionState, useState } from "react"
 import { useFormStatus } from "react-dom"
-import { Sparkles, TrendingUp, AlertTriangle, Lightbulb, ListChecks, Clock, AtSign, Loader2, Brain } from "lucide-react"
+import {
+  Sparkles,
+  TrendingUp,
+  AlertTriangle,
+  Lightbulb,
+  ListChecks,
+  Clock,
+  AtSign,
+  Loader2,
+  Brain,
+  Globe,
+} from "lucide-react"
 import { gerarInsightsAction, type EstadoInsights } from "@/app/(crm)/marketing/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,12 +21,22 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { ChatEstrategico, type ClienteOpcao } from "@/components/marketing/chat-estrategico"
+import { InteligenciaGlobal } from "@/components/marketing/inteligencia-global"
+import type { AprendizadoGlobal } from "@/lib/global-db"
 
 const estadoInicial: EstadoInsights = { ok: false }
 
-type Aba = "chat" | "insights"
+type Aba = "chat" | "global" | "insights"
 
-export function MarketingView({ clientes }: { clientes: ClienteOpcao[] }) {
+export function MarketingView({
+  clientes,
+  aprendizadosGlobais,
+  ultimaAnaliseGlobal,
+}: {
+  clientes: ClienteOpcao[]
+  aprendizadosGlobais: AprendizadoGlobal[]
+  ultimaAnaliseGlobal: string | null
+}) {
   const [aba, setAba] = useState<Aba>("chat")
 
   return (
@@ -28,16 +49,23 @@ export function MarketingView({ clientes }: { clientes: ClienteOpcao[] }) {
         </p>
       </header>
 
-      <div className="mb-6 inline-flex rounded-xl border border-border bg-card p-1">
+      <div className="mb-6 inline-flex flex-wrap rounded-xl border border-border bg-card p-1">
         <BotaoAba ativo={aba === "chat"} onClick={() => setAba("chat")} icon={<Brain className="h-4 w-4" />}>
           Chat estratégico
+        </BotaoAba>
+        <BotaoAba ativo={aba === "global"} onClick={() => setAba("global")} icon={<Globe className="h-4 w-4" />}>
+          Inteligência global
         </BotaoAba>
         <BotaoAba ativo={aba === "insights"} onClick={() => setAba("insights")} icon={<AtSign className="h-4 w-4" />}>
           Insights de Instagram
         </BotaoAba>
       </div>
 
-      {aba === "chat" ? <ChatEstrategico clientes={clientes} /> : <InsightsInstagram />}
+      {aba === "chat" && <ChatEstrategico clientes={clientes} />}
+      {aba === "global" && (
+        <InteligenciaGlobal aprendizados={aprendizadosGlobais} ultimaAnalise={ultimaAnaliseGlobal} />
+      )}
+      {aba === "insights" && <InsightsInstagram />}
     </div>
   )
 }

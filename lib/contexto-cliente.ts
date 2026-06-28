@@ -7,6 +7,7 @@ import { getReunioes } from "@/lib/reunioes-db"
 import { getPerformance } from "@/lib/performance-db"
 import { getExperimentos } from "@/lib/experimentos-db"
 import { getPadroes } from "@/lib/padroes-db"
+import { getAprendizadosGlobais } from "@/lib/global-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -46,10 +47,11 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const [performance, experimentos, padroes] = await Promise.all([
+  const [performance, experimentos, padroes, aprendizadosGlobais] = await Promise.all([
     getPerformance(empresaId).catch(() => []),
     getExperimentos(empresaId).catch(() => []),
     getPadroes(empresaId).catch(() => []),
+    getAprendizadosGlobais().catch(() => []),
   ])
 
   const partes: string[] = []
@@ -184,6 +186,16 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       .join("\n")
     partes.push(
       `\n## PADRÕES APRENDIDOS (inteligência cruzada deste cliente — use como base para recomendações)\n${linhas}`,
+    )
+  }
+
+  if (aprendizadosGlobais.length > 0) {
+    const linhas = aprendizadosGlobais
+      .slice(0, 20)
+      .map((a) => `- [${a.categoria}] ${a.aprendizado}${a.baseAmostral ? ` (base: ${a.baseAmostral})` : ""}`)
+      .join("\n")
+    partes.push(
+      `\n## INTELIGÊNCIA GLOBAL DA AGÊNCIA (aprendizados de toda a carteira — aplique ao cliente quando fizer sentido)\n${linhas}`,
     )
   }
 

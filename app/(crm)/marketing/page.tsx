@@ -1,6 +1,7 @@
 import { MarketingView } from "@/components/marketing/marketing-view"
 import { getClientes } from "@/lib/clientes-db"
 import type { Cliente } from "@/lib/simple-data"
+import { getAprendizadosGlobais, getUltimaAnaliseGlobal, type AprendizadoGlobal } from "@/lib/global-db"
 
 export default async function MarketingPage() {
   let clientes: Cliente[] = []
@@ -8,6 +9,17 @@ export default async function MarketingPage() {
     clientes = await getClientes()
   } catch {
     clientes = []
+  }
+
+  let aprendizadosGlobais: AprendizadoGlobal[] = []
+  let ultimaAnaliseGlobal: string | null = null
+  try {
+    ;[aprendizadosGlobais, ultimaAnaliseGlobal] = await Promise.all([
+      getAprendizadosGlobais(),
+      getUltimaAnaliseGlobal(),
+    ])
+  } catch {
+    aprendizadosGlobais = []
   }
 
   // Passa apenas os campos necessários ao seletor (evita enviar dados demais ao client).
@@ -21,5 +33,11 @@ export default async function MarketingPage() {
     logoUrl: c.logoUrl ?? "",
   }))
 
-  return <MarketingView clientes={opcoes} />
+  return (
+    <MarketingView
+      clientes={opcoes}
+      aprendizadosGlobais={aprendizadosGlobais}
+      ultimaAnaliseGlobal={ultimaAnaliseGlobal}
+    />
+  )
 }
