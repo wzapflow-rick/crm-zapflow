@@ -17,6 +17,7 @@ import { getMemoria, type MemoriaCliente } from "@/lib/memoria-db"
 import { getReunioes, type Reuniao } from "@/lib/reunioes-db"
 import { getPerformance, type ConteudoPerformance } from "@/lib/performance-db"
 import { getExperimentos, type Experimento } from "@/lib/experimentos-db"
+import { getPadroes, getUltimaAnalise, type Padrao } from "@/lib/padroes-db"
 import type {
   Arquivo,
   Cliente,
@@ -128,6 +129,14 @@ export default async function ClientePage({
     experimentos = []
   }
 
+  let padroes: Padrao[] = []
+  let ultimaAnalisePadroes: string | null = null
+  try {
+    ;[padroes, ultimaAnalisePadroes] = await Promise.all([getPadroes(id), getUltimaAnalise(id)])
+  } catch {
+    padroes = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -146,6 +155,8 @@ export default async function ClientePage({
         reunioes={reunioes}
         performance={performance}
         experimentos={experimentos}
+        padroes={padroes}
+        ultimaAnalisePadroes={ultimaAnalisePadroes}
       />
     </>
   )

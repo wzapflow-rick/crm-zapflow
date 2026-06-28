@@ -6,6 +6,7 @@ import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 import { getReunioes } from "@/lib/reunioes-db"
 import { getPerformance } from "@/lib/performance-db"
 import { getExperimentos } from "@/lib/experimentos-db"
+import { getPadroes } from "@/lib/padroes-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -45,9 +46,10 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const [performance, experimentos] = await Promise.all([
+  const [performance, experimentos, padroes] = await Promise.all([
     getPerformance(empresaId).catch(() => []),
     getExperimentos(empresaId).catch(() => []),
+    getPadroes(empresaId).catch(() => []),
   ])
 
   const partes: string[] = []
@@ -173,6 +175,18 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     )
   }
 
+  if (padroes.length > 0) {
+    const linhas = padroes
+      .map((p) => {
+        const conf = p.confianca === "alta" ? "alta confiança" : p.confianca === "media" ? "confiança média" : "baixa confiança"
+        return `- [${p.categoria}] ${p.padrao}${p.evidencia ? ` (evidência: ${p.evidencia})` : ""} — ${conf}`
+      })
+      .join("\n")
+    partes.push(
+      `\n## PADRÕES APRENDIDOS (inteligência cruzada deste cliente — use como base para recomendações)\n${linhas}`,
+    )
+  }
+
   const resumo: ResumoContexto = {
     nome: cliente.nome,
     segmento: cliente.segmento,
@@ -191,6 +205,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Reuniões", itens: reunioes.length },
       { rotulo: "Performance", itens: performance.length },
       { rotulo: "Experimentos", itens: experimentos.length },
+      { rotulo: "Padrões", itens: padroes.length },
     ],
   }
 

@@ -14,6 +14,7 @@ import {
   FolderOpen,
   LineChart,
   MessageSquare,
+  Network,
   Pencil,
   Phone,
   Sparkles,
@@ -58,6 +59,7 @@ import { PerformanceDialog } from "@/components/clientes/performance-dialog"
 import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
 import { ExperimentoDialog } from "@/components/clientes/experimento-dialog"
 import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
+import { PadroesPanel } from "@/components/clientes/padroes-panel"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
 import type { MemoriaCliente } from "@/lib/memoria-db"
@@ -65,6 +67,7 @@ import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 import type { Reuniao } from "@/lib/reunioes-db"
 import type { ConteudoPerformance } from "@/lib/performance-db"
 import type { Experimento, StatusExperimento } from "@/lib/experimentos-db"
+import type { Padrao } from "@/lib/padroes-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -113,6 +116,8 @@ export function ClienteDetalhe({
   reunioes,
   performance,
   experimentos,
+  padroes,
+  ultimaAnalisePadroes,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -128,6 +133,8 @@ export function ClienteDetalhe({
   reunioes: Reuniao[]
   performance: ConteudoPerformance[]
   experimentos: Experimento[]
+  padroes: Padrao[]
+  ultimaAnalisePadroes: string | null
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -256,6 +263,7 @@ export function ClienteDetalhe({
             <TabTrigger value="reunioes" icon={Users} label="Reuniões" />
             <TabTrigger value="performance" icon={BarChart3} label="Performance" />
             <TabTrigger value="experimentos" icon={FlaskConical} label="Experimentos" />
+            <TabTrigger value="padroes" icon={Network} label="Padrões" />
             <TabTrigger value="memoria" icon={Brain} label="Memória" />
           </TabsList>
 
@@ -875,6 +883,11 @@ export function ClienteDetalhe({
                 <Vazio texto='Nenhum experimento ainda. Clique em "Novo experimento", descreva a hipótese e o resultado — a IA conclui e classifica.' />
               </Card>
             )}
+          </TabsContent>
+
+          {/* Padrões (Knowledge Graph — a IA cruza tudo e aprende os padrões deste cliente) */}
+          <TabsContent value="padroes" className="mt-5">
+            <PadroesPanel clienteId={cliente.id} padroes={padroes} ultimaAnalise={ultimaAnalisePadroes} />
           </TabsContent>
 
           {/* Memória do cliente (Client Memory — usada pela IA no Chat Estratégico) */}
