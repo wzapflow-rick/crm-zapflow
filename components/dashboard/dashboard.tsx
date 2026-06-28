@@ -92,7 +92,7 @@ export function Dashboard({
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
-              Bem-vindo(a), {usuario.nome.split(" ")[0]}
+              Bem-vindo(a)
             </p>
             <h2 className="mt-2 font-serif text-3xl font-medium tracking-tight text-foreground text-balance md:text-4xl">
               OS SIMPLE
