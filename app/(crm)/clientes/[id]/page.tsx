@@ -13,6 +13,7 @@ import {
 } from "@/lib/clientes-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
 import { getHistorico, type RegistroHistorico } from "@/lib/historico-db"
+import { getMemoria, type MemoriaCliente } from "@/lib/memoria-db"
 import type {
   Arquivo,
   Cliente,
@@ -96,6 +97,13 @@ export default async function ClientePage({
     historico = []
   }
 
+  let memoria: MemoriaCliente = {}
+  try {
+    memoria = await getMemoria(id)
+  } catch {
+    memoria = {}
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -110,6 +118,7 @@ export default async function ClientePage({
         mensagens={mensagens}
         resultados={resultados}
         historico={historico}
+        memoria={memoria}
       />
     </>
   )

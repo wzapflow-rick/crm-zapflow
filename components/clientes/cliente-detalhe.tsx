@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowDownRight,
   ArrowUpRight,
+  Brain,
   CalendarDays,
   Download,
   FileText,
@@ -47,8 +48,11 @@ import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
 import { HistoricoDialog } from "@/components/clientes/historico-dialog"
 import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-button"
+import { MemoriaSecao } from "@/components/clientes/memoria-secao"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
+import type { MemoriaCliente } from "@/lib/memoria-db"
+import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -86,6 +90,7 @@ export function ClienteDetalhe({
   mensagens,
   resultados,
   historico,
+  memoria,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -97,6 +102,7 @@ export function ClienteDetalhe({
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   historico: RegistroHistorico[]
+  memoria: MemoriaCliente
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -222,6 +228,7 @@ export function ClienteDetalhe({
             <TabTrigger value="comunicacao" icon={MessageSquare} label="Comunicação" />
             <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
+            <TabTrigger value="memoria" icon={Brain} label="Memória" />
           </TabsList>
 
           {/* Visão geral */}
@@ -621,6 +628,19 @@ export function ClienteDetalhe({
                 <Vazio texto='Nenhum registro ainda. Clique em "Novo registro" e escreva como foi o período — a IA organiza.' />
               </Card>
             )}
+          </TabsContent>
+
+          {/* Memória do cliente (Client Memory — usada pela IA no Chat Estratégico) */}
+          <TabsContent value="memoria" className="mt-5">
+            <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <Brain className="h-4 w-4 text-primary" />
+              Memória que a IA SIMPLE OS consulta sobre este cliente. Quanto mais completa, melhores as respostas.
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {SECOES_MEMORIA.map((secao) => (
+                <MemoriaSecao key={secao.id} clienteId={cliente.id} secao={secao} valor={memoria[secao.id] ?? ""} />
+              ))}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

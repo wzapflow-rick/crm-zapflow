@@ -1,6 +1,8 @@
 import "server-only"
 import { getClientePorId, getMetas, getEstrategia, getConteudos, getResultados } from "@/lib/clientes-db"
 import { getHistorico } from "@/lib/historico-db"
+import { getMemoria } from "@/lib/memoria-db"
+import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -30,12 +32,13 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
   const cliente = await getClientePorId(empresaId)
   if (!cliente) return null
 
-  const [metas, estrategia, conteudos, resultados, historico] = await Promise.all([
+  const [metas, estrategia, conteudos, resultados, historico, memoria] = await Promise.all([
     getMetas(empresaId).catch(() => []),
     getEstrategia(empresaId).catch(() => ({ estrategiaAtual: [], insights: [], concorrentes: [] })),
     getConteudos(empresaId).catch(() => []),
     getResultados(empresaId).catch(() => []),
     getHistorico(empresaId).catch(() => []),
+    getMemoria(empresaId).catch(() => ({}) as Record<string, string>),
   ])
 
   const partes: string[] = []
@@ -46,6 +49,16 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
   )
   if (cliente.objetivo) partes.push(`Objetivo principal: ${cliente.objetivo}`)
   if (cliente.resumoEstrategico) partes.push(`Resumo estratégico: ${cliente.resumoEstrategico}`)
+
+  // Client Memory (seções editáveis preenchidas pela equipe).
+  const secoesPreenchidas = SECOES_MEMORIA.filter((s) => (memoria[s.id] ?? "").trim())
+  if (secoesPreenchidas.length > 0) {
+    partes.push(
+      `\n## MEMÓRIA DO CLIENTE\n${secoesPreenchidas
+        .map((s) => `### ${s.titulo}\n${memoria[s.id].trim()}`)
+        .join("\n\n")}`,
+    )
+  }
 
   if (metas.length > 0) {
     partes.push(`\n## METAS / KPIs\n${linhasMetas(metas)}`)
@@ -97,6 +110,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     desde: cliente.desde,
     objetivo: cliente.objetivo,
     blocos: [
+      { rotulo: "Memória", itens: secoesPreenchidas.length },
       { rotulo: "Metas/KPIs", itens: metas.length },
       { rotulo: "Estratégia", itens: estrategia.estrategiaAtual.length },
       { rotulo: "Insights", itens: estrategia.insights.length },
