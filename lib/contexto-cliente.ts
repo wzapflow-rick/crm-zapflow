@@ -4,6 +4,7 @@ import { getHistorico } from "@/lib/historico-db"
 import { getMemoria } from "@/lib/memoria-db"
 import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 import { getReunioes } from "@/lib/reunioes-db"
+import { getPerformance } from "@/lib/performance-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -42,6 +43,8 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getMemoria(empresaId).catch(() => ({}) as Record<string, string>),
     getReunioes(empresaId).catch(() => []),
   ])
+
+  const performance = await getPerformance(empresaId).catch(() => [])
 
   const partes: string[] = []
 
@@ -122,6 +125,29 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     partes.push(`\n## REUNIÕES (mais recente primeiro)\n${linhas}`)
   }
 
+  if (performance.length > 0) {
+    const linhas = performance
+      .slice(0, 20)
+      .map((p) => {
+        const metr = [
+          p.views != null ? `${p.views} views` : "",
+          p.alcance != null ? `${p.alcance} alcance` : "",
+          p.curtidas != null ? `${p.curtidas} curtidas` : "",
+          p.comentarios != null ? `${p.comentarios} comentários` : "",
+          p.salvamentos != null ? `${p.salvamentos} salvamentos` : "",
+          p.compartilhamentos != null ? `${p.compartilhamentos} compart.` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+        const apr = p.aprendizados.length ? ` Aprendizados: ${p.aprendizados.join("; ")}.` : ""
+        const obj = p.objetivo ? ` Objetivo: ${p.objetivo}.` : ""
+        const gancho = p.gancho ? ` Gancho: ${p.gancho}.` : ""
+        return `- [${p.formato}] ${p.titulo}${metr ? ` — ${metr}.` : "."}${gancho}${obj}${apr}`
+      })
+      .join("\n")
+    partes.push(`\n## PERFORMANCE DE CONTEÚDO (mais recente primeiro)\n${linhas}`)
+  }
+
   const resumo: ResumoContexto = {
     nome: cliente.nome,
     segmento: cliente.segmento,
@@ -138,6 +164,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Conteúdos", itens: conteudos.length },
       { rotulo: "Evolução", itens: historico.length },
       { rotulo: "Reuniões", itens: reunioes.length },
+      { rotulo: "Performance", itens: performance.length },
     ],
   }
 

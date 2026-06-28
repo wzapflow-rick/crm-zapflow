@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowDownRight,
   ArrowUpRight,
+  BarChart3,
   Brain,
   CalendarDays,
   Download,
@@ -52,11 +53,14 @@ import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-bu
 import { MemoriaSecao } from "@/components/clientes/memoria-secao"
 import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
 import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
+import { PerformanceDialog } from "@/components/clientes/performance-dialog"
+import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
 import type { MemoriaCliente } from "@/lib/memoria-db"
 import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 import type { Reuniao } from "@/lib/reunioes-db"
+import type { ConteudoPerformance } from "@/lib/performance-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -96,6 +100,7 @@ export function ClienteDetalhe({
   historico,
   memoria,
   reunioes,
+  performance,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -109,6 +114,7 @@ export function ClienteDetalhe({
   historico: RegistroHistorico[]
   memoria: MemoriaCliente
   reunioes: Reuniao[]
+  performance: ConteudoPerformance[]
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -235,6 +241,7 @@ export function ClienteDetalhe({
             <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
             <TabTrigger value="reunioes" icon={Users} label="Reuniões" />
+            <TabTrigger value="performance" icon={BarChart3} label="Performance" />
             <TabTrigger value="memoria" icon={Brain} label="Memória" />
           </TabsList>
 
@@ -704,6 +711,88 @@ export function ClienteDetalhe({
             )}
           </TabsContent>
 
+          {/* Performance de conteúdo (alimenta o Chat Estratégico e as próximas estratégias) */}
+          <TabsContent value="performance" className="mt-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Conteúdos publicados com métricas. A IA gera aprendizados e usa tudo nas recomendações.
+              </div>
+              <PerformanceDialog
+                clienteId={cliente.id}
+                trigger={
+                  <Button size="sm" className="gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Novo conteúdo
+                  </Button>
+                }
+              />
+            </div>
+
+            {performance.length > 0 ? (
+              <div className="grid gap-4">
+                {performance.map((p) => (
+                  <div key={p.id} className="rounded-xl border border-border bg-card p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-semibold text-foreground">{p.titulo}</h3>
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                            {p.formato}
+                          </span>
+                        </div>
+                        {p.data && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(p.data).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <ExcluirPerformanceButton id={p.id} clienteId={cliente.id} />
+                    </div>
+
+                    {(p.gancho || p.objetivo) && (
+                      <div className="mt-3 space-y-1 text-sm">
+                        {p.gancho && (
+                          <p className="text-muted-foreground">
+                            <span className="font-medium text-foreground">Gancho:</span> {p.gancho}
+                          </p>
+                        )}
+                        {p.objetivo && (
+                          <p className="text-muted-foreground">
+                            <span className="font-medium text-foreground">Objetivo:</span> {p.objetivo}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Metrica rotulo="Views" valor={p.views} />
+                      <Metrica rotulo="Alcance" valor={p.alcance} />
+                      <Metrica rotulo="Curtidas" valor={p.curtidas} />
+                      <Metrica rotulo="Comentários" valor={p.comentarios} />
+                      <Metrica rotulo="Salvamentos" valor={p.salvamentos} />
+                      <Metrica rotulo="Compart." valor={p.compartilhamentos} />
+                    </div>
+
+                    {p.aprendizados.length > 0 && (
+                      <div className="mt-4 rounded-lg bg-primary/5 p-3">
+                        <ListaEvolucao titulo="Aprendizados da IA" itens={p.aprendizados} cor="text-primary" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Card titulo="Conteúdos publicados">
+                <Vazio texto='Nenhum conteúdo registrado. Clique em "Novo conteúdo", informe as métricas e a IA gera os aprendizados.' />
+              </Card>
+            )}
+          </TabsContent>
+
           {/* Memória do cliente (Client Memory — usada pela IA no Chat Estratégico) */}
           <TabsContent value="memoria" className="mt-5">
             <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -719,6 +808,17 @@ export function ClienteDetalhe({
         </Tabs>
       </div>
     </main>
+  )
+}
+
+function Metrica({ rotulo, valor }: { rotulo: string; valor: number | null }) {
+  return (
+    <div className="rounded-lg border border-border bg-background px-3 py-2">
+      <p className="text-[11px] text-muted-foreground">{rotulo}</p>
+      <p className="text-sm font-semibold tabular-nums text-foreground">
+        {valor != null ? valor.toLocaleString("pt-BR") : "—"}
+      </p>
+    </div>
   )
 }
 
