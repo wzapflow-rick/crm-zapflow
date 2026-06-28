@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { salvarPerformanceAction, type EstadoPerformance } from "@/app/(crm)/clientes/performance-actions"
-import { FORMATOS_PERFORMANCE } from "@/lib/performance-db"
+import { FORMATOS_PERFORMANCE } from "@/lib/performance-formatos"
 
 const estadoInicial: EstadoPerformance = { ok: false }
 

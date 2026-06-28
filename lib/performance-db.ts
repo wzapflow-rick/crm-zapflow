@@ -1,5 +1,8 @@
 import "server-only"
 import { query, getPool } from "@/lib/db"
+import { FORMATOS_PERFORMANCE } from "@/lib/performance-formatos"
+
+export { FORMATOS_PERFORMANCE }
 
 export type ConteudoPerformance = {
   id: string
@@ -17,8 +20,6 @@ export type ConteudoPerformance = {
   aprendizados: string[]
   criadoEm: string
 }
-
-export const FORMATOS_PERFORMANCE = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"] as const
 
 type Row = {
   id: string
