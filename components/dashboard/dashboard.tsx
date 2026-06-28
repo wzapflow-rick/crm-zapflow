@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   ArrowUpRight,
   UserPlus,
@@ -14,7 +15,7 @@ import {
   CircleDot,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
@@ -51,10 +52,10 @@ const prioridadeEstilo: Record<string, string> = {
 }
 
 const acoesRapidas = [
-  { label: "Novo cliente", icon: UserPlus },
-  { label: "Nova proposta", icon: FileText },
-  { label: "Nova tarefa", icon: Plus },
-  { label: "Novo lead", icon: Target },
+  { label: "Novo cliente", icon: UserPlus, href: "/clientes" },
+  { label: "Nova proposta", icon: FileText, href: "/comercial" },
+  { label: "Nova tarefa", icon: Plus, href: "/tarefas" },
+  { label: "Novo lead", icon: Target, href: "/crm" },
 ]
 
 export function Dashboard({
@@ -90,27 +91,29 @@ export function Dashboard({
         {/* Saudação + missão + ações */}
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-foreground text-balance">
-              Olá, {usuario.nome}.
+            <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
+              Bem-vindo(a), {usuario.nome.split(" ")[0]}
+            </p>
+            <h2 className="mt-2 font-serif text-3xl font-medium tracking-tight text-foreground text-balance md:text-4xl">
+              OS SIMPLE
             </h2>
-            <p className="mt-1.5 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-2.5 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
               Entramos no negócio dos nossos clientes para que mais clientes
-              entrem na empresa deles. Esta é a operação da SIMPLE, em tempo real.
+              entrem na empresa deles. Esta é a sua operação, em tempo real.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {acoesRapidas.map((a) => {
               const Icon = a.icon
               return (
-                <Button
+                <Link
                   key={a.label}
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 bg-card"
+                  href={a.href}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5 bg-card")}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {a.label}
-                </Button>
+                </Link>
               )
             })}
           </div>
