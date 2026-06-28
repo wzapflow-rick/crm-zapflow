@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
+import { ThemeToggle } from "@/components/simple/theme-toggle"
 
 type NavItem = {
   href: string
@@ -102,7 +103,8 @@ function ConteudoNav({ onNavegar }: { onNavegar?: () => void }) {
         ))}
       </nav>
 
-      <div className="px-3 py-3">
+      <div className="space-y-0.5 border-t border-sidebar-border/60 px-3 py-3">
+        <ThemeToggle />
         <Link
           href="/configuracoes"
           onClick={onNavegar}

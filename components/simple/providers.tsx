@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
+import { ThemeProvider } from "next-themes"
 import { fundadores, type Fundador } from "@/lib/simple-data"
 
 type AppContextValue = {
@@ -17,9 +18,11 @@ export function Providers({ children }: { children: ReactNode }) {
   const [navAberta, setNavAberta] = useState(false)
 
   return (
-    <AppContext.Provider value={{ usuario, setUsuario, navAberta, setNavAberta }}>
-      {children}
-    </AppContext.Provider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange={false}>
+      <AppContext.Provider value={{ usuario, setUsuario, navAberta, setNavAberta }}>
+        {children}
+      </AppContext.Provider>
+    </ThemeProvider>
   )
 }
 
