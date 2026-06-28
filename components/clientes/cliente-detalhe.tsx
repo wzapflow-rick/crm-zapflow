@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Download,
   FileText,
+  FlaskConical,
   FolderOpen,
   LineChart,
   MessageSquare,
@@ -55,12 +56,15 @@ import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
 import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
 import { PerformanceDialog } from "@/components/clientes/performance-dialog"
 import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
+import { ExperimentoDialog } from "@/components/clientes/experimento-dialog"
+import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
 import type { MemoriaCliente } from "@/lib/memoria-db"
 import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 import type { Reuniao } from "@/lib/reunioes-db"
 import type { ConteudoPerformance } from "@/lib/performance-db"
+import type { Experimento, StatusExperimento } from "@/lib/experimentos-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -78,6 +82,13 @@ const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = 
   edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
   aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
   publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
+}
+
+const statusExperimentoInfo: Record<StatusExperimento, { label: string; classe: string }> = {
+  em_teste: { label: "Em teste", classe: "bg-chart-3/15 text-chart-3" },
+  repetir: { label: "Repetir", classe: "bg-chart-4/15 text-chart-4" },
+  melhorar: { label: "Melhorar", classe: "bg-chart-5/15 text-chart-5" },
+  descartar: { label: "Descartar", classe: "bg-destructive/15 text-destructive" },
 }
 
 const tipoEventoInfo: Record<string, { label: string; icon: typeof Video }> = {
@@ -101,6 +112,7 @@ export function ClienteDetalhe({
   memoria,
   reunioes,
   performance,
+  experimentos,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -115,6 +127,7 @@ export function ClienteDetalhe({
   memoria: MemoriaCliente
   reunioes: Reuniao[]
   performance: ConteudoPerformance[]
+  experimentos: Experimento[]
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -242,6 +255,7 @@ export function ClienteDetalhe({
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
             <TabTrigger value="reunioes" icon={Users} label="Reuniões" />
             <TabTrigger value="performance" icon={BarChart3} label="Performance" />
+            <TabTrigger value="experimentos" icon={FlaskConical} label="Experimentos" />
             <TabTrigger value="memoria" icon={Brain} label="Memória" />
           </TabsList>
 
@@ -789,6 +803,76 @@ export function ClienteDetalhe({
             ) : (
               <Card titulo="Conteúdos publicados">
                 <Vazio texto='Nenhum conteúdo registrado. Clique em "Novo conteúdo", informe as métricas e a IA gera os aprendizados.' />
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Experimentos (banco de testes — a IA consulta antes de sugerir estratégia) */}
+          <TabsContent value="experimentos" className="mt-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FlaskConical className="h-4 w-4 text-primary" />
+                Hipóteses testadas e seus vereditos. A IA consulta isto antes de recomendar estratégias.
+              </div>
+              <ExperimentoDialog
+                clienteId={cliente.id}
+                trigger={
+                  <Button size="sm" className="gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Novo experimento
+                  </Button>
+                }
+              />
+            </div>
+
+            {experimentos.length > 0 ? (
+              <div className="grid gap-4">
+                {experimentos.map((exp) => {
+                  const info = statusExperimentoInfo[exp.status]
+                  return (
+                    <div key={exp.id} className="rounded-xl border border-border bg-card p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-medium", info.classe)}>
+                            {info.label}
+                          </span>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(exp.criadoEm).toLocaleDateString("pt-BR")}
+                          </p>
+                        </div>
+                        <ExcluirExperimentoButton id={exp.id} clienteId={cliente.id} />
+                      </div>
+
+                      <p className="mt-3 text-pretty text-sm font-medium leading-relaxed text-foreground">
+                        {exp.hipotese}
+                      </p>
+
+                      <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
+                        {exp.oQueFoiTestado && (
+                          <p>
+                            <span className="font-medium text-foreground">O que testamos:</span> {exp.oQueFoiTestado}
+                          </p>
+                        )}
+                        {exp.resultado && (
+                          <p>
+                            <span className="font-medium text-foreground">Resultado:</span> {exp.resultado}
+                          </p>
+                        )}
+                      </div>
+
+                      {exp.conclusao && (
+                        <div className="mt-3 rounded-lg bg-primary/5 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Conclusão da IA</p>
+                          <p className="mt-1 text-pretty text-sm leading-relaxed text-foreground">{exp.conclusao}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <Card titulo="Banco de experimentos">
+                <Vazio texto='Nenhum experimento ainda. Clique em "Novo experimento", descreva a hipótese e o resultado — a IA conclui e classifica.' />
               </Card>
             )}
           </TabsContent>

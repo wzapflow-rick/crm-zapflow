@@ -5,6 +5,7 @@ import { getMemoria } from "@/lib/memoria-db"
 import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
 import { getReunioes } from "@/lib/reunioes-db"
 import { getPerformance } from "@/lib/performance-db"
+import { getExperimentos } from "@/lib/experimentos-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -44,7 +45,10 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const performance = await getPerformance(empresaId).catch(() => [])
+  const [performance, experimentos] = await Promise.all([
+    getPerformance(empresaId).catch(() => []),
+    getExperimentos(empresaId).catch(() => []),
+  ])
 
   const partes: string[] = []
 
@@ -148,6 +152,27 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     partes.push(`\n## PERFORMANCE DE CONTEÚDO (mais recente primeiro)\n${linhas}`)
   }
 
+  if (experimentos.length > 0) {
+    const rotuloStatus: Record<string, string> = {
+      em_teste: "EM TESTE",
+      repetir: "REPETIR",
+      melhorar: "MELHORAR",
+      descartar: "DESCARTAR",
+    }
+    const linhas = experimentos
+      .slice(0, 20)
+      .map((e) => {
+        const testado = e.oQueFoiTestado ? ` Testado: ${e.oQueFoiTestado}.` : ""
+        const resultado = e.resultado ? ` Resultado: ${e.resultado}.` : ""
+        const conclusao = e.conclusao ? ` Conclusão: ${e.conclusao}.` : ""
+        return `- [${rotuloStatus[e.status] ?? e.status}] ${e.hipotese}${testado}${resultado}${conclusao}`
+      })
+      .join("\n")
+    partes.push(
+      `\n## EXPERIMENTOS (consulte antes de sugerir estratégias — repita o que funcionou, evite o que foi descartado)\n${linhas}`,
+    )
+  }
+
   const resumo: ResumoContexto = {
     nome: cliente.nome,
     segmento: cliente.segmento,
@@ -165,6 +190,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Evolução", itens: historico.length },
       { rotulo: "Reuniões", itens: reunioes.length },
       { rotulo: "Performance", itens: performance.length },
+      { rotulo: "Experimentos", itens: experimentos.length },
     ],
   }
 

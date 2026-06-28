@@ -16,6 +16,7 @@ import { getHistorico, type RegistroHistorico } from "@/lib/historico-db"
 import { getMemoria, type MemoriaCliente } from "@/lib/memoria-db"
 import { getReunioes, type Reuniao } from "@/lib/reunioes-db"
 import { getPerformance, type ConteudoPerformance } from "@/lib/performance-db"
+import { getExperimentos, type Experimento } from "@/lib/experimentos-db"
 import type {
   Arquivo,
   Cliente,
@@ -120,6 +121,13 @@ export default async function ClientePage({
     performance = []
   }
 
+  let experimentos: Experimento[] = []
+  try {
+    experimentos = await getExperimentos(id)
+  } catch {
+    experimentos = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -137,6 +145,7 @@ export default async function ClientePage({
         memoria={memoria}
         reunioes={reunioes}
         performance={performance}
+        experimentos={experimentos}
       />
     </>
   )
