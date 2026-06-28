@@ -3,6 +3,7 @@ import { getClientePorId, getMetas, getEstrategia, getConteudos, getResultados }
 import { getHistorico } from "@/lib/historico-db"
 import { getMemoria } from "@/lib/memoria-db"
 import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
+import { getReunioes } from "@/lib/reunioes-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -32,13 +33,14 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
   const cliente = await getClientePorId(empresaId)
   if (!cliente) return null
 
-  const [metas, estrategia, conteudos, resultados, historico, memoria] = await Promise.all([
+  const [metas, estrategia, conteudos, resultados, historico, memoria, reunioes] = await Promise.all([
     getMetas(empresaId).catch(() => []),
     getEstrategia(empresaId).catch(() => ({ estrategiaAtual: [], insights: [], concorrentes: [] })),
     getConteudos(empresaId).catch(() => []),
     getResultados(empresaId).catch(() => []),
     getHistorico(empresaId).catch(() => []),
     getMemoria(empresaId).catch(() => ({}) as Record<string, string>),
+    getReunioes(empresaId).catch(() => []),
   ])
 
   const partes: string[] = []
@@ -103,6 +105,23 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     partes.push(`\n## HISTÓRICO DE EVOLUÇÃO (mais recente primeiro)\n${linhas}`)
   }
 
+  if (reunioes.length > 0) {
+    const linhas = reunioes
+      .slice(0, 12)
+      .map((r) => {
+        const data = new Date(r.data).toLocaleDateString("pt-BR")
+        const decisoes = r.decisoes.length ? `Decisões: ${r.decisoes.join("; ")}.` : ""
+        const problemas = r.problemas.length ? `Problemas: ${r.problemas.join("; ")}.` : ""
+        const acoes = r.proximasAcoes.length ? `Próximas ações: ${r.proximasAcoes.join("; ")}.` : ""
+        const insights = r.insights.length ? `Insights: ${r.insights.join("; ")}.` : ""
+        return `### ${r.titulo} (${data})\n${r.resumo ? `${r.resumo}\n` : ""}${[decisoes, problemas, acoes, insights]
+          .filter(Boolean)
+          .join(" ")}`.trim()
+      })
+      .join("\n\n")
+    partes.push(`\n## REUNIÕES (mais recente primeiro)\n${linhas}`)
+  }
+
   const resumo: ResumoContexto = {
     nome: cliente.nome,
     segmento: cliente.segmento,
@@ -118,6 +137,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Resultados", itens: resultados.length },
       { rotulo: "Conteúdos", itens: conteudos.length },
       { rotulo: "Evolução", itens: historico.length },
+      { rotulo: "Reuniões", itens: reunioes.length },
     ],
   }
 

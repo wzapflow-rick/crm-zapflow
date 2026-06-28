@@ -17,6 +17,7 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  Users,
   Video,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -49,10 +50,13 @@ import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-butt
 import { HistoricoDialog } from "@/components/clientes/historico-dialog"
 import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-button"
 import { MemoriaSecao } from "@/components/clientes/memoria-secao"
+import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
+import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
 import type { MemoriaCliente } from "@/lib/memoria-db"
 import { SECOES_MEMORIA } from "@/lib/memoria-secoes"
+import type { Reuniao } from "@/lib/reunioes-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -91,6 +95,7 @@ export function ClienteDetalhe({
   resultados,
   historico,
   memoria,
+  reunioes,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -103,6 +108,7 @@ export function ClienteDetalhe({
   resultados: MetricaResultado[]
   historico: RegistroHistorico[]
   memoria: MemoriaCliente
+  reunioes: Reuniao[]
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -228,6 +234,7 @@ export function ClienteDetalhe({
             <TabTrigger value="comunicacao" icon={MessageSquare} label="Comunicação" />
             <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
+            <TabTrigger value="reunioes" icon={Users} label="Reuniões" />
             <TabTrigger value="memoria" icon={Brain} label="Memória" />
           </TabsList>
 
@@ -626,6 +633,73 @@ export function ClienteDetalhe({
             ) : (
               <Card titulo="Linha do tempo">
                 <Vazio texto='Nenhum registro ainda. Clique em "Novo registro" e escreva como foi o período — a IA organiza.' />
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Reuniões (Meeting Memory — uso interno; alimenta o Chat Estratégico) */}
+          <TabsContent value="reunioes" className="mt-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Users className="h-4 w-4 text-primary" />
+                Anotações de reuniões organizadas pela IA. Visível só para a equipe.
+              </div>
+              <ReuniaoDialog
+                clienteId={cliente.id}
+                trigger={
+                  <Button size="sm" className="gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Nova reunião
+                  </Button>
+                }
+              />
+            </div>
+
+            {reunioes.length > 0 ? (
+              <ol className="relative ml-3 space-y-5 border-l border-border pl-6">
+                {reunioes.map((r) => (
+                  <li key={r.id} className="relative">
+                    <span className="absolute -left-[1.69rem] top-1.5 h-3 w-3 rounded-full border-2 border-background bg-primary" />
+                    <div className="rounded-xl border border-border bg-card p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-semibold text-foreground">{r.titulo}</h3>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(r.data).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
+                        <ExcluirReuniaoButton id={r.id} clienteId={cliente.id} />
+                      </div>
+
+                      {r.resumo && (
+                        <p className="mt-4 text-pretty text-sm leading-relaxed text-foreground">{r.resumo}</p>
+                      )}
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        {r.decisoes.length > 0 && (
+                          <ListaEvolucao titulo="Decisões" itens={r.decisoes} cor="text-chart-4" />
+                        )}
+                        {r.problemas.length > 0 && (
+                          <ListaEvolucao titulo="Problemas" itens={r.problemas} cor="text-destructive" />
+                        )}
+                        {r.proximasAcoes.length > 0 && (
+                          <ListaEvolucao titulo="Próximas ações" itens={r.proximasAcoes} cor="text-primary" />
+                        )}
+                        {r.insights.length > 0 && (
+                          <ListaEvolucao titulo="Insights" itens={r.insights} cor="text-chart-2" />
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <Card titulo="Reuniões">
+                <Vazio texto='Nenhuma reunião registrada. Clique em "Nova reunião" e cole suas anotações — a IA organiza.' />
               </Card>
             )}
           </TabsContent>
