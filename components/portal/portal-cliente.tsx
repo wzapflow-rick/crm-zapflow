@@ -8,16 +8,20 @@ import {
   ArrowUpRight,
   CalendarDays,
   Download,
+  ExternalLink,
   FileText,
   FolderOpen,
   LineChart,
+  LinkIcon,
   MessageSquare,
   Send,
   Target,
+  UploadCloud,
   Video,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
@@ -33,7 +37,12 @@ import type {
   StatusConteudo,
 } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
-import { enviarMensagemPortalAction, type EstadoPortal } from "@/app/portal/[token]/actions"
+import type { EnvioCliente } from "@/lib/envios-db"
+import {
+  enviarMensagemPortalAction,
+  enviarMaterialPortalAction,
+  type EstadoPortal,
+} from "@/app/portal/[token]/actions"
 
 const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = {
   ideia: { label: "Ideia", classe: "bg-muted text-muted-foreground" },
@@ -64,6 +73,7 @@ export function PortalCliente({
   arquivos,
   mensagens,
   resultados,
+  envios,
 }: {
   token: string
   cliente: Cliente
@@ -75,6 +85,7 @@ export function PortalCliente({
   arquivos: Arquivo[]
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
+  envios: EnvioCliente[]
 }) {
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
@@ -162,8 +173,41 @@ export function PortalCliente({
               </Card>
             </TabsContent>
 
-            {/* Materiais — única outra ação: baixar */}
-            <TabsContent value="materiais" className="mt-5">
+            {/* Materiais — cliente envia links + baixa os da equipe */}
+            <TabsContent value="materiais" className="mt-5 space-y-4">
+              <Card titulo="Enviar vídeos e fotos">
+                <p className="-mt-1 mb-4 text-pretty text-sm leading-relaxed text-muted-foreground">
+                  Suba seus arquivos no Google Drive, WeTransfer, Dropbox ou YouTube e cole o link aqui.
+                  Assim a equipe acessa o material original sem limite de tamanho.
+                </p>
+                <FormEnvio token={token} />
+
+                {envios.length > 0 && (
+                  <ul className="mt-6 divide-y divide-border">
+                    {envios.map((e) => (
+                      <li key={e.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <LinkIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{e.titulo}</p>
+                          {e.descricao && <p className="truncate text-xs text-muted-foreground">{e.descricao}</p>}
+                        </div>
+                        <a
+                          href={e.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          Abrir
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+
               <Card titulo="Materiais e arquivos">
                 {arquivos.length > 0 ? (
                   <ul className="divide-y divide-border">
@@ -356,6 +400,56 @@ function BotaoEnviar() {
       <Send className="h-3.5 w-3.5" />
       {pending ? "Enviando..." : "Enviar"}
     </Button>
+  )
+}
+
+function BotaoEnviarMaterial() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" disabled={pending} className="gap-1.5">
+      <UploadCloud className="h-3.5 w-3.5" />
+      {pending ? "Enviando..." : "Enviar link"}
+    </Button>
+  )
+}
+
+function FormEnvio({ token }: { token: string }) {
+  const [estado, formAction] = useActionState(enviarMaterialPortalAction, estadoInicial)
+  const formRef = useRef<HTMLFormElement>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (estado.ok) {
+      formRef.current?.reset()
+      router.refresh()
+    }
+  }, [estado, router])
+
+  return (
+    <form ref={formRef} action={formAction} className="grid gap-3">
+      <input type="hidden" name="token" value={token} />
+      <Input
+        name="link"
+        type="url"
+        inputMode="url"
+        placeholder="Cole o link aqui (ex: drive.google.com/...)"
+        required
+        aria-label="Link do material"
+      />
+      <Input name="titulo" placeholder="Título (ex: Bastidores da gravação - Maio)" aria-label="Título do material" />
+      <Textarea
+        name="descricao"
+        placeholder="Observações para a equipe (opcional)"
+        rows={2}
+        aria-label="Observações"
+      />
+      {estado.erro && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{estado.erro}</p>
+      )}
+      <div className="flex justify-end">
+        <BotaoEnviarMaterial />
+      </div>
+    </form>
   )
 }
 

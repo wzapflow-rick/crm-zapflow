@@ -18,6 +18,7 @@ import { getReunioes, type Reuniao } from "@/lib/reunioes-db"
 import { getPerformance, type ConteudoPerformance } from "@/lib/performance-db"
 import { getExperimentos, type Experimento } from "@/lib/experimentos-db"
 import { getPadroes, getUltimaAnalise, type Padrao } from "@/lib/padroes-db"
+import { getEnvios, type EnvioCliente } from "@/lib/envios-db"
 import type {
   Arquivo,
   Cliente,
@@ -137,6 +138,13 @@ export default async function ClientePage({
     padroes = []
   }
 
+  let envios: EnvioCliente[] = []
+  try {
+    envios = await getEnvios(id)
+  } catch {
+    envios = []
+  }
+
   return (
     <>
       <Topbar titulo={cliente.nome} />
@@ -157,6 +165,7 @@ export default async function ClientePage({
         experimentos={experimentos}
         padroes={padroes}
         ultimaAnalisePadroes={ultimaAnalisePadroes}
+        envios={envios}
       />
     </>
   )

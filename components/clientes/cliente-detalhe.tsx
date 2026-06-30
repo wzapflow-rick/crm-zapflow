@@ -9,10 +9,12 @@ import {
   Brain,
   CalendarDays,
   Download,
+  ExternalLink,
   FileText,
   FlaskConical,
   FolderOpen,
   LineChart,
+  LinkIcon,
   MessageSquare,
   Network,
   Pencil,
@@ -68,6 +70,7 @@ import type { Reuniao } from "@/lib/reunioes-db"
 import type { ConteudoPerformance } from "@/lib/performance-db"
 import type { Experimento, StatusExperimento } from "@/lib/experimentos-db"
 import type { Padrao } from "@/lib/padroes-db"
+import type { EnvioCliente } from "@/lib/envios-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -118,6 +121,7 @@ export function ClienteDetalhe({
   experimentos,
   padroes,
   ultimaAnalisePadroes,
+  envios,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -135,6 +139,7 @@ export function ClienteDetalhe({
   experimentos: Experimento[]
   padroes: Padrao[]
   ultimaAnalisePadroes: string | null
+  envios: EnvioCliente[]
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -499,6 +504,47 @@ export function ClienteDetalhe({
                 </ul>
               ) : (
                 <Vazio texto="Nenhum arquivo. Clique em Editar arquivos para adicionar um link." />
+              )}
+            </Card>
+
+            {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) */}
+            <Card titulo="Enviados pelo cliente" className="mt-4">
+              <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                Links de vídeos e fotos que o cliente enviou pelo portal.
+              </p>
+              {envios.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {envios.map((e) => (
+                    <li key={e.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <LinkIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{e.titulo}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {e.descricao ||
+                            new Date(e.criadoEm).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
+                            })}
+                        </p>
+                      </div>
+                      <a
+                        href={e.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Abrir
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Vazio texto="O cliente ainda não enviou materiais pelo portal." />
               )}
             </Card>
           </TabsContent>

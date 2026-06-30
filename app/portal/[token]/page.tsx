@@ -12,6 +12,7 @@ import {
   getResultados,
 } from "@/lib/clientes-db"
 import { getMembros } from "@/lib/membros-db"
+import { getEnvios, type EnvioCliente } from "@/lib/envios-db"
 
 export const dynamic = "force-dynamic"
 
@@ -45,6 +46,13 @@ export default async function PortalPage({
       getMembros().catch(() => []),
     ])
 
+  let envios: EnvioCliente[] = []
+  try {
+    envios = await getEnvios(cliente.id)
+  } catch {
+    envios = []
+  }
+
   return (
     <PortalCliente
       token={token}
@@ -57,6 +65,7 @@ export default async function PortalPage({
       arquivos={arquivos}
       mensagens={mensagens}
       resultados={resultados}
+      envios={envios}
     />
   )
 }
