@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -125,15 +126,20 @@ function ConteudoNav({ onNavegar }: { onNavegar?: () => void }) {
 
 function Marca() {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-        <span className="text-sm font-bold">S</span>
-      </div>
+    <Link href="/" className="flex items-center gap-2.5">
+      <Image
+        src="/logo-simple-icon.png"
+        alt="SIMPLE"
+        width={32}
+        height={32}
+        priority
+        className="h-8 w-8 rounded-lg"
+      />
       <div className="flex flex-col leading-tight">
-        <span className="text-sm font-semibold tracking-tight">SIMPLE OS</span>
-        <span className="text-[11px] text-sidebar-foreground/55">Sistema operacional</span>
+        <span className="font-serif text-base font-medium tracking-tight">SIMPLE</span>
+        <span className="text-[11px] text-sidebar-foreground/55">Agência de marketing</span>
       </div>
-    </div>
+    </Link>
   )
 }
 
