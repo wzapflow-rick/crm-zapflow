@@ -11,13 +11,31 @@ function makePool() {
   // O Postgres self-hosted da SIMPLE não usa TLS por padrão.
   // Se a string de conexão pedir SSL, habilitamos sem validar o certificado.
   const querSsl = /sslmode=require|ssl=true/i.test(connectionString)
-  return new Pool({
+  const pool = new Pool({
     connectionString,
     ssl: querSsl ? { rejectUnauthorized: false } : false,
-    max: 5,
+    // 10 conexões: as páginas agora disparam muitas queries em paralelo (Promise.all).
+    max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 8_000,
   })
+  // Sem este handler, uma conexão ociosa derrubada pela VPS vira exceção
+  // não tratada e mata o processo serverless inteiro.
+  pool.on("error", (err) => {
+    console.error("[db] erro em conexão ociosa do pool:", err.message)
+  })
+  return pool
+}
+
+// Envolve uma promise de busca e devolve o fallback em caso de erro.
+// Permite paralelizar várias buscas com Promise.all sem que uma falha
+// (ex.: tabela que ainda não existe) derrube a página inteira.
+export async function seguro<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await promise
+  } catch {
+    return fallback
+  }
 }
 
 export function getPool(): Pool {
