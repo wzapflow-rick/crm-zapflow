@@ -256,7 +256,7 @@ export function ClienteDetalhe({
 
         {/* Abas */}
         <Tabs defaultValue="visao" className="mt-6">
-          <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
+          <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] group-data-horizontal/tabs:h-auto md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
             <TabTrigger value="visao" icon={Target} label="Visão geral" />
             <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
             <TabTrigger value="conteudo" icon={Video} label="Conteúdo" />
@@ -985,7 +985,7 @@ function TabTrigger({ value, icon: Icon, label }: { value: string; icon: typeof 
   return (
     <TabsTrigger
       value={value}
-      className="shrink-0 gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+      className="h-auto flex-none shrink-0 gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
     >
       <Icon className="h-3.5 w-3.5" />
       {label}
