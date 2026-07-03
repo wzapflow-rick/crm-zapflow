@@ -3,6 +3,9 @@ import { getClientes } from "@/lib/clientes-db"
 import type { Cliente } from "@/lib/simple-data"
 import { getAprendizadosGlobais, getUltimaAnaliseGlobal, type AprendizadoGlobal } from "@/lib/global-db"
 
+// Lê o banco a cada request: garante que clientes recém-criados apareçam no seletor.
+export const dynamic = "force-dynamic"
+
 export default async function MarketingPage() {
   let clientes: Cliente[] = []
   try {

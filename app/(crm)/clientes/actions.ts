@@ -63,6 +63,7 @@ export async function criarClienteAction(
   }
 
   revalidatePath("/clientes")
+  revalidatePath("/marketing")
   return { ok: true }
 }
 
@@ -102,6 +103,7 @@ export async function atualizarClienteAction(
 
   revalidatePath("/clientes")
   revalidatePath(`/clientes/${id}`)
+  revalidatePath("/marketing")
   return { ok: true }
 }
 
@@ -117,6 +119,7 @@ export async function excluirClienteAction(id: string, redirectTo?: string): Pro
     return { ok: false, erro: `Não foi possível excluir no banco: ${msg}` }
   }
   revalidatePath("/clientes")
+  revalidatePath("/marketing")
   // Quando a exclusão parte da página de detalhe (/clientes/[id]), redirecionamos
   // no servidor para evitar que a rota atual re-renderize e dispare notFound() (tela 404).
   if (redirectTo) {
