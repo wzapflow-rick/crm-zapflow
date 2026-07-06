@@ -7,6 +7,8 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarDays,
+  CheckCircle2,
+  Clock,
   Download,
   ExternalLink,
   FileText,
@@ -15,6 +17,7 @@ import {
   LinkIcon,
   MessageSquare,
   Send,
+  Sparkles,
   Target,
   UploadCloud,
   Video,
@@ -119,6 +122,14 @@ export function PortalCliente({
           {cliente.objetivo && (
             <p className="mt-4 text-pretty text-sm leading-relaxed text-muted-foreground">{cliente.objetivo}</p>
           )}
+
+          <PainelResumo
+            cliente={cliente}
+            metas={metas}
+            eventos={eventos}
+            conteudos={conteudos}
+            resultados={resultados}
+          />
 
           <Tabs defaultValue="mensagens" className="mt-6">
             <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
@@ -391,6 +402,167 @@ export function PortalCliente({
       </main>
     </div>
   )
+}
+
+function PainelResumo({
+  cliente,
+  metas,
+  eventos,
+  conteudos,
+  resultados,
+}: {
+  cliente: Cliente
+  metas: Meta[]
+  eventos: EventoCliente[]
+  conteudos: ConteudoItem[]
+  resultados: MetricaResultado[]
+}) {
+  const primeiroNome = cliente.nome.trim().split(/\s+/)[0]
+
+  // Progresso geral: média dos percentuais de todas as metas.
+  const progressoMetas =
+    metas.length > 0
+      ? Math.round(
+          metas.reduce((acc, m) => acc + (m.alvo > 0 ? Math.min(100, (m.atual / m.alvo) * 100) : 0), 0) / metas.length,
+        )
+      : null
+
+  // Próximo compromisso: primeiro evento com data (ISO) igual ou posterior a hoje.
+  const hoje = new Date().toISOString().slice(0, 10)
+  const proximoEvento =
+    eventos
+      .filter((e) => e.dataISO && e.dataISO >= hoje)
+      .sort((a, b) => (a.dataISO! < b.dataISO! ? -1 : 1))[0] ?? null
+
+  // Pendências que aguardam o cliente: conteúdos em aprovação.
+  const aguardando = conteudos.filter((c) => c.status === "aprovacao")
+
+  // Último resultado medido.
+  const ultimoResultado = resultados[0] ?? null
+
+  const saudacao = (() => {
+    const h = new Date().getHours()
+    if (h < 12) return "Bom dia"
+    if (h < 18) return "Boa tarde"
+    return "Boa noite"
+  })()
+
+  return (
+    <section className="mt-6" aria-label="Resumo do mês">
+      <div className="mb-4 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <h2 className="text-pretty text-base font-semibold tracking-tight text-foreground">
+          {saudacao}, {primeiroNome}
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Progresso das metas */}
+        <ResumoCard icon={Target} rotulo="Progresso das metas">
+          {progressoMetas !== null ? (
+            <>
+              <p className="text-2xl font-semibold tracking-tight text-foreground">{progressoMetas}%</p>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${progressoMetas}%` }} />
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {metas.length} {metas.length === 1 ? "meta ativa" : "metas ativas"}
+              </p>
+            </>
+          ) : (
+            <ResumoVazio texto="Metas em definição" />
+          )}
+        </ResumoCard>
+
+        {/* Próximo compromisso */}
+        <ResumoCard icon={CalendarDays} rotulo="Próximo compromisso">
+          {proximoEvento ? (
+            <>
+              <p className="truncate text-sm font-semibold text-foreground">{proximoEvento.titulo}</p>
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {proximoEvento.data}
+                {proximoEvento.hora ? ` · ${proximoEvento.hora}` : ""}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {tipoEventoInfo[proximoEvento.tipo]?.label ?? "Agenda"}
+              </p>
+            </>
+          ) : (
+            <ResumoVazio texto="Nada agendado" />
+          )}
+        </ResumoCard>
+
+        {/* Aguardando você */}
+        <ResumoCard icon={aguardando.length > 0 ? Clock : CheckCircle2} rotulo="Aguardando você">
+          {aguardando.length > 0 ? (
+            <>
+              <p className="text-2xl font-semibold tracking-tight text-foreground">{aguardando.length}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {aguardando.length === 1 ? "conteúdo para aprovar" : "conteúdos para aprovar"}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-chart-4">Tudo em dia</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Nada pendente com você</p>
+            </>
+          )}
+        </ResumoCard>
+
+        {/* Último resultado */}
+        <ResumoCard icon={ArrowUpRight} rotulo="Último resultado">
+          {ultimoResultado ? (
+            <>
+              <p className="truncate text-xs text-muted-foreground">{ultimoResultado.rotulo}</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{ultimoResultado.valor}</p>
+              {ultimoResultado.variacao !== 0 && (
+                <p
+                  className={cn(
+                    "mt-1 inline-flex items-center gap-0.5 text-xs font-medium",
+                    ultimoResultado.variacao >= 0 ? "text-chart-4" : "text-destructive",
+                  )}
+                >
+                  {ultimoResultado.variacao >= 0 ? (
+                    <ArrowUpRight className="h-3 w-3" />
+                  ) : (
+                    <ArrowDownRight className="h-3 w-3" />
+                  )}
+                  {Math.abs(ultimoResultado.variacao)}% vs. mês anterior
+                </p>
+              )}
+            </>
+          ) : (
+            <ResumoVazio texto="Sem medições ainda" />
+          )}
+        </ResumoCard>
+      </div>
+    </section>
+  )
+}
+
+function ResumoCard({
+  icon: Icon,
+  rotulo,
+  children,
+}: {
+  icon: typeof Target
+  rotulo: string
+  children: ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {rotulo}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function ResumoVazio({ texto }: { texto: string }) {
+  return <p className="py-1 text-sm text-muted-foreground">{texto}</p>
 }
 
 function BotaoEnviar() {
