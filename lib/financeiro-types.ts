@@ -31,6 +31,9 @@ export type Lancamento = {
   competencia: string | null
   empresaId: string
   empresaNome: string | null
+  // Item virtual (ex.: pagamento avulso vindo do cadastro do cliente). Não existe na
+  // tabela de lançamentos, portanto não pode ser editado/excluído aqui.
+  virtual?: boolean
 }
 
 export type LancamentoInput = {

@@ -226,10 +226,18 @@ export function FinanceiroView({
                     {l.tipo === "receita" ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{l.descricao}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium text-foreground">{l.descricao}</p>
+                      {l.virtual && (
+                        <span className="shrink-0 rounded-full bg-chart-2/15 px-2 py-0.5 text-[10px] font-medium text-chart-2">
+                          Cadastro do cliente
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {[l.categoria, l.empresaNome, l.recorrente ? "Recorrente" : null].filter(Boolean).join(" · ") ||
-                        "Sem categoria"}
+                      {[l.categoria, l.virtual ? null : l.empresaNome, l.recorrente ? "Recorrente" : null]
+                        .filter(Boolean)
+                        .join(" · ") || "Sem categoria"}
                     </p>
                   </div>
                   <span
@@ -241,26 +249,31 @@ export function FinanceiroView({
                     {l.tipo === "receita" ? "+" : "-"}
                     {brl(l.valor)}
                   </span>
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <LancamentoDialog
-                      clientes={clientes}
-                      mes={resumo.mes}
-                      lancamento={l}
-                      acao={atualizarLancamentoAction}
-                      titulo="Editar lançamento"
-                      descricao="Atualize os dados deste lançamento."
-                      textoBotao="Salvar alterações"
-                      trigger={
-                        <button
-                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          aria-label="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                      }
-                    />
-                    <ConfirmarExclusao onConfirmar={() => excluir(l.id)} descricao={l.descricao} />
-                  </div>
+                  {l.virtual ? (
+                    // Avulso vindo do cadastro do cliente: editar no perfil do cliente, não aqui.
+                    <div className="flex shrink-0 items-center" style={{ width: "3.75rem" }} aria-hidden />
+                  ) : (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <LancamentoDialog
+                        clientes={clientes}
+                        mes={resumo.mes}
+                        lancamento={l}
+                        acao={atualizarLancamentoAction}
+                        titulo="Editar lançamento"
+                        descricao="Atualize os dados deste lançamento."
+                        textoBotao="Salvar alterações"
+                        trigger={
+                          <button
+                            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            aria-label="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                        }
+                      />
+                      <ConfirmarExclusao onConfirmar={() => excluir(l.id)} descricao={l.descricao} />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -284,8 +297,10 @@ export function FinanceiroView({
         {(receitas.length > 0 || custos.length > 0) && (
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
-              <span className="text-muted-foreground">Receitas lançadas no mês: </span>
-              <span className="font-semibold text-chart-2">{brl(resumo.receitaLancamentos)}</span>
+              <span className="text-muted-foreground">Receitas do mês (avulsos + lançados): </span>
+              <span className="font-semibold text-chart-2">
+                {brl(resumo.receitaAvulsa + resumo.receitaLancamentos)}
+              </span>
             </div>
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
               <span className="text-muted-foreground">Custos do mês: </span>

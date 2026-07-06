@@ -142,6 +142,33 @@ async function getReceitaAvulsa(mes: string): Promise<number> {
   return rows.length && rows[0].total != null ? Number(rows[0].total) : 0
 }
 
+// Retorna os pagamentos avulsos do mês como "lançamentos virtuais" (só para exibição na
+// lista do Financeiro). Não existem na tabela financeiro_lancamentos — vêm do cadastro do
+// cliente — então são marcados com virtual=true e não podem ser editados/excluídos ali.
+export async function getAvulsosComoLancamentos(mes: string = mesAtual()): Promise<Lancamento[]> {
+  const rows = await query<{ id: string; nome: string; mrr: string | number | null }>(
+    `select id, nome, mrr::text as mrr
+     from public.empresas
+     where recorrente is false
+       and mrr is not null and mrr > 0
+       and to_char(created_at, 'YYYY-MM') = $1
+     order by mrr desc`,
+    [mes],
+  )
+  return rows.map((r) => ({
+    id: `avulso:${r.id}`,
+    tipo: "receita" as TipoLancamento,
+    descricao: r.nome,
+    categoria: "Pagamento avulso",
+    valor: r.mrr != null ? Number(r.mrr) : 0,
+    recorrente: false,
+    competencia: mes,
+    empresaId: r.id,
+    empresaNome: r.nome,
+    virtual: true,
+  }))
+}
+
 // Calcula o resumo financeiro de um mês: receita (MRR + lançamentos), custos, lucro e meta.
 export async function getResumoFinanceiro(mes: string = mesAtual()): Promise<ResumoFinanceiro> {
   const [lancamentos, receitaMrr, receitaAvulsa, meta] = await Promise.all([
