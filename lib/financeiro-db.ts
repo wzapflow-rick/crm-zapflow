@@ -129,9 +129,27 @@ async function getReceitaMrr(): Promise<number> {
   return rows.length && rows[0].total != null ? Number(rows[0].total) : 0
 }
 
+// Soma dos pagamentos AVULSOS (recorrente = false) cadastrados no mês informado.
+// Um avulso é receita pontual: conta no mês em que o cliente foi cadastrado (created_at).
+async function getReceitaAvulsa(mes: string): Promise<number> {
+  const rows = await query<{ total: string | number | null }>(
+    `select coalesce(sum(mrr), 0)::text as total
+     from public.empresas
+     where recorrente is false
+       and to_char(created_at, 'YYYY-MM') = $1`,
+    [mes],
+  )
+  return rows.length && rows[0].total != null ? Number(rows[0].total) : 0
+}
+
 // Calcula o resumo financeiro de um mês: receita (MRR + lançamentos), custos, lucro e meta.
 export async function getResumoFinanceiro(mes: string = mesAtual()): Promise<ResumoFinanceiro> {
-  const [lancamentos, receitaMrr, meta] = await Promise.all([getLancamentos(mes), getReceitaMrr(), getMeta(mes)])
+  const [lancamentos, receitaMrr, receitaAvulsa, meta] = await Promise.all([
+    getLancamentos(mes),
+    getReceitaMrr(),
+    getReceitaAvulsa(mes),
+    getMeta(mes),
+  ])
 
   let receitaLancamentos = 0
   let custoTotal = 0
@@ -140,7 +158,7 @@ export async function getResumoFinanceiro(mes: string = mesAtual()): Promise<Res
     else custoTotal += l.valor
   }
 
-  const receitaTotal = receitaMrr + receitaLancamentos
+  const receitaTotal = receitaMrr + receitaAvulsa + receitaLancamentos
   const lucro = receitaTotal - custoTotal
   const margem = receitaTotal > 0 ? Math.round((lucro / receitaTotal) * 100) : 0
   const progressoMeta = meta > 0 ? Math.min(100, Math.round((receitaTotal / meta) * 100)) : 0
@@ -148,6 +166,7 @@ export async function getResumoFinanceiro(mes: string = mesAtual()): Promise<Res
   return {
     mes,
     receitaMrr,
+    receitaAvulsa,
     receitaLancamentos,
     receitaTotal,
     custoTotal,

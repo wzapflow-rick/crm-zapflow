@@ -46,7 +46,8 @@ export type LancamentoInput = {
 // Resumo financeiro calculado para um mês específico
 export type ResumoFinanceiro = {
   mes: string // "YYYY-MM"
-  receitaMrr: number // soma do MRR real dos clientes
+  receitaMrr: number // soma do MRR real dos clientes recorrentes
+  receitaAvulsa: number // soma dos pagamentos avulsos de clientes cadastrados no mês
   receitaLancamentos: number // receitas avulsas/recorrentes lançadas
   receitaTotal: number
   custoTotal: number

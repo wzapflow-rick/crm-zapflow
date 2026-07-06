@@ -17,6 +17,7 @@ export default async function FinanceiroPage({
   let resumo: ResumoFinanceiro = {
     mes,
     receitaMrr: 0,
+    receitaAvulsa: 0,
     receitaLancamentos: 0,
     receitaTotal: 0,
     custoTotal: 0,

@@ -140,7 +140,8 @@ export function FinanceiroView({
             <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">{brl(resumo.receitaTotal)}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               MRR {brl(resumo.receitaMrr)}
-              {resumo.receitaLancamentos > 0 ? ` + ${brl(resumo.receitaLancamentos)} avulsos` : ""}
+              {resumo.receitaAvulsa > 0 ? ` + ${brl(resumo.receitaAvulsa)} avulsos` : ""}
+              {resumo.receitaLancamentos > 0 ? ` + ${brl(resumo.receitaLancamentos)} lançados` : ""}
             </p>
           </div>
 
@@ -276,8 +277,8 @@ export function FinanceiroView({
         </div>
 
         <p className="mt-3 text-xs text-muted-foreground">
-          A receita recorrente (MRR) vem automaticamente do cadastro dos clientes. Use os lançamentos para custos e
-          receitas extras.
+          A receita recorrente (MRR) e os pagamentos avulsos vêm automaticamente do cadastro dos clientes — o avulso
+          entra na receita do mês em que o cliente foi cadastrado. Use os lançamentos para custos e receitas extras.
         </p>
         {/* Espaço reservado para os totais detalhados */}
         {(receitas.length > 0 || custos.length > 0) && (
