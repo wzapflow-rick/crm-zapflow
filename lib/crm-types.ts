@@ -11,6 +11,21 @@ export const ETAPAS_CRM = [
 
 export type EtapaCrm = (typeof ETAPAS_CRM)[number]["id"]
 
+// Origens permitidas para um negócio. Estes valores DEVEM bater com a CHECK
+// constraint da coluna "negocios.origem" no banco (ver query SQL entregue no chat).
+export const ORIGENS_CRM = [
+  "WhatsApp",
+  "Indicação",
+  "Captação ativa",
+  "Anúncio",
+  "Instagram",
+  "Site",
+  "Evento",
+  "Outro",
+] as const
+
+export type OrigemCrm = (typeof ORIGENS_CRM)[number]
+
 export type Negocio = {
   id: string
   titulo: string

@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { EstadoForm } from "@/app/(crm)/crm/actions"
-import { ETAPAS_CRM, type Negocio } from "@/lib/crm-types"
+import { ETAPAS_CRM, ORIGENS_CRM, type Negocio } from "@/lib/crm-types"
 import type { Membro } from "@/lib/membros-db"
 
 const estadoInicial: EstadoForm = { ok: false }
@@ -125,7 +125,14 @@ export function NegocioDialog({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="origem">Origem</Label>
-              <Input id="origem" name="origem" placeholder="Ex.: Indicação, Instagram" defaultValue={negocio?.origem} />
+              <select id="origem" name="origem" defaultValue={negocio?.origem ?? ""} className={selectClasses}>
+                <option value="">Selecione</option>
+                {ORIGENS_CRM.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
