@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useTransition } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft,
@@ -227,7 +228,16 @@ export function FinanceiroView({
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-medium text-foreground">{l.descricao}</p>
+                      {l.virtual && l.empresaId ? (
+                        <Link
+                          href={`/clientes/${l.empresaId}`}
+                          className="truncate text-sm font-medium text-foreground underline-offset-2 hover:text-chart-2 hover:underline"
+                        >
+                          {l.descricao}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-sm font-medium text-foreground">{l.descricao}</p>
+                      )}
                       {l.virtual && (
                         <span className="shrink-0 rounded-full bg-chart-2/15 px-2 py-0.5 text-[10px] font-medium text-chart-2">
                           Cadastro do cliente
