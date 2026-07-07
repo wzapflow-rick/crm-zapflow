@@ -22,7 +22,7 @@ import {
   UploadCloud,
   Video,
 } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -107,6 +107,9 @@ export function PortalCliente({
           {/* Identificação do cliente */}
           <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:p-6">
             <Avatar className="h-14 w-14">
+              {cliente.logoUrl && (
+                <AvatarImage src={cliente.logoUrl || "/placeholder.svg"} alt={cliente.nome} className="object-cover" />
+              )}
               <AvatarFallback className={cn(cliente.cor, "text-lg font-semibold text-primary-foreground")}>
                 {cliente.iniciais}
               </AvatarFallback>
