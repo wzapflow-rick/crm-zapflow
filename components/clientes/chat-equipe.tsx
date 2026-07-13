@@ -2,13 +2,13 @@
 
 import { useActionState, useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { useFormStatus } from "react-dom"
-import { useRouter } from "next/navigation"
+import useSWR from "swr"
 import { Send } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { enviarMensagemEquipeAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
+import { buscarMensagensEquipeAction, enviarMensagemEquipeAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
 import type { Mensagem } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
 
@@ -40,11 +40,18 @@ export function ChatEquipe({
   membros: Membro[]
 }) {
   const [estado, formAction] = useActionState(enviarMensagemEquipeAction, estadoInicial)
-  const router = useRouter()
   const [autorId, setAutorId] = useState(membros[0]?.id ?? "")
   const formRef = useRef<HTMLFormElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fimRef = useRef<HTMLDivElement>(null)
+
+  // Polling: atualiza as mensagens sozinho, sem precisar recarregar a página.
+  const { data, mutate } = useSWR(
+    ["mensagens-equipe", clienteId],
+    () => buscarMensagensEquipeAction(clienteId),
+    { fallbackData: mensagens, refreshInterval: 5000, revalidateOnFocus: true },
+  )
+  const lista = data ?? mensagens
 
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
@@ -52,14 +59,14 @@ export function ChatEquipe({
     if (estado.ok) {
       formRef.current?.reset()
       textareaRef.current?.focus()
-      router.refresh()
+      mutate() // busca as mensagens atualizadas na hora
     }
-  }, [estado, router])
+  }, [estado, mutate])
 
   // Rola para a última mensagem quando a lista muda.
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-  }, [mensagens.length])
+  }, [lista.length])
 
   const aoTeclar = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter envia; Shift+Enter quebra linha. Respeita composição de IMEs (CJK).
@@ -73,7 +80,7 @@ export function ChatEquipe({
     <div className="flex flex-col rounded-2xl border border-border bg-card">
       {/* Thread */}
       <div className="max-h-[28rem] min-h-[16rem] overflow-y-auto p-4">
-        {mensagens.length === 0 ? (
+        {lista.length === 0 ? (
           <div className="flex h-full min-h-[14rem] flex-col items-center justify-center text-center">
             <p className="text-sm font-medium text-foreground">Nenhuma mensagem ainda</p>
             <p className="mt-1 max-w-xs text-xs text-muted-foreground">
@@ -82,7 +89,7 @@ export function ChatEquipe({
           </div>
         ) : (
           <ul className="space-y-4">
-            {mensagens.map((m) => {
+            {lista.map((m) => {
               const autor = membroPorId(m.autorId)
               const nome = m.deCliente ? m.autorNome || clienteNome : autor?.nome ?? "Equipe SIMPLE"
               const iniciais = m.deCliente ? clienteIniciais : autor?.iniciais ?? "S"

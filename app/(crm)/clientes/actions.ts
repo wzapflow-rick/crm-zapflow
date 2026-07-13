@@ -7,6 +7,7 @@ import {
   atualizarCliente,
   criarCliente,
   excluirCliente,
+  getMensagens,
   salvarArquivos,
   salvarConteudos,
   salvarEstrategia,
@@ -23,7 +24,7 @@ import {
   type NovoCliente,
   type ResultadoInput,
 } from "@/lib/clientes-db"
-import type { StatusCliente } from "@/lib/simple-data"
+import type { Mensagem, StatusCliente } from "@/lib/simple-data"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -365,6 +366,17 @@ export async function salvarMensagensAction(
 
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
+}
+
+// Busca as mensagens de um cliente (usada pelo polling do chat no painel da equipe).
+export async function buscarMensagensEquipeAction(clienteId: string): Promise<Mensagem[]> {
+  const id = clienteId.trim()
+  if (!id) return []
+  try {
+    return await getMensagens(id)
+  } catch {
+    return []
+  }
 }
 
 // Envio de mensagem pela equipe no chat do cliente (append-only). Vira resposta da SIMPLE

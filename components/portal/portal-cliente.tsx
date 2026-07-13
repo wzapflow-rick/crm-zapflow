@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, type ReactNode } from "react"
 import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
+import useSWR, { useSWRConfig } from "swr"
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -43,10 +44,14 @@ import type {
 import type { Membro } from "@/lib/membros-db"
 import type { EnvioCliente } from "@/lib/envios-db"
 import {
+  buscarMensagensPortalAction,
   enviarMensagemPortalAction,
   enviarMaterialPortalAction,
   type EstadoPortal,
 } from "@/app/portal/[token]/actions"
+
+// Chave SWR compartilhada entre a lista de mensagens e o formulário de envio do portal.
+const chaveMensagensPortal = (token: string) => ["mensagens-portal", token] as const
 
 const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = {
   ideia: { label: "Ideia", classe: "bg-muted text-muted-foreground" },
@@ -145,6 +150,14 @@ export function PortalCliente({
   const primeiroNome = cliente.nome.trim().split(/\s+/)[0]
   const frase = FRASES_DINAMICAS[seedIndex(cliente.id, FRASES_DINAMICAS.length)]
 
+  // Polling: as mensagens da equipe aparecem sozinhas, sem recarregar a página.
+  const { data: mensagensLive } = useSWR(
+    chaveMensagensPortal(token),
+    () => buscarMensagensPortalAction(token),
+    { fallbackData: mensagens, refreshInterval: 5000, revalidateOnFocus: true },
+  )
+  const listaMensagens = mensagensLive ?? mensagens
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Cabeçalho premium */}
@@ -228,7 +241,7 @@ export function PortalCliente({
                 <FormMensagem token={token} />
                 <ul className="mt-6 space-y-4">
                   {/* Mensagem automática de boas-vindas quando ainda não há histórico */}
-                  {mensagens.length === 0 && (
+                  {listaMensagens.length === 0 && (
                     <li className="flex gap-3">
                       <Avatar className="h-8 w-8 shrink-0">
                         <AvatarFallback className="bg-primary text-[10px] font-semibold text-primary-foreground">
@@ -250,7 +263,7 @@ export function PortalCliente({
                       </div>
                     </li>
                   )}
-                  {mensagens.map((m) => {
+                  {listaMensagens.map((m) => {
                     const autor = membroPorId(m.autorId)
                     const nome = m.deCliente ? m.autorNome || cliente.nome : autor?.nome ?? "Equipe SIMPLE"
                     const iniciais = m.deCliente ? cliente.iniciais : autor?.iniciais ?? "S"
@@ -821,14 +834,14 @@ function FormEnvio({ token }: { token: string }) {
 function FormMensagem({ token }: { token: string }) {
   const [estado, formAction] = useActionState(enviarMensagemPortalAction, estadoInicial)
   const formRef = useRef<HTMLFormElement>(null)
-  const router = useRouter()
+  const { mutate } = useSWRConfig()
 
   useEffect(() => {
     if (estado.ok) {
       formRef.current?.reset()
-      router.refresh()
+      mutate(chaveMensagensPortal(token)) // atualiza a lista de mensagens na hora
     }
-  }, [estado, router])
+  }, [estado, mutate, token])
 
   return (
     <form ref={formRef} action={formAction} className="grid gap-3">
