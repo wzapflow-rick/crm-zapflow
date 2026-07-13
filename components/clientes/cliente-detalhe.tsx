@@ -48,7 +48,7 @@ import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
 import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
-import { ComunicacaoDialog } from "@/components/clientes/comunicacao-dialog"
+import { ChatEquipe } from "@/components/clientes/chat-equipe"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
@@ -549,50 +549,22 @@ export function ClienteDetalhe({
             </Card>
           </TabsContent>
 
-          {/* Comunicação */}
+          {/* Comunicação — chat de duas vias com o cliente (aparece no portal dele) */}
           <TabsContent value="comunicacao" className="mt-5">
-            <div className="mb-3 flex justify-end">
-              <ComunicacaoDialog
-                clienteId={cliente.id}
-                mensagens={mensagens}
-                membros={membros}
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar comunicação
-                  </Button>
-                }
-              />
+            <div className="mb-3">
+              <p className="text-sm text-muted-foreground">
+                Converse direto com o cliente. Tudo o que você enviar aqui aparece no portal dele — e as mensagens que
+                ele mandar chegam nesta conversa.
+              </p>
             </div>
-            <Card titulo="Histórico de alinhamentos">
-              {mensagens.length > 0 ? (
-                <ul className="space-y-4">
-                  {mensagens.map((m) => {
-                    const autor = membroPorId(m.autorId)
-                    return (
-                      <li key={m.id} className="flex gap-3">
-                        <Avatar className="h-8 w-8 shrink-0">
-                          <AvatarFallback className={cn(autor?.cor, "text-[10px] text-primary-foreground")}>
-                            {autor?.iniciais ?? "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-foreground">{autor?.nome ?? "Sem autor"}</span>
-                            <span className="text-[11px] text-muted-foreground">{m.data}</span>
-                          </div>
-                          <p className="mt-0.5 text-pretty text-sm leading-relaxed text-muted-foreground">
-                            {m.texto}
-                          </p>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <Vazio texto="Nenhum alinhamento registrado." />
-              )}
-            </Card>
+            <ChatEquipe
+              clienteId={cliente.id}
+              clienteNome={cliente.nome}
+              clienteIniciais={cliente.iniciais}
+              clienteCor={cliente.cor}
+              mensagens={mensagens}
+              membros={membros}
+            />
           </TabsContent>
 
           {/* Resultados */}

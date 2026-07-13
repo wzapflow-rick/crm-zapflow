@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import {
+  adicionarMensagemEquipe,
   atualizarCliente,
   criarCliente,
   excluirCliente,
@@ -360,6 +361,33 @@ export async function salvarMensagensAction(
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Envio de mensagem pela equipe no chat do cliente (append-only). Vira resposta da SIMPLE
+// visível no portal do cliente.
+export async function enviarMensagemEquipeAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+  const texto = String(formData.get("texto") ?? "").trim()
+  if (!texto) {
+    return { ok: false, erro: "Escreva uma mensagem antes de enviar." }
+  }
+  const autorId = String(formData.get("autorId") ?? "").trim() || null
+
+  try {
+    await adicionarMensagemEquipe(id, autorId, texto)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao enviar."
+    return { ok: false, erro: `Não foi possível enviar: ${msg}` }
   }
 
   revalidatePath(`/clientes/${id}`)
