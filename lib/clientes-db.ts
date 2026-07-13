@@ -557,6 +557,30 @@ export async function adicionarMensagemCliente(
   )
 }
 
+// Mensagem enviada pela EQUIPE (chat do painel interno) — append-only, aparece no portal
+// do cliente como resposta da SIMPLE. de_cliente = false.
+export async function adicionarMensagemEquipe(
+  empresaId: string,
+  autorId: string | null,
+  texto: string,
+): Promise<void> {
+  const limpo = texto.trim()
+  if (!limpo) return
+  const data = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  await query(
+    `insert into public.comunicacoes (empresa_id, autor_id, texto, data, posicao, de_cliente)
+     values ($1, $2, $3, $4,
+       coalesce((select max(posicao) from public.comunicacoes where empresa_id = $1), -1) + 1,
+       false)`,
+    [empresaId, autorId || null, limpo, data],
+  )
+}
+
 // ── Resultados (aba Resultados) ───────────────────────────────────────────
 
 type ResultadoRow = {
