@@ -44,7 +44,6 @@ import type {
 import type { Membro } from "@/lib/membros-db"
 import type { EnvioCliente } from "@/lib/envios-db"
 import {
-  buscarMensagensPortalAction,
   enviarMensagemPortalAction,
   enviarMaterialPortalAction,
   type EstadoPortal,
@@ -52,6 +51,14 @@ import {
 
 // Chave SWR compartilhada entre a lista de mensagens e o formulário de envio do portal.
 const chaveMensagensPortal = (token: string) => ["mensagens-portal", token] as const
+
+// Busca as mensagens via Route Handler (polling confiável, inclusive no mobile).
+async function buscarMensagensPortal(token: string): Promise<Mensagem[]> {
+  const res = await fetch(`/api/portal/${token}/mensagens`, { cache: "no-store" })
+  if (!res.ok) throw new Error("Falha ao buscar mensagens")
+  const json = (await res.json()) as { mensagens: Mensagem[] }
+  return json.mensagens ?? []
+}
 
 const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = {
   ideia: { label: "Ideia", classe: "bg-muted text-muted-foreground" },
@@ -153,8 +160,14 @@ export function PortalCliente({
   // Polling: as mensagens da equipe aparecem sozinhas, sem recarregar a página.
   const { data: mensagensLive } = useSWR(
     chaveMensagensPortal(token),
-    () => buscarMensagensPortalAction(token),
-    { fallbackData: mensagens, refreshInterval: 5000, revalidateOnFocus: true },
+    () => buscarMensagensPortal(token),
+    {
+      fallbackData: mensagens,
+      refreshInterval: 4000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 2000,
+    },
   )
   const listaMensagens = mensagensLive ?? mensagens
 

@@ -8,11 +8,19 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { buscarMensagensEquipeAction, enviarMensagemEquipeAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
+import { enviarMensagemEquipeAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
 import type { Mensagem } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
 
 const estadoInicial: EstadoForm = { ok: false }
+
+// Busca as mensagens via Route Handler (polling confiável, inclusive no mobile).
+async function buscarMensagens(clienteId: string): Promise<Mensagem[]> {
+  const res = await fetch(`/api/clientes/${clienteId}/mensagens`, { cache: "no-store" })
+  if (!res.ok) throw new Error("Falha ao buscar mensagens")
+  const json = (await res.json()) as { mensagens: Mensagem[] }
+  return json.mensagens ?? []
+}
 
 function BotaoEnviar() {
   const { pending } = useFormStatus()
@@ -48,8 +56,14 @@ export function ChatEquipe({
   // Polling: atualiza as mensagens sozinho, sem precisar recarregar a página.
   const { data, mutate } = useSWR(
     ["mensagens-equipe", clienteId],
-    () => buscarMensagensEquipeAction(clienteId),
-    { fallbackData: mensagens, refreshInterval: 5000, revalidateOnFocus: true },
+    () => buscarMensagens(clienteId),
+    {
+      fallbackData: mensagens,
+      refreshInterval: 4000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 2000,
+    },
   )
   const lista = data ?? mensagens
 
