@@ -67,12 +67,13 @@ export function BannerUploader({
           e.target.value = "" // permite reenviar o mesmo arquivo
         }}
       />
-      <div className="relative aspect-[4/1] w-full overflow-hidden rounded-xl border border-border bg-muted">
+      <div className="relative w-full overflow-hidden rounded-xl border border-border bg-muted">
         {url ? (
+          // Prévia na proporção natural da imagem — é exatamente como aparece no portal (sem corte).
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={url || "/placeholder.svg"} alt="Banner do cliente" className="h-full w-full object-cover" />
+          <img src={url || "/placeholder.svg"} alt="Banner do cliente" className="block h-auto w-full" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex aspect-[5/2] w-full items-center justify-center">
             <span className="text-sm text-muted-foreground">Nenhum banner definido</span>
           </div>
         )}
@@ -101,8 +102,8 @@ export function BannerUploader({
           </Button>
         )}
         <p className="text-xs text-muted-foreground">
-          Aparece como capa no topo do portal do cliente. Use proporção 4:1 (ex.: 2000×500px) para não cortar. PNG,
-          JPG ou WEBP (máx. 4 MB).
+          Aparece inteiro como capa no topo do portal, sem corte (na proporção da imagem enviada). Recomendado ~2000px
+          de largura, formato horizontal. PNG, JPG ou WEBP (máx. 4 MB).
         </p>
       </div>
 
