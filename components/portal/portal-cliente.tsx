@@ -184,39 +184,33 @@ export function PortalCliente({
 
       <main className="flex-1">
         {/* HERO */}
-        <section className="relative overflow-hidden border-b border-border">
+        <section className="relative border-b border-border">
           {cliente.bannerUrl ? (
-            <>
-              {/* Banner (capa) definido pela SIMPLE para este cliente */}
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${cliente.bannerUrl})` }}
+            // Banner (capa) em proporção fixa 4:1 — a imagem enviada em 4:1 aparece SEM corte.
+            <div className="relative aspect-[4/1] max-h-[360px] w-full overflow-hidden bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cliente.bannerUrl || "/placeholder.svg"}
+                alt={`Capa de ${cliente.nome}`}
+                className="h-full w-full object-cover"
               />
-              {/* Gradiente para manter nome e foto legíveis sobre a capa */}
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background"
-              />
-            </>
+            </div>
           ) : (
-            <>
-              {/* Fundo desfocado por segmento (fallback quando não há banner) */}
+            // Sem banner: faixa com fundo desfocado por segmento (fallback elegante).
+            <div className="relative aspect-[4/1] max-h-[360px] w-full overflow-hidden">
               <div
                 aria-hidden
                 className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-2xl"
                 style={{ backgroundImage: `url(${heroBackground(cliente.segmento)})` }}
               />
-              {/* Gradiente branco para manter elegância */}
-              <div
-                aria-hidden
-                className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background"
-              />
-            </>
+              <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-background/50 to-background" />
+            </div>
           )}
-          <div className="relative mx-auto max-w-4xl px-4 py-10 md:px-6 md:py-14">
-            <div className="flex animate-in fade-in-50 slide-in-from-bottom-2 flex-col items-start gap-5 duration-500 sm:flex-row sm:items-center sm:gap-6">
-              <Avatar className="h-20 w-20 shrink-0 ring-4 ring-background shadow-sm sm:h-24 sm:w-24">
+
+          {/* Bloco de identidade: avatar sobrepondo a faixa, nome e frase abaixo */}
+          <div className="mx-auto max-w-4xl px-4 pb-8 md:px-6">
+            <div className="flex animate-in fade-in-50 slide-in-from-bottom-2 flex-col items-start gap-4 duration-500 sm:flex-row sm:items-end sm:gap-6">
+              <Avatar className="-mt-10 h-20 w-20 shrink-0 ring-4 ring-background shadow-md sm:-mt-12 sm:h-24 sm:w-24">
                 {cliente.logoUrl && (
                   <AvatarImage src={cliente.logoUrl || "/placeholder.svg"} alt={cliente.nome} className="object-cover" />
                 )}
@@ -224,18 +218,18 @@ export function PortalCliente({
                   {cliente.iniciais}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pt-1">
                 <h1 className="text-pretty text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   {cliente.nome}
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {cliente.segmento} · em parceria desde {cliente.desde}
                 </p>
-                <p className="mt-4 max-w-xl text-balance text-base leading-relaxed text-foreground/90 sm:text-lg">
-                  {heroFrase(cliente)}
-                </p>
               </div>
             </div>
+            <p className="mt-4 max-w-xl text-balance text-base leading-relaxed text-foreground/90 sm:text-lg">
+              {heroFrase(cliente)}
+            </p>
           </div>
         </section>
 
