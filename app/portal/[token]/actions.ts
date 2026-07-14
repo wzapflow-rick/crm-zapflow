@@ -1,24 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { getClientePorToken, adicionarMensagemCliente, getMensagens } from "@/lib/clientes-db"
+import { getClientePorToken, adicionarMensagemCliente } from "@/lib/clientes-db"
 import { adicionarEnvio, normalizarLink } from "@/lib/envios-db"
-import type { Mensagem } from "@/lib/simple-data"
 
 export type EstadoPortal = { ok: boolean; erro?: string }
-
-// Busca as mensagens do cliente pelo token (usada pelo polling do chat no portal).
-export async function buscarMensagensPortalAction(token: string): Promise<Mensagem[]> {
-  const t = token.trim()
-  if (!t) return []
-  try {
-    const cliente = await getClientePorToken(t)
-    if (!cliente) return []
-    return await getMensagens(cliente.id)
-  } catch {
-    return []
-  }
-}
 
 export async function enviarMensagemPortalAction(
   _prev: EstadoPortal,
@@ -53,7 +39,7 @@ export async function enviarMensagemPortalAction(
     return { ok: false, erro: `Não foi possível enviar: ${msg}` }
   }
 
-  revalidatePath(`/portal/${token}`)
+  // Sem revalidatePath: o chat atualiza via polling/mutate (SWR), evitando recarregar a página.
   return { ok: true }
 }
 
