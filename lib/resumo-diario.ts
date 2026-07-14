@@ -60,7 +60,7 @@ export async function montarResumoDiario(): Promise<{ texto: string; temItens: b
     .sort((a, b) => (a.hora || "99:99").localeCompare(b.hora || "99:99"))
 
   const linhas: string[] = []
-  linhas.push(`*☀️ Bom dia, SIMPLE!*`)
+  linhas.push(`*Bom dia TIME! 💜*`)
   linhas.push(`_Afazeres de ${dataBonita(hoje)}_`)
   linhas.push("")
 
