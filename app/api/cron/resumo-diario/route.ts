@@ -29,6 +29,13 @@ export async function GET(req: Request) {
     }
 
     const { texto, temItens } = await montarResumoDiario()
+
+    // Modo pré-visualização: retorna a mensagem montada sem enviar no WhatsApp.
+    const url = new URL(req.url)
+    if (url.searchParams.get("preview") === "1") {
+      return NextResponse.json({ ok: true, preview: true, temItens, texto })
+    }
+
     const envio = await enviarTextoWhatsApp(grupo, texto)
 
     if (!envio.ok) {
