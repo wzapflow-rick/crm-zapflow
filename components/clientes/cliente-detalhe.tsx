@@ -49,6 +49,7 @@ import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
 import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
 import { ChatEquipe } from "@/components/clientes/chat-equipe"
+import { BannerUploader } from "@/components/clientes/banner-uploader"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
@@ -316,6 +317,14 @@ export function ClienteDetalhe({
                 ) : (
                   <Vazio texto="Nenhuma meta definida." />
                 )}
+              </Card>
+            </div>
+            <div className="mt-4">
+              <Card titulo="Banner do portal">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Imagem de capa exibida no topo do portal deste cliente, atrás do nome e da foto.
+                </p>
+                <BannerUploader clienteId={cliente.id} valorInicial={cliente.bannerUrl} />
               </Card>
             </div>
           </TabsContent>

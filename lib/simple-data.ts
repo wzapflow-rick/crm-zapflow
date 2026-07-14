@@ -30,6 +30,7 @@ export type Cliente = {
   mrr: number
   recorrente: boolean // false = cliente avulso (sem receita recorrente)
   logoUrl?: string // logo/foto do cliente (Vercel Blob); vazio = usa iniciais
+  bannerUrl?: string // banner/capa do cliente (Vercel Blob); vazio = usa fundo por segmento
   iniciais: string
   cor: string
   objetivo: string
