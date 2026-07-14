@@ -185,17 +185,35 @@ export function PortalCliente({
       <main className="flex-1">
         {/* HERO */}
         <section className="relative overflow-hidden border-b border-border">
-          {/* Fundo desfocado relacionado ao cliente */}
-          <div
-            aria-hidden
-            className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-2xl"
-            style={{ backgroundImage: `url(${heroBackground(cliente.segmento)})` }}
-          />
-          {/* Gradiente branco para manter elegância */}
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background"
-          />
+          {cliente.bannerUrl ? (
+            <>
+              {/* Banner (capa) definido pela SIMPLE para este cliente */}
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${cliente.bannerUrl})` }}
+              />
+              {/* Gradiente para manter nome e foto legíveis sobre a capa */}
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/80 to-background"
+              />
+            </>
+          ) : (
+            <>
+              {/* Fundo desfocado por segmento (fallback quando não há banner) */}
+              <div
+                aria-hidden
+                className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-2xl"
+                style={{ backgroundImage: `url(${heroBackground(cliente.segmento)})` }}
+              />
+              {/* Gradiente branco para manter elegância */}
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/85 to-background"
+              />
+            </>
+          )}
           <div className="relative mx-auto max-w-4xl px-4 py-10 md:px-6 md:py-14">
             <div className="flex animate-in fade-in-50 slide-in-from-bottom-2 flex-col items-start gap-5 duration-500 sm:flex-row sm:items-center sm:gap-6">
               <Avatar className="h-20 w-20 shrink-0 ring-4 ring-background shadow-sm sm:h-24 sm:w-24">

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import {
   adicionarMensagemEquipe,
+  atualizarBanner,
   atualizarCliente,
   criarCliente,
   excluirCliente,
@@ -26,6 +27,20 @@ import {
 import type { StatusCliente } from "@/lib/simple-data"
 
 export type EstadoForm = { ok: boolean; erro?: string }
+
+// Salva/remove o banner (capa) do cliente. Chamada direto do perfil do cliente.
+export async function atualizarBannerAction(clienteId: string, bannerUrl: string): Promise<EstadoForm> {
+  const id = clienteId.trim()
+  if (!id) return { ok: false, erro: "Cliente não identificado." }
+  try {
+    await atualizarBanner(id, bannerUrl)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido."
+    return { ok: false, erro: `Não foi possível salvar o banner: ${msg}` }
+  }
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
 
 function lerMrr(formData: FormData): number {
   const bruto = String(formData.get("mrr") ?? "").replace(/\./g, "").replace(",", ".")

@@ -23,7 +23,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Imagem muito grande (máx. 4 MB)." }, { status: 400 })
     }
 
-    const blob = await put(`logos-clientes/${file.name}`, file, {
+    const pastaBruta = String(formData.get("pasta") ?? "").trim()
+    const pasta = /^[a-z0-9-]+$/.test(pastaBruta) ? pastaBruta : "logos-clientes"
+
+    const blob = await put(`${pasta}/${file.name}`, file, {
       access: "public",
       addRandomSuffix: true,
     })
