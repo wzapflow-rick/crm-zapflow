@@ -56,6 +56,17 @@ export function BannerUploader({
 
   return (
     <div className="grid gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) enviar(file)
+          e.target.value = "" // permite reenviar o mesmo arquivo
+        }}
+      />
       <div className="relative aspect-[4/1] w-full overflow-hidden rounded-xl border border-border bg-muted">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
