@@ -101,7 +101,8 @@ export function BannerUploader({
           </Button>
         )}
         <p className="text-xs text-muted-foreground">
-          Aparece como capa no topo do portal do cliente. Ideal ~1600×400px. PNG, JPG ou WEBP (máx. 4 MB).
+          Aparece como capa no topo do portal do cliente. Use proporção 4:1 (ex.: 2000×500px) para não cortar. PNG,
+          JPG ou WEBP (máx. 4 MB).
         </p>
       </div>
 
