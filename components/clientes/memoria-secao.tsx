@@ -76,6 +76,7 @@ export function MemoriaSecao({
             placeholder={secao.placeholder}
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
+            className="field-sizing-fixed resize-y"
             autoFocus
           />
           {estado.erro && <p className="mt-2 text-sm text-destructive">{estado.erro}</p>}
