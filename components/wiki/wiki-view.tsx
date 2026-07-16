@@ -57,7 +57,7 @@ export function WikiView() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto w-full max-w-5xl px-4 py-8 md:px-8 md:py-12">
         <header>
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Manual interno</p>
@@ -139,7 +139,7 @@ function Leitor({ selecao, onVoltar }: { selecao: ArtigoSelecionado; onVoltar: (
   const { categoria, artigo } = selecao
 
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto w-full max-w-3xl px-4 py-8 md:px-8 md:py-12">
         <button
           type="button"

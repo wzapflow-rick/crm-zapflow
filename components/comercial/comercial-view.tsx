@@ -17,7 +17,7 @@ export function ComercialView() {
   const secao = comercialSecoes.find((s) => s.id === secaoAtiva) ?? comercialSecoes[0]
 
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto w-full max-w-5xl px-4 py-8 md:px-8 md:py-12">
         <header>
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Playbook de vendas</p>

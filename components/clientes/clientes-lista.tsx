@@ -67,7 +67,7 @@ export function ClientesLista({
   const mrrTotal = clientes.reduce((acc, c) => acc + (c.recorrente ? c.mrr : 0), 0)
 
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
         {/* Cabeçalho */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
