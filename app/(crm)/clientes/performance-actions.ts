@@ -38,6 +38,8 @@ export async function salvarPerformanceAction(
   const data = String(formData.get("data") ?? "").trim()
   const gancho = String(formData.get("gancho") ?? "").trim()
   const objetivo = String(formData.get("objetivo") ?? "").trim()
+  const roteiro = String(formData.get("roteiro") ?? "").trim()
+  const publico = String(formData.get("publico") ?? "").trim()
 
   const views = paraNumero(formData.get("views"))
   const curtidas = paraNumero(formData.get("curtidas"))
@@ -45,6 +47,9 @@ export async function salvarPerformanceAction(
   const salvamentos = paraNumero(formData.get("salvamentos"))
   const compartilhamentos = paraNumero(formData.get("compartilhamentos"))
   const alcance = paraNumero(formData.get("alcance"))
+  const visitasPerfil = paraNumero(formData.get("visitasPerfil"))
+  const seguidores = paraNumero(formData.get("seguidores"))
+  const reposts = paraNumero(formData.get("reposts"))
 
   if (!empresaId) return { ok: false, erro: "Cliente não identificado." }
   if (!titulo) return { ok: false, erro: "Dê um título ou descrição ao conteúdo." }
@@ -59,6 +64,9 @@ export async function salvarPerformanceAction(
       comentarios != null ? `Comentários: ${comentarios}` : "",
       salvamentos != null ? `Salvamentos: ${salvamentos}` : "",
       compartilhamentos != null ? `Compartilhamentos: ${compartilhamentos}` : "",
+      reposts != null ? `Reposts: ${reposts}` : "",
+      visitasPerfil != null ? `Visitas ao perfil: ${visitasPerfil}` : "",
+      seguidores != null ? `Novos seguidores: ${seguidores}` : "",
     ]
       .filter(Boolean)
       .join(" | ")
@@ -73,8 +81,12 @@ export async function salvarPerformanceAction(
         `Formato: ${formato}\n` +
         (gancho ? `Gancho: ${gancho}\n` : "") +
         (objetivo ? `Objetivo: ${objetivo}\n` : "") +
+        (roteiro ? `Roteiro do conteúdo: ${roteiro}\n` : "") +
+        (publico ? `Detalhe do público alcançado: ${publico}\n` : "") +
         (metricasTxt ? `Métricas: ${metricasTxt}\n` : "Sem métricas informadas.\n") +
-        `\nGere de 2 a 4 aprendizados acionáveis. Se faltarem métricas, foque no gancho, formato e objetivo.`,
+        `\nConsidere especialmente a relação entre visitas ao perfil, novos seguidores e reposts para avaliar ` +
+        `conversão e crescimento, não só engajamento. Gere de 2 a 4 aprendizados acionáveis. ` +
+        `Se faltarem métricas, foque no roteiro, gancho, formato e objetivo.`,
     })
     aprendizados = experimental_output.aprendizados ?? []
   } catch (e) {
@@ -90,12 +102,17 @@ export async function salvarPerformanceAction(
       data,
       gancho,
       objetivo,
+      roteiro,
+      publico,
       views,
       curtidas,
       comentarios,
       salvamentos,
       compartilhamentos,
       alcance,
+      visitasPerfil,
+      seguidores,
+      reposts,
       aprendizados,
     })
   } catch (e) {

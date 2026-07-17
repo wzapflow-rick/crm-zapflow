@@ -144,13 +144,18 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
           p.comentarios != null ? `${p.comentarios} comentários` : "",
           p.salvamentos != null ? `${p.salvamentos} salvamentos` : "",
           p.compartilhamentos != null ? `${p.compartilhamentos} compart.` : "",
+          p.reposts != null ? `${p.reposts} reposts` : "",
+          p.visitasPerfil != null ? `${p.visitasPerfil} visitas ao perfil` : "",
+          p.seguidores != null ? `${p.seguidores} novos seguidores` : "",
         ]
           .filter(Boolean)
           .join(", ")
         const apr = p.aprendizados.length ? ` Aprendizados: ${p.aprendizados.join("; ")}.` : ""
         const obj = p.objetivo ? ` Objetivo: ${p.objetivo}.` : ""
         const gancho = p.gancho ? ` Gancho: ${p.gancho}.` : ""
-        return `- [${p.formato}] ${p.titulo}${metr ? ` — ${metr}.` : "."}${gancho}${obj}${apr}`
+        const roteiro = p.roteiro ? ` Roteiro: ${p.roteiro}.` : ""
+        const publico = p.publico ? ` Público: ${p.publico}.` : ""
+        return `- [${p.formato}] ${p.titulo}${metr ? ` — ${metr}.` : "."}${gancho}${obj}${roteiro}${publico}${apr}`
       })
       .join("\n")
     partes.push(`\n## PERFORMANCE DE CONTEÚDO (mais recente primeiro)\n${linhas}`)

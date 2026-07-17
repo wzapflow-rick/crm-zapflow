@@ -97,6 +97,26 @@ export function PerformanceDialog({ clienteId, trigger }: { clienteId: string; t
             <Input id="objetivo" name="objetivo" placeholder="Ex.: Gerar autoridade e agendamentos" />
           </div>
 
+          <div className="grid gap-1.5">
+            <Label htmlFor="roteiro">Roteiro do conteúdo</Label>
+            <Textarea
+              id="roteiro"
+              name="roteiro"
+              rows={4}
+              placeholder="Detalhe o roteiro postado: falas, cenas, CTA, legenda, sequência de cortes..."
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="publico">Detalhe do público</Label>
+            <Textarea
+              id="publico"
+              name="publico"
+              rows={2}
+              placeholder="Quem foi alcançado: seguidores x não seguidores, faixa etária, gênero, cidades..."
+            />
+          </div>
+
           <fieldset className="grid grid-cols-3 gap-3 rounded-lg border border-border p-3">
             <legend className="px-1 text-xs text-muted-foreground">Métricas (opcionais)</legend>
             <Campo id="views" label="Views" />
@@ -105,6 +125,9 @@ export function PerformanceDialog({ clienteId, trigger }: { clienteId: string; t
             <Campo id="comentarios" label="Comentários" />
             <Campo id="salvamentos" label="Salvamentos" />
             <Campo id="compartilhamentos" label="Compart." />
+            <Campo id="visitasPerfil" label="Visitas ao perfil" />
+            <Campo id="seguidores" label="Seguidores" />
+            <Campo id="reposts" label="Reposts" />
           </fieldset>
 
           {estado.erro && (

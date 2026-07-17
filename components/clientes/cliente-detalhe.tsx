@@ -837,6 +837,21 @@ export function ClienteDetalhe({
                       </div>
                     )}
 
+                    {p.roteiro && (
+                      <div className="mt-3 rounded-lg border border-border bg-secondary/40 p-3">
+                        <p className="mb-1 text-xs font-medium text-foreground">Roteiro</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                          {p.roteiro}
+                        </p>
+                      </div>
+                    )}
+
+                    {p.publico && (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">Público:</span> {p.publico}
+                      </p>
+                    )}
+
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Metrica rotulo="Views" valor={p.views} />
                       <Metrica rotulo="Alcance" valor={p.alcance} />
@@ -844,6 +859,9 @@ export function ClienteDetalhe({
                       <Metrica rotulo="Comentários" valor={p.comentarios} />
                       <Metrica rotulo="Salvamentos" valor={p.salvamentos} />
                       <Metrica rotulo="Compart." valor={p.compartilhamentos} />
+                      <Metrica rotulo="Reposts" valor={p.reposts} />
+                      <Metrica rotulo="Visitas ao perfil" valor={p.visitasPerfil} />
+                      <Metrica rotulo="Seguidores" valor={p.seguidores} />
                     </div>
 
                     {p.aprendizados.length > 0 && (
