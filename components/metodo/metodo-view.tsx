@@ -28,7 +28,7 @@ export function MetodoView() {
   }
 
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto w-full max-w-5xl px-4 py-8 md:px-8 md:py-12">
         {/* Cabeçalho */}
         <header className="text-center">

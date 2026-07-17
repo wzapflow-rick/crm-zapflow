@@ -118,7 +118,7 @@ function BotaoExcluir({ membro }: { membro: Membro }) {
 
 export function Equipe({ membros }: { membros: Membro[] }) {
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>

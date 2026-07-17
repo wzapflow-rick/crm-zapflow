@@ -3,7 +3,7 @@ import { metodoSimple, somosNaoSomos, valores, visao } from "@/lib/simple-data"
 
 export function BrandBook() {
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       {/* Capa */}
       <section className="flex min-h-[80vh] flex-col items-center justify-center px-6 py-24 text-center">
         <span className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
