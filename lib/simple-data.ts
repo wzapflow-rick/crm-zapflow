@@ -79,6 +79,7 @@ export type ConteudoItem = {
   status: StatusConteudo
   data: string
   dataISO?: string // YYYY-MM-DD (para edição)
+  roteiro?: string // roteiro/descrição do conteúdo
 }
 
 export type EventoCliente = {

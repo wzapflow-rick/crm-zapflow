@@ -251,6 +251,7 @@ export async function salvarConteudosAction(
             formato: String(item.formato ?? "Reels"),
             status: String(item.status ?? "ideia"),
             data: item.data ? String(item.data) : undefined,
+            roteiro: item.roteiro ? String(item.roteiro) : undefined,
           }
         })
         .filter((c) => c.titulo.trim())
