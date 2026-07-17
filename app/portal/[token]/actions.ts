@@ -39,7 +39,7 @@ export async function enviarMensagemPortalAction(
     return { ok: false, erro: `Não foi possível enviar: ${msg}` }
   }
 
-  revalidatePath(`/portal/${token}`)
+  // Sem revalidatePath: o chat atualiza via polling/mutate (SWR), evitando recarregar a página.
   return { ok: true }
 }
 

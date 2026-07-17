@@ -48,7 +48,8 @@ import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
 import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
-import { ComunicacaoDialog } from "@/components/clientes/comunicacao-dialog"
+import { ChatEquipe } from "@/components/clientes/chat-equipe"
+import { BannerUploader } from "@/components/clientes/banner-uploader"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
@@ -256,7 +257,7 @@ export function ClienteDetalhe({
 
         {/* Abas */}
         <Tabs defaultValue="visao" className="mt-6">
-          <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
+          <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] group-data-horizontal/tabs:h-auto md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
             <TabTrigger value="visao" icon={Target} label="Visão geral" />
             <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
             <TabTrigger value="conteudo" icon={Video} label="Conteúdo" />
@@ -316,6 +317,14 @@ export function ClienteDetalhe({
                 ) : (
                   <Vazio texto="Nenhuma meta definida." />
                 )}
+              </Card>
+            </div>
+            <div className="mt-4">
+              <Card titulo="Banner do portal">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Imagem de capa exibida no topo do portal deste cliente, atrás do nome e da foto.
+                </p>
+                <BannerUploader clienteId={cliente.id} valorInicial={cliente.bannerUrl} />
               </Card>
             </div>
           </TabsContent>
@@ -549,50 +558,22 @@ export function ClienteDetalhe({
             </Card>
           </TabsContent>
 
-          {/* Comunicação */}
+          {/* Comunicação — chat de duas vias com o cliente (aparece no portal dele) */}
           <TabsContent value="comunicacao" className="mt-5">
-            <div className="mb-3 flex justify-end">
-              <ComunicacaoDialog
-                clienteId={cliente.id}
-                mensagens={mensagens}
-                membros={membros}
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar comunicação
-                  </Button>
-                }
-              />
+            <div className="mb-3">
+              <p className="text-sm text-muted-foreground">
+                Converse direto com o cliente. Tudo o que você enviar aqui aparece no portal dele — e as mensagens que
+                ele mandar chegam nesta conversa.
+              </p>
             </div>
-            <Card titulo="Histórico de alinhamentos">
-              {mensagens.length > 0 ? (
-                <ul className="space-y-4">
-                  {mensagens.map((m) => {
-                    const autor = membroPorId(m.autorId)
-                    return (
-                      <li key={m.id} className="flex gap-3">
-                        <Avatar className="h-8 w-8 shrink-0">
-                          <AvatarFallback className={cn(autor?.cor, "text-[10px] text-primary-foreground")}>
-                            {autor?.iniciais ?? "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-foreground">{autor?.nome ?? "Sem autor"}</span>
-                            <span className="text-[11px] text-muted-foreground">{m.data}</span>
-                          </div>
-                          <p className="mt-0.5 text-pretty text-sm leading-relaxed text-muted-foreground">
-                            {m.texto}
-                          </p>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <Vazio texto="Nenhum alinhamento registrado." />
-              )}
-            </Card>
+            <ChatEquipe
+              clienteId={cliente.id}
+              clienteNome={cliente.nome}
+              clienteIniciais={cliente.iniciais}
+              clienteCor={cliente.cor}
+              mensagens={mensagens}
+              membros={membros}
+            />
           </TabsContent>
 
           {/* Resultados */}
@@ -1003,7 +984,7 @@ function TabTrigger({ value, icon: Icon, label }: { value: string; icon: typeof 
   return (
     <TabsTrigger
       value={value}
-      className="shrink-0 gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+      className="h-auto flex-none shrink-0 gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground data-[state=active]:border-border data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
     >
       <Icon className="h-3.5 w-3.5" />
       {label}

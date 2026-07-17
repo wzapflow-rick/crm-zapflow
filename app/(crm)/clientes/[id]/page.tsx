@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { Topbar } from "@/components/simple/topbar"
 import { ClienteDetalhe } from "@/components/clientes/cliente-detalhe"
+import { seguro } from "@/lib/db"
 import {
   getClientePorId,
   getMetas,
@@ -39,110 +40,48 @@ export default async function ClientePage({
 }) {
   const { id } = await params
 
-  let cliente: Cliente | null = null
-  let membros: Membro[] = []
-  let metas: Meta[] = []
-  try {
-    ;[cliente, membros, metas] = await Promise.all([getClientePorId(id), getMembros(), getMetas(id)])
-  } catch {
-    cliente = null
-  }
+  // Todas as buscas disparam EM PARALELO (uma ida ao banco em vez de ~16 em série).
+  // Cada uma tem fallback próprio via `seguro`: se uma tabela não existir, a página não quebra.
+  const [
+    cliente,
+    membros,
+    metas,
+    eventos,
+    conteudos,
+    estrategia,
+    arquivos,
+    mensagens,
+    resultados,
+    historico,
+    memoria,
+    reunioes,
+    performance,
+    experimentos,
+    padroes,
+    ultimaAnalisePadroes,
+    envios,
+  ] = await Promise.all([
+    seguro<Cliente | null>(getClientePorId(id), null),
+    seguro<Membro[]>(getMembros(), []),
+    seguro<Meta[]>(getMetas(id), []),
+    seguro<EventoCliente[]>(getEventos(id), []),
+    seguro<ConteudoItem[]>(getConteudos(id), []),
+    seguro<Estrategia>(getEstrategia(id), { estrategiaAtual: [], insights: [], concorrentes: [] }),
+    seguro<Arquivo[]>(getArquivos(id), []),
+    seguro<Mensagem[]>(getMensagens(id), []),
+    seguro<MetricaResultado[]>(getResultados(id), []),
+    seguro<RegistroHistorico[]>(getHistorico(id), []),
+    seguro<MemoriaCliente>(getMemoria(id), {}),
+    seguro<Reuniao[]>(getReunioes(id), []),
+    seguro<ConteudoPerformance[]>(getPerformance(id), []),
+    seguro<Experimento[]>(getExperimentos(id), []),
+    seguro<Padrao[]>(getPadroes(id), []),
+    seguro<string | null>(getUltimaAnalise(id), null),
+    seguro<EnvioCliente[]>(getEnvios(id), []),
+  ])
 
   if (!cliente) {
     notFound()
-  }
-
-  // Eventos e conteúdos em try/catch próprio: se a tabela ainda não existir, a página não quebra.
-  let eventos: EventoCliente[] = []
-  try {
-    eventos = await getEventos(id)
-  } catch {
-    eventos = []
-  }
-
-  let conteudos: ConteudoItem[] = []
-  try {
-    conteudos = await getConteudos(id)
-  } catch {
-    conteudos = []
-  }
-
-  let estrategia: Estrategia = { estrategiaAtual: [], insights: [], concorrentes: [] }
-  try {
-    estrategia = await getEstrategia(id)
-  } catch {
-    estrategia = { estrategiaAtual: [], insights: [], concorrentes: [] }
-  }
-
-  let arquivos: Arquivo[] = []
-  try {
-    arquivos = await getArquivos(id)
-  } catch {
-    arquivos = []
-  }
-
-  let mensagens: Mensagem[] = []
-  try {
-    mensagens = await getMensagens(id)
-  } catch {
-    mensagens = []
-  }
-
-  let resultados: MetricaResultado[] = []
-  try {
-    resultados = await getResultados(id)
-  } catch {
-    resultados = []
-  }
-
-  let historico: RegistroHistorico[] = []
-  try {
-    historico = await getHistorico(id)
-  } catch {
-    historico = []
-  }
-
-  let memoria: MemoriaCliente = {}
-  try {
-    memoria = await getMemoria(id)
-  } catch {
-    memoria = {}
-  }
-
-  let reunioes: Reuniao[] = []
-  try {
-    reunioes = await getReunioes(id)
-  } catch {
-    reunioes = []
-  }
-
-  let performance: ConteudoPerformance[] = []
-  try {
-    performance = await getPerformance(id)
-  } catch {
-    performance = []
-  }
-
-  let experimentos: Experimento[] = []
-  try {
-    experimentos = await getExperimentos(id)
-  } catch {
-    experimentos = []
-  }
-
-  let padroes: Padrao[] = []
-  let ultimaAnalisePadroes: string | null = null
-  try {
-    ;[padroes, ultimaAnalisePadroes] = await Promise.all([getPadroes(id), getUltimaAnalise(id)])
-  } catch {
-    padroes = []
-  }
-
-  let envios: EnvioCliente[] = []
-  try {
-    envios = await getEnvios(id)
-  } catch {
-    envios = []
   }
 
   return (

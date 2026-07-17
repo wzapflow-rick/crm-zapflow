@@ -31,6 +31,9 @@ export type Lancamento = {
   competencia: string | null
   empresaId: string
   empresaNome: string | null
+  // Item virtual (ex.: pagamento avulso vindo do cadastro do cliente). Não existe na
+  // tabela de lançamentos, portanto não pode ser editado/excluído aqui.
+  virtual?: boolean
 }
 
 export type LancamentoInput = {
@@ -46,7 +49,8 @@ export type LancamentoInput = {
 // Resumo financeiro calculado para um mês específico
 export type ResumoFinanceiro = {
   mes: string // "YYYY-MM"
-  receitaMrr: number // soma do MRR real dos clientes
+  receitaMrr: number // soma do MRR real dos clientes recorrentes
+  receitaAvulsa: number // soma dos pagamentos avulsos de clientes cadastrados no mês
   receitaLancamentos: number // receitas avulsas/recorrentes lançadas
   receitaTotal: number
   custoTotal: number

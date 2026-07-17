@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import {
+  adicionarMensagemEquipe,
+  atualizarBanner,
   atualizarCliente,
   criarCliente,
   excluirCliente,
@@ -25,6 +27,20 @@ import {
 import type { StatusCliente } from "@/lib/simple-data"
 
 export type EstadoForm = { ok: boolean; erro?: string }
+
+// Salva/remove o banner (capa) do cliente. Chamada direto do perfil do cliente.
+export async function atualizarBannerAction(clienteId: string, bannerUrl: string): Promise<EstadoForm> {
+  const id = clienteId.trim()
+  if (!id) return { ok: false, erro: "Cliente não identificado." }
+  try {
+    await atualizarBanner(id, bannerUrl)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido."
+    return { ok: false, erro: `Não foi possível salvar o banner: ${msg}` }
+  }
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
 
 function lerMrr(formData: FormData): number {
   const bruto = String(formData.get("mrr") ?? "").replace(/\./g, "").replace(",", ".")
@@ -63,6 +79,7 @@ export async function criarClienteAction(
   }
 
   revalidatePath("/clientes")
+  revalidatePath("/marketing")
   return { ok: true }
 }
 
@@ -102,6 +119,7 @@ export async function atualizarClienteAction(
 
   revalidatePath("/clientes")
   revalidatePath(`/clientes/${id}`)
+  revalidatePath("/marketing")
   return { ok: true }
 }
 
@@ -117,6 +135,7 @@ export async function excluirClienteAction(id: string, redirectTo?: string): Pro
     return { ok: false, erro: `Não foi possível excluir no banco: ${msg}` }
   }
   revalidatePath("/clientes")
+  revalidatePath("/marketing")
   // Quando a exclusão parte da página de detalhe (/clientes/[id]), redirecionamos
   // no servidor para evitar que a rota atual re-renderize e dispare notFound() (tela 404).
   if (redirectTo) {
@@ -360,6 +379,33 @@ export async function salvarMensagensAction(
   }
 
   revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Envio de mensagem pela equipe no chat do cliente (append-only). Vira resposta da SIMPLE
+// visível no portal do cliente.
+export async function enviarMensagemEquipeAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+  const texto = String(formData.get("texto") ?? "").trim()
+  if (!texto) {
+    return { ok: false, erro: "Escreva uma mensagem antes de enviar." }
+  }
+  const autorId = String(formData.get("autorId") ?? "").trim() || null
+
+  try {
+    await adicionarMensagemEquipe(id, autorId, texto)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao enviar."
+    return { ok: false, erro: `Não foi possível enviar: ${msg}` }
+  }
+
+  // Sem revalidatePath: o chat atualiza via polling/mutate (SWR), evitando recarregar a página.
   return { ok: true }
 }
 

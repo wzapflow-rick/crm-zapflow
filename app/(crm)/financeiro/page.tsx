@@ -1,5 +1,12 @@
 import { FinanceiroView } from "@/components/financeiro/financeiro-view"
-import { getResumoFinanceiro, getLancamentos, type Lancamento, type ResumoFinanceiro } from "@/lib/financeiro-db"
+import { seguro } from "@/lib/db"
+import {
+  getResumoFinanceiro,
+  getLancamentos,
+  getAvulsosComoLancamentos,
+  type Lancamento,
+  type ResumoFinanceiro,
+} from "@/lib/financeiro-db"
 import { getClientes } from "@/lib/clientes-db"
 import { mesAtual } from "@/lib/financeiro-types"
 
@@ -16,6 +23,7 @@ export default async function FinanceiroPage({
   let resumo: ResumoFinanceiro = {
     mes,
     receitaMrr: 0,
+    receitaAvulsa: 0,
     receitaLancamentos: 0,
     receitaTotal: 0,
     custoTotal: 0,
@@ -28,20 +36,23 @@ export default async function FinanceiroPage({
   let clientes: { id: string; nome: string }[] = []
   let erro: string | undefined
 
-  try {
-    const [r, l] = await Promise.all([getResumoFinanceiro(mes), getLancamentos(mes)])
-    resumo = r
-    lancamentos = l
-  } catch (e) {
-    erro = e instanceof Error ? e.message : "Erro desconhecido ao buscar os dados financeiros."
+  // Todas as buscas em paralelo: uma ida ao banco em vez de 2 em série.
+  const [dadosFinanceiros, cs] = await Promise.all([
+    Promise.all([getResumoFinanceiro(mes), getLancamentos(mes), getAvulsosComoLancamentos(mes)]).catch(
+      (e: unknown) => {
+        erro = e instanceof Error ? e.message : "Erro desconhecido ao buscar os dados financeiros."
+        return null
+      },
+    ),
+    seguro(getClientes(), []),
+  ])
+  if (dadosFinanceiros) {
+    const [resumoDb, lancamentosDb, avulsos] = dadosFinanceiros
+    resumo = resumoDb
+    // Avulsos entram como itens virtuais no topo (só exibição); já estão somados no resumo.
+    lancamentos = [...avulsos, ...lancamentosDb]
   }
-
-  try {
-    const cs = await getClientes()
-    clientes = cs.map((c) => ({ id: c.id, nome: c.nome }))
-  } catch {
-    // Sem clientes: o módulo ainda funciona para lançamentos
-  }
+  clientes = cs.map((c) => ({ id: c.id, nome: c.nome }))
 
   return <FinanceiroView resumo={resumo} lancamentos={lancamentos} clientes={clientes} erro={erro} />
 }

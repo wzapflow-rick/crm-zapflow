@@ -24,6 +24,7 @@ type EmpresaRow = {
   mrr: string | null
   recorrente: boolean | null
   logo_url: string | null
+  banner_url: string | null
   iniciais: string | null
   cor: string | null
   objetivo: string | null
@@ -89,6 +90,7 @@ function mapRow(r: EmpresaRow): Cliente {
     mrr: r.mrr ? Number(r.mrr) : 0,
     recorrente: r.recorrente !== false, // null/true = recorrente; só false é avulso
     logoUrl: r.logo_url ?? "",
+    bannerUrl: r.banner_url ?? "",
     iniciais: r.iniciais || iniciaisDe(nome),
     cor: r.cor || corPara(nome),
     objetivo: r.objetivo ?? "",
@@ -112,7 +114,7 @@ export async function getClientes(): Promise<Cliente[]> {
 
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
+    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas
      where id = $1
      limit 1`,
@@ -126,7 +128,7 @@ export async function getClientePorToken(token: string): Promise<Cliente | null>
   const limpo = token.trim()
   if (!limpo) return null
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
+    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas
      where portal_token = $1
      limit 1`,
@@ -557,6 +559,30 @@ export async function adicionarMensagemCliente(
   )
 }
 
+// Mensagem enviada pela EQUIPE (chat do painel interno) — append-only, aparece no portal
+// do cliente como resposta da SIMPLE. de_cliente = false.
+export async function adicionarMensagemEquipe(
+  empresaId: string,
+  autorId: string | null,
+  texto: string,
+): Promise<void> {
+  const limpo = texto.trim()
+  if (!limpo) return
+  const data = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  await query(
+    `insert into public.comunicacoes (empresa_id, autor_id, texto, data, posicao, de_cliente)
+     values ($1, $2, $3, $4,
+       coalesce((select max(posicao) from public.comunicacoes where empresa_id = $1), -1) + 1,
+       false)`,
+    [empresaId, autorId || null, limpo, data],
+  )
+}
+
 // ── Resultados (aba Resultados) ───────────────────────────────────────────
 
 type ResultadoRow = {
@@ -674,6 +700,14 @@ export type AtualizarCliente = {
   desde?: string // YYYY-MM-DD
   responsavelId?: string | null
   responsaveisIds?: string[]
+}
+
+// Atualiza APENAS o banner/capa do cliente (não mexe em nenhum outro campo).
+export async function atualizarBanner(id: string, bannerUrl: string): Promise<void> {
+  await query(
+    `update public.empresas set banner_url = $2, updated_at = now() where id = $1`,
+    [id, bannerUrl.trim() || null],
+  )
 }
 
 export async function atualizarCliente(id: string, input: AtualizarCliente): Promise<Cliente | null> {
