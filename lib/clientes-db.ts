@@ -362,6 +362,7 @@ type ConteudoRow = {
   formato: string | null
   status: string | null
   data: Date | null
+  roteiro: string | null
 }
 
 const FORMATOS_CONTEUDO: ConteudoItem["formato"][] = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"]
@@ -369,7 +370,7 @@ const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edic
 
 export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
   const rows = await query<ConteudoRow>(
-    `select id, titulo, formato, status, data
+    `select id, titulo, formato, status, data, roteiro
      from public.conteudos
      where empresa_id = $1
      order by data asc nulls last, posicao asc, created_at asc`,
@@ -385,10 +386,11 @@ export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
     status: (STATUS_CONTEUDO.includes(r.status as StatusConteudo) ? r.status : "ideia") as StatusConteudo,
     data: formatarDataCurta(r.data),
     dataISO: r.data ? new Date(r.data).toISOString().slice(0, 10) : "",
+    roteiro: r.roteiro ?? "",
   }))
 }
 
-export type ConteudoInput = { titulo: string; formato: string; status: string; data?: string }
+export type ConteudoInput = { titulo: string; formato: string; status: string; data?: string; roteiro?: string }
 
 // Salva a lista de conteúdos do cliente regravando tudo numa transação.
 export async function salvarConteudos(empresaId: string, conteudos: ConteudoInput[]): Promise<void> {
@@ -404,9 +406,9 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
       const formato = FORMATOS_CONTEUDO.includes(c.formato as ConteudoItem["formato"]) ? c.formato : "Reels"
       const status = STATUS_CONTEUDO.includes(c.status as StatusConteudo) ? c.status : "ideia"
       await client.query(
-        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [empresaId, titulo, formato, status, c.data || null, posicao++],
+        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [empresaId, titulo, formato, status, c.data || null, posicao++, c.roteiro?.trim() || null],
       )
     }
     await client.query("commit")
@@ -418,6 +420,18 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
   }
 }
 
+// Atualiza apenas o roteiro de um conteúdo do pipeline (edição individual pelo título).
+export async function atualizarRoteiroConteudo(
+  empresaId: string,
+  conteudoId: string,
+  roteiro: string,
+): Promise<void> {
+  await query(
+    `update public.conteudos set roteiro = $1 where id = $2 and empresa_id = $3`,
+    [roteiro.trim() || null, conteudoId, empresaId],
+  )
+}
+
 // ── Arquivos (aba Arquivos · por link) ────────────────────────────────────
 
 type ArquivoRow = {
@@ -425,16 +439,17 @@ type ArquivoRow = {
   nome: string
   tipo: string | null
   url: string | null
+  data_postagem: Date | null
 }
 
 const TIPOS_ARQUIVO: Arquivo["tipo"][] = ["Branding", "Material", "Drive", "Contrato"]
 
 export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
   const rows = await query<ArquivoRow>(
-    `select id, nome, tipo, url
+    `select id, nome, tipo, url, data_postagem
      from public.arquivos
      where empresa_id = $1
-     order by posicao asc, created_at asc`,
+     order by data_postagem asc nulls last, posicao asc, created_at asc`,
     [empresaId],
   )
   return rows.map((r) => ({
@@ -444,10 +459,12 @@ export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
     tipo: (TIPOS_ARQUIVO.includes(r.tipo as Arquivo["tipo"]) ? r.tipo : "Material") as Arquivo["tipo"],
     tamanho: "",
     url: r.url ?? "",
+    data: formatarDataCurta(r.data_postagem),
+    dataISO: r.data_postagem ? new Date(r.data_postagem).toISOString().slice(0, 10) : "",
   }))
 }
 
-export type ArquivoInput = { nome: string; tipo: string; url?: string }
+export type ArquivoInput = { nome: string; tipo: string; url?: string; data?: string }
 
 export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]): Promise<void> {
   const pool = getPool()
@@ -461,9 +478,9 @@ export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]
       if (!nome) continue
       const tipo = TIPOS_ARQUIVO.includes(a.tipo as Arquivo["tipo"]) ? a.tipo : "Material"
       await client.query(
-        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao)
-         values ($1, $2, $3, $4, $5)`,
-        [empresaId, nome, tipo, a.url?.trim() || null, posicao++],
+        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao, data_postagem)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [empresaId, nome, tipo, a.url?.trim() || null, posicao++, a.data || null],
       )
     }
     await client.query("commit")
