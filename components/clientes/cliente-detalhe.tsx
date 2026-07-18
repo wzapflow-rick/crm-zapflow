@@ -292,7 +292,7 @@ export function ClienteDetalhe({
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Card titulo="Resumo estratégico" className="lg:col-span-2">
                 {resumo ? (
-                  <p className="text-pretty text-sm leading-relaxed text-foreground">{resumo}</p>
+                  <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground">{resumo}</p>
                 ) : (
                   <Vazio texto="Nenhum resumo estratégico definido. Clique em Editar visão geral para adicionar." />
                 )}
