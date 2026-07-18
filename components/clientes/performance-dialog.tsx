@@ -33,7 +33,15 @@ function BotaoSalvar() {
   )
 }
 
-export function PerformanceDialog({ clienteId, trigger }: { clienteId: string; trigger: ReactNode }) {
+export function PerformanceDialog({
+  clienteId,
+  trigger,
+  defaults,
+}: {
+  clienteId: string
+  trigger: ReactNode
+  defaults?: { titulo?: string; formato?: string; roteiro?: string }
+}) {
   const [aberto, setAberto] = useState(false)
   const [estado, formAction] = useActionState(salvarPerformanceAction, estadoInicial)
   const router = useRouter()
@@ -62,7 +70,13 @@ export function PerformanceDialog({ clienteId, trigger }: { clienteId: string; t
 
           <div className="grid gap-1.5">
             <Label htmlFor="titulo">Título / descrição do conteúdo</Label>
-            <Input id="titulo" name="titulo" placeholder="Ex.: Reel de bastidores da gravação" required />
+            <Input
+              id="titulo"
+              name="titulo"
+              placeholder="Ex.: Reel de bastidores da gravação"
+              defaultValue={defaults?.titulo ?? ""}
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -72,7 +86,7 @@ export function PerformanceDialog({ clienteId, trigger }: { clienteId: string; t
                 id="formato"
                 name="formato"
                 className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                defaultValue="Reels"
+                defaultValue={defaults?.formato ?? "Reels"}
               >
                 {FORMATOS_PERFORMANCE.map((f) => (
                   <option key={f} value={f}>
@@ -103,6 +117,7 @@ export function PerformanceDialog({ clienteId, trigger }: { clienteId: string; t
               id="roteiro"
               name="roteiro"
               rows={4}
+              defaultValue={defaults?.roteiro ?? ""}
               placeholder="Detalhe o roteiro postado: falas, cenas, CTA, legenda, sequência de cortes..."
             />
           </div>

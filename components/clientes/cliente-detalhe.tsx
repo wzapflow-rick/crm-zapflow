@@ -46,6 +46,7 @@ import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
 import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
 import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
+import { RoteiroConteudoDialog } from "@/components/clientes/roteiro-conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
 import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
 import { ChatEquipe } from "@/components/clientes/chat-equipe"
@@ -392,9 +393,36 @@ export function ClienteDetalhe({
                   {conteudos.map((c) => (
                     <li key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{c.titulo}</p>
-                        <p className="text-xs text-muted-foreground">{c.formato} · {c.data}</p>
+                        <RoteiroConteudoDialog
+                          clienteId={cliente.id}
+                          conteudoId={c.id}
+                          titulo={c.titulo}
+                          formato={c.formato}
+                          roteiro={c.roteiro ?? ""}
+                          trigger={
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-1.5 truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline"
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <span className="truncate">{c.titulo}</span>
+                            </button>
+                          }
+                        />
+                        <p className="mt-0.5 pl-5 text-xs text-muted-foreground">{c.formato} · {c.data}</p>
                       </div>
+                      {c.status === "publicado" && (
+                        <PerformanceDialog
+                          clienteId={cliente.id}
+                          defaults={{ titulo: c.titulo, formato: c.formato, roteiro: c.roteiro ?? "" }}
+                          trigger={
+                            <Button variant="outline" size="sm" className="h-7 shrink-0 gap-1 text-xs">
+                              <BarChart3 className="h-3.5 w-3.5" />
+                              Adicionar métricas
+                            </Button>
+                          }
+                        />
+                      )}
                       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", conteudoInfo[c.status].classe)}>
                         {conteudoInfo[c.status].label}
                       </span>

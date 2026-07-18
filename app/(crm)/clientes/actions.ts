@@ -6,6 +6,7 @@ import {
   adicionarMensagemEquipe,
   atualizarBanner,
   atualizarCliente,
+  atualizarRoteiroConteudo,
   criarCliente,
   excluirCliente,
   salvarArquivos,
@@ -251,6 +252,7 @@ export async function salvarConteudosAction(
             formato: String(item.formato ?? "Reels"),
             status: String(item.status ?? "ideia"),
             data: item.data ? String(item.data) : undefined,
+            roteiro: item.roteiro ? String(item.roteiro) : undefined,
           }
         })
         .filter((c) => c.titulo.trim())
@@ -267,6 +269,29 @@ export async function salvarConteudosAction(
   }
 
   revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Salva/edita apenas o roteiro de um conteúdo do pipeline (aberto ao clicar no título).
+export async function salvarRoteiroConteudoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const clienteId = String(formData.get("clienteId") ?? "").trim()
+  const conteudoId = String(formData.get("conteudoId") ?? "").trim()
+  if (!clienteId || !conteudoId) {
+    return { ok: false, erro: "Conteúdo não identificado." }
+  }
+  const roteiro = String(formData.get("roteiro") ?? "")
+
+  try {
+    await atualizarRoteiroConteudo(clienteId, conteudoId, roteiro)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar o roteiro: ${msg}` }
+  }
+
+  revalidatePath(`/clientes/${clienteId}`)
   return { ok: true }
 }
 
