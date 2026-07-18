@@ -153,7 +153,7 @@ export function ClienteDetalhe({
   const resumo = cliente.resumoEstrategico?.trim() || ""
 
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
         <Link
           href="/clientes"
