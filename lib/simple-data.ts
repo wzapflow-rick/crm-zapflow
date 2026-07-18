@@ -109,6 +109,8 @@ export type Arquivo = {
   tipo: "Branding" | "Material" | "Drive" | "Contrato"
   tamanho: string
   url?: string // link para baixar/abrir (Drive, YouTube, Dropbox...)
+  data?: string // rótulo curto da data de postagem (ex.: 12/03)
+  dataISO?: string // YYYY-MM-DD (para edição)
 }
 
 export type MetricaResultado = {

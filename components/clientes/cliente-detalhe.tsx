@@ -521,7 +521,10 @@ export function ClienteDetalhe({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                        <p className="text-xs text-muted-foreground">{a.tipo}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {a.tipo}
+                          {a.data && a.data !== "—" ? ` · ${a.data}` : ""}
+                        </p>
                       </div>
                       {a.url ? (
                         <a

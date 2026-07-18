@@ -349,6 +349,7 @@ export async function salvarArquivosAction(
             nome: String(item.nome ?? ""),
             tipo: String(item.tipo ?? "Material"),
             url: item.url ? String(item.url) : undefined,
+            data: item.data ? String(item.data) : undefined,
           }
         })
         .filter((a) => a.nome.trim())

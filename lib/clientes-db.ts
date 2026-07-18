@@ -439,16 +439,17 @@ type ArquivoRow = {
   nome: string
   tipo: string | null
   url: string | null
+  data_postagem: Date | null
 }
 
 const TIPOS_ARQUIVO: Arquivo["tipo"][] = ["Branding", "Material", "Drive", "Contrato"]
 
 export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
   const rows = await query<ArquivoRow>(
-    `select id, nome, tipo, url
+    `select id, nome, tipo, url, data_postagem
      from public.arquivos
      where empresa_id = $1
-     order by posicao asc, created_at asc`,
+     order by data_postagem asc nulls last, posicao asc, created_at asc`,
     [empresaId],
   )
   return rows.map((r) => ({
@@ -458,10 +459,12 @@ export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
     tipo: (TIPOS_ARQUIVO.includes(r.tipo as Arquivo["tipo"]) ? r.tipo : "Material") as Arquivo["tipo"],
     tamanho: "",
     url: r.url ?? "",
+    data: formatarDataCurta(r.data_postagem),
+    dataISO: r.data_postagem ? new Date(r.data_postagem).toISOString().slice(0, 10) : "",
   }))
 }
 
-export type ArquivoInput = { nome: string; tipo: string; url?: string }
+export type ArquivoInput = { nome: string; tipo: string; url?: string; data?: string }
 
 export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]): Promise<void> {
   const pool = getPool()
@@ -475,9 +478,9 @@ export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]
       if (!nome) continue
       const tipo = TIPOS_ARQUIVO.includes(a.tipo as Arquivo["tipo"]) ? a.tipo : "Material"
       await client.query(
-        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao)
-         values ($1, $2, $3, $4, $5)`,
-        [empresaId, nome, tipo, a.url?.trim() || null, posicao++],
+        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao, data_postagem)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [empresaId, nome, tipo, a.url?.trim() || null, posicao++, a.data || null],
       )
     }
     await client.query("commit")
