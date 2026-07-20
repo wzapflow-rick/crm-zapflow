@@ -35,6 +35,7 @@ export async function criarTarefaAction(_prev: EstadoForm, formData: FormData): 
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }
@@ -53,6 +54,7 @@ export async function atualizarTarefaAction(_prev: EstadoForm, formData: FormDat
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }
@@ -67,6 +69,7 @@ export async function alternarConclusaoAction(id: string, concluida: boolean): P
     return { ok: false, erro: msg }
   }
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }
@@ -80,6 +83,7 @@ export async function excluirTarefaAction(id: string): Promise<EstadoForm> {
     return { ok: false, erro: msg }
   }
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }

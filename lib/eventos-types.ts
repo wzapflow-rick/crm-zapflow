@@ -19,6 +19,7 @@ export type Evento = {
   hora: string // HH:MM ("" se o dia inteiro)
   clienteId: string
   responsaveisIds: string[] // pode ter vários responsáveis
+  concluido: boolean // marcado no checklist de Tarefas
 }
 
 export type EventoInput = {

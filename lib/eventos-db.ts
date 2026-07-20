@@ -21,6 +21,7 @@ type EventoRow = {
   empresa_id: string | null
   responsavel_id: string | null
   responsaveis_ids: string[] | null
+  concluido: boolean | null
 }
 
 function mapRow(r: EventoRow): Evento {
@@ -40,6 +41,7 @@ function mapRow(r: EventoRow): Evento {
     hora: r.hora ?? "",
     clienteId: r.empresa_id ?? "",
     responsaveisIds,
+    concluido: r.concluido ?? false,
   }
 }
 
@@ -49,7 +51,7 @@ function mapRow(r: EventoRow): Evento {
 const SELECT_COLS = `id, titulo, descricao, tipo,
   data::text as data,
   substring(hora::text from 1 for 5) as hora,
-  empresa_id, responsavel_id, responsaveis_ids`
+  empresa_id, responsavel_id, responsaveis_ids, concluido`
 
 export async function getEventos(): Promise<Evento[]> {
   const rows = await query<EventoRow>(
@@ -136,4 +138,12 @@ export async function atualizarEvento(id: string, input: EventoInput): Promise<v
 
 export async function excluirEvento(id: string): Promise<void> {
   await query(`delete from public.agenda_compromissos where id = $1`, [id])
+}
+
+// Marca/desmarca um compromisso como concluído (usado pelo checkbox do checklist).
+export async function alternarConclusaoEvento(id: string, concluido: boolean): Promise<void> {
+  await query(`update public.agenda_compromissos set concluido = $2, updated_at = now() where id = $1`, [
+    id,
+    concluido,
+  ])
 }
