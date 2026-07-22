@@ -116,7 +116,7 @@ function BotaoExcluir({ membro }: { membro: Membro }) {
   )
 }
 
-export function Equipe({ membros }: { membros: Membro[] }) {
+export function Equipe({ membros, children }: { membros: Membro[]; children?: ReactNode }) {
   return (
     <main className="flex-1 overflow-y-auto bg-background">
       <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
@@ -174,6 +174,8 @@ export function Equipe({ membros }: { membros: Membro[] }) {
             </div>
           )}
         </div>
+
+        {children}
       </div>
     </main>
   )

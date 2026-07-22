@@ -10,6 +10,65 @@ import "server-only"
 
 type EnvioResultado = { ok: boolean; status: number; erro?: string }
 
+export type EstadoWhatsApp = {
+  configurado: boolean // URL + KEY + INSTANCE presentes
+  grupoConfigurado: boolean // SOCIOS_GROUP_ID presente
+  conexao: "conectado" | "desconectado" | "conectando" | "desconhecido"
+  erro?: string
+}
+
+// Consulta o estado da conexão da instância na Evolution API.
+// Serve para diagnosticar por que o "bom dia" parou (ex.: sessão do WhatsApp caiu).
+export async function estadoInstancia(): Promise<EstadoWhatsApp> {
+  const base = process.env.EVOLUTION_API_URL?.replace(/\/+$/, "")
+  const apiKey = process.env.EVOLUTION_API_KEY
+  const instancia = process.env.EVOLUTION_INSTANCE
+  const grupoConfigurado = Boolean(process.env.SOCIOS_GROUP_ID)
+
+  if (!base || !apiKey || !instancia) {
+    return {
+      configurado: false,
+      grupoConfigurado,
+      conexao: "desconhecido",
+      erro: "Evolution API não configurada (URL, KEY ou INSTANCE ausente).",
+    }
+  }
+
+  try {
+    const res = await fetch(`${base}/instance/connectionState/${encodeURIComponent(instancia)}`, {
+      method: "GET",
+      headers: { apikey: apiKey },
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      const corpo = await res.text().catch(() => "")
+      return {
+        configurado: true,
+        grupoConfigurado,
+        conexao: "desconhecido",
+        erro: `Evolution respondeu ${res.status}: ${corpo.slice(0, 300) || res.statusText}`,
+      }
+    }
+    const data = (await res.json().catch(() => ({}))) as {
+      instance?: { state?: string }
+      state?: string
+    }
+    const state = data.instance?.state ?? data.state ?? ""
+    const conexao =
+      state === "open"
+        ? "conectado"
+        : state === "connecting"
+          ? "conectando"
+          : state === "close"
+            ? "desconectado"
+            : "desconhecido"
+    return { configurado: true, grupoConfigurado, conexao }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido."
+    return { configurado: true, grupoConfigurado, conexao: "desconhecido", erro: msg }
+  }
+}
+
 // Garante o sufixo de grupo (@g.us). Aceita tanto "12036..." quanto "12036...@g.us".
 function normalizarDestino(destino: string): string {
   const limpo = destino.trim()
