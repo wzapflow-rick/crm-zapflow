@@ -10,6 +10,31 @@ import "server-only"
 
 type EnvioResultado = { ok: boolean; status: number; erro?: string }
 
+// Timeout para chamadas à Evolution API. Sem isso, se o servidor estiver fora do ar
+// ou travado, o fetch fica pendurado até o Vercel matar a função (erro 500 / página quebrada).
+const EVOLUTION_TIMEOUT_MS = 8000
+
+async function fetchEvolution(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), EVOLUTION_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal, cache: "no-store" })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// Traduz erros de fetch (timeout/rede) numa mensagem amigável.
+function mensagemErroRede(e: unknown): string {
+  if (e instanceof Error) {
+    if (e.name === "AbortError") {
+      return "A Evolution API não respondeu a tempo (servidor pode estar fora do ar ou sobrecarregado)."
+    }
+    return e.message
+  }
+  return "Erro desconhecido de rede."
+}
+
 export type EstadoWhatsApp = {
   configurado: boolean // URL + KEY + INSTANCE presentes
   grupoConfigurado: boolean // SOCIOS_GROUP_ID presente
@@ -35,10 +60,9 @@ export async function estadoInstancia(): Promise<EstadoWhatsApp> {
   }
 
   try {
-    const res = await fetch(`${base}/instance/connectionState/${encodeURIComponent(instancia)}`, {
+    const res = await fetchEvolution(`${base}/instance/connectionState/${encodeURIComponent(instancia)}`, {
       method: "GET",
       headers: { apikey: apiKey },
-      cache: "no-store",
     })
     if (!res.ok) {
       const corpo = await res.text().catch(() => "")
@@ -64,8 +88,7 @@ export async function estadoInstancia(): Promise<EstadoWhatsApp> {
             : "desconhecido"
     return { configurado: true, grupoConfigurado, conexao }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido."
-    return { configurado: true, grupoConfigurado, conexao: "desconhecido", erro: msg }
+    return { configurado: true, grupoConfigurado, conexao: "desconhecido", erro: mensagemErroRede(e) }
   }
 }
 
@@ -89,10 +112,9 @@ export async function reconectarInstancia(): Promise<ReconexaoWhatsApp> {
   }
 
   try {
-    const res = await fetch(`${base}/instance/connect/${encodeURIComponent(instancia)}`, {
+    const res = await fetchEvolution(`${base}/instance/connect/${encodeURIComponent(instancia)}`, {
       method: "GET",
       headers: { apikey: apiKey },
-      cache: "no-store",
     })
     const corpo = await res.text().catch(() => "")
     if (!res.ok) {
@@ -128,8 +150,7 @@ export async function reconectarInstancia(): Promise<ReconexaoWhatsApp> {
 
     return { ok: true, qrBase64, pairingCode: data.pairingCode }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido ao reconectar."
-    return { ok: false, erro: msg }
+    return { ok: false, erro: mensagemErroRede(e) }
   }
 }
 
@@ -156,14 +177,13 @@ export async function enviarTextoWhatsApp(destino: string, texto: string): Promi
   }
 
   try {
-    const res = await fetch(`${base}/message/sendText/${encodeURIComponent(instancia)}`, {
+    const res = await fetchEvolution(`${base}/message/sendText/${encodeURIComponent(instancia)}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: apiKey,
       },
       body: JSON.stringify({ number, text: texto }),
-      cache: "no-store",
     })
     if (!res.ok) {
       const corpo = await res.text().catch(() => "")
@@ -171,7 +191,6 @@ export async function enviarTextoWhatsApp(destino: string, texto: string): Promi
     }
     return { ok: true, status: res.status }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido no envio."
-    return { ok: false, status: 0, erro: msg }
+    return { ok: false, status: 0, erro: mensagemErroRede(e) }
   }
 }
