@@ -10,8 +10,8 @@ import {
   enviarResumoAgoraAction,
   reconectarWhatsAppAction,
   type DiagnosticoWhatsApp,
-  type ReconexaoWhatsApp,
 } from "@/app/(crm)/configuracoes/whatsapp-actions"
+import type { ReconexaoWhatsApp } from "@/lib/whatsapp"
 
 type StatusEnvio = { tipo: "ok" | "erro"; msg: string } | null
 

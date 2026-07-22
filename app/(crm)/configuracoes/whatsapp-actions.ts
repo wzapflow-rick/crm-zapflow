@@ -60,8 +60,6 @@ export async function enviarResumoAgoraAction(): Promise<EnvioManual> {
   return { ok: true, enviado: true }
 }
 
-export type { ReconexaoWhatsApp }
-
 // Gera o QR code para reconectar a sessão do WhatsApp direto pelo CRM.
 export async function reconectarWhatsAppAction(): Promise<ReconexaoWhatsApp> {
   return reconectarInstancia()
