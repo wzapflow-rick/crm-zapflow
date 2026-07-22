@@ -513,8 +513,18 @@ export function PortalCliente({
             {/* Estratégia */}
             <TabsContent
               value="estrategia"
-              className="mt-6 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
+              className="mt-6 space-y-4 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
+              {cliente.resumoEstrategico?.trim() && (
+                <Card
+                  titulo="Resumo estratégico"
+                  subtitulo="O panorama da sua marca e o caminho que estamos trilhando."
+                >
+                  <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                    {cliente.resumoEstrategico}
+                  </p>
+                </Card>
+              )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <Card titulo="Plano atual" subtitulo="A direç��o que estamos seguindo juntos.">
                   {estrategia.estrategiaAtual.length > 0 ? (
