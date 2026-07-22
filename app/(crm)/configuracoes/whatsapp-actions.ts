@@ -1,6 +1,12 @@
 "use server"
 
-import { estadoInstancia, enviarTextoWhatsApp, type EstadoWhatsApp } from "@/lib/whatsapp"
+import {
+  estadoInstancia,
+  enviarTextoWhatsApp,
+  reconectarInstancia,
+  type EstadoWhatsApp,
+  type ReconexaoWhatsApp,
+} from "@/lib/whatsapp"
 import { montarResumoDiario } from "@/lib/resumo-diario"
 
 export type DiagnosticoWhatsApp = {
@@ -52,4 +58,11 @@ export async function enviarResumoAgoraAction(): Promise<EnvioManual> {
     return { ok: false, erro: envio.erro || `Envio falhou (status ${envio.status}).` }
   }
   return { ok: true, enviado: true }
+}
+
+export type { ReconexaoWhatsApp }
+
+// Gera o QR code para reconectar a sessão do WhatsApp direto pelo CRM.
+export async function reconectarWhatsAppAction(): Promise<ReconexaoWhatsApp> {
+  return reconectarInstancia()
 }

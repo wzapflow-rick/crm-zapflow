@@ -69,6 +69,70 @@ export async function estadoInstancia(): Promise<EstadoWhatsApp> {
   }
 }
 
+export type ReconexaoWhatsApp = {
+  ok: boolean
+  jaConectado?: boolean // instância já estava conectada, não precisa de QR
+  qrBase64?: string // imagem do QR code (data URI) para ler no app do WhatsApp
+  pairingCode?: string // código alternativo de pareamento (digitado no celular)
+  erro?: string
+}
+
+// Inicia a reconexão da instância e devolve o QR code (ou código de pareamento)
+// para o usuário reconectar a sessão do WhatsApp direto pelo CRM.
+export async function reconectarInstancia(): Promise<ReconexaoWhatsApp> {
+  const base = process.env.EVOLUTION_API_URL?.replace(/\/+$/, "")
+  const apiKey = process.env.EVOLUTION_API_KEY
+  const instancia = process.env.EVOLUTION_INSTANCE
+
+  if (!base || !apiKey || !instancia) {
+    return { ok: false, erro: "Evolution API não configurada (URL, KEY ou INSTANCE ausente)." }
+  }
+
+  try {
+    const res = await fetch(`${base}/instance/connect/${encodeURIComponent(instancia)}`, {
+      method: "GET",
+      headers: { apikey: apiKey },
+      cache: "no-store",
+    })
+    const corpo = await res.text().catch(() => "")
+    if (!res.ok) {
+      return { ok: false, erro: `Evolution respondeu ${res.status}: ${corpo.slice(0, 300) || res.statusText}` }
+    }
+
+    let data: {
+      base64?: string
+      code?: string
+      pairingCode?: string
+      count?: number
+      instance?: { state?: string }
+      state?: string
+    } = {}
+    try {
+      data = JSON.parse(corpo)
+    } catch {
+      return { ok: false, erro: "Resposta inesperada da Evolution API ao reconectar." }
+    }
+
+    // Alguns retornos indicam que já está conectado (sem QR).
+    const state = data.instance?.state ?? data.state
+    if (state === "open") {
+      return { ok: true, jaConectado: true }
+    }
+
+    const qr = data.base64
+    const qrBase64 = qr ? (qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`) : undefined
+
+    if (!qrBase64 && !data.pairingCode) {
+      return { ok: false, erro: "A Evolution API não retornou QR code. Tente novamente em alguns segundos." }
+    }
+
+    return { ok: true, qrBase64, pairingCode: data.pairingCode }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao reconectar."
+    return { ok: false, erro: msg }
+  }
+}
+
 // Garante o sufixo de grupo (@g.us). Aceita tanto "12036..." quanto "12036...@g.us".
 function normalizarDestino(destino: string): string {
   const limpo = destino.trim()

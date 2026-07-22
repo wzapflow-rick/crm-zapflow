@@ -1,13 +1,16 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, AlertTriangle, Loader2, MessageCircle, Send, RefreshCw } from "lucide-react"
+import { CheckCircle2, XCircle, AlertTriangle, Loader2, MessageCircle, Send, RefreshCw, QrCode } from "lucide-react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   diagnosticarWhatsAppAction,
   enviarResumoAgoraAction,
+  reconectarWhatsAppAction,
   type DiagnosticoWhatsApp,
+  type ReconexaoWhatsApp,
 } from "@/app/(crm)/configuracoes/whatsapp-actions"
 
 type StatusEnvio = { tipo: "ok" | "erro"; msg: string } | null
@@ -46,14 +49,30 @@ function LinhaStatus({
 export function WhatsAppDiagnostico() {
   const [diag, setDiag] = useState<DiagnosticoWhatsApp | null>(null)
   const [statusEnvio, setStatusEnvio] = useState<StatusEnvio>(null)
+  const [reconexao, setReconexao] = useState<ReconexaoWhatsApp | null>(null)
   const [verificando, iniciarVerificacao] = useTransition()
   const [enviando, iniciarEnvio] = useTransition()
+  const [reconectando, iniciarReconexao] = useTransition()
 
   const verificar = () => {
     setStatusEnvio(null)
+    setReconexao(null)
     iniciarVerificacao(async () => {
       const r = await diagnosticarWhatsAppAction()
       setDiag(r)
+    })
+  }
+
+  const reconectar = () => {
+    setReconexao(null)
+    iniciarReconexao(async () => {
+      const r = await reconectarWhatsAppAction()
+      setReconexao(r)
+      // Se reconectou de imediato, atualiza o diagnóstico.
+      if (r.ok && r.jaConectado) {
+        const d = await diagnosticarWhatsAppAction()
+        setDiag(d)
+      }
     })
   }
 
@@ -123,12 +142,67 @@ export function WhatsAppDiagnostico() {
               titulo={`Conexão do WhatsApp: ${CONEXAO_LABEL[estado.conexao] ?? estado.conexao}`}
               detalhe={
                 estado.conexao === "desconectado"
-                  ? "A sessão do WhatsApp caiu. Reconecte a instância (leia o QR code) na Evolution API."
+                  ? "A sessão do WhatsApp caiu. Clique em Reconectar para ler o QR code."
                   : estado.conexao === "conectado"
                     ? "Sessão ativa e pronta para enviar."
-                    : estado.erro
+                    : estado.conexao === "conectando"
+                      ? "Aguardando leitura do QR code. Clique em Reconectar para gerar um novo."
+                      : estado.erro
               }
             />
+          </div>
+        )}
+
+        {estado && estado.configurado && estado.conexao !== "conectado" && (
+          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Reconectar o WhatsApp</p>
+                <p className="text-xs text-muted-foreground">
+                  Gere o QR code e leia no celular: WhatsApp {"→"} Aparelhos conectados {"→"} Conectar aparelho.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5 bg-transparent"
+                onClick={reconectar}
+                disabled={reconectando}
+              >
+                {reconectando ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                Reconectar
+              </Button>
+            </div>
+
+            {reconexao?.jaConectado && (
+              <p className="mt-3 text-sm text-emerald-500">A instância já está conectada. Tente enviar o bom dia.</p>
+            )}
+            {reconexao?.erro && (
+              <p className="mt-3 text-sm text-destructive">{reconexao.erro}</p>
+            )}
+            {reconexao?.qrBase64 && (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <div className="rounded-lg bg-white p-2">
+                  <Image
+                    src={reconexao.qrBase64 || "/placeholder.svg"}
+                    alt="QR code para reconectar o WhatsApp"
+                    width={224}
+                    height={224}
+                    unoptimized
+                    className="h-56 w-56"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Depois de ler, clique em <span className="font-medium text-foreground">Verificar conexão</span>.
+                </p>
+              </div>
+            )}
+            {reconexao?.pairingCode && (
+              <p className="mt-3 text-center text-sm text-foreground">
+                Ou digite este código no celular:{" "}
+                <span className="font-mono font-semibold tracking-widest">{reconexao.pairingCode}</span>
+              </p>
+            )}
           </div>
         )}
 
