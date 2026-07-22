@@ -4,6 +4,9 @@ import { WhatsAppDiagnostico } from "@/components/configuracoes/whatsapp-diagnos
 import { getMembros, type Membro } from "@/lib/membros-db"
 
 export const dynamic = "force-dynamic"
+// A reconexão do WhatsApp faz connect + restart + espera + connect; dá folga
+// para a função serverless não ser encerrada no meio do processo.
+export const maxDuration = 30
 
 export default async function ConfiguracoesPage() {
   let membros: Membro[] = []

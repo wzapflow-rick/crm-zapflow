@@ -112,46 +112,91 @@ export async function reconectarInstancia(): Promise<ReconexaoWhatsApp> {
   }
 
   try {
-    const res = await fetchEvolution(`${base}/instance/connect/${encodeURIComponent(instancia)}`, {
-      method: "GET",
-      headers: { apikey: apiKey },
-    })
-    const corpo = await res.text().catch(() => "")
-    if (!res.ok) {
-      return { ok: false, erro: `Evolution respondeu ${res.status}: ${corpo.slice(0, 300) || res.statusText}` }
+    // 1ª tentativa: pede o QR direto.
+    let r = await conectarEObterQr(base, apiKey, instancia)
+    if (r.jaConectado || r.qrBase64 || r.pairingCode) {
+      return { ok: true, ...r }
     }
 
-    let data: {
-      base64?: string
-      code?: string
-      pairingCode?: string
-      count?: number
-      instance?: { state?: string }
-      state?: string
-    } = {}
-    try {
-      data = JSON.parse(corpo)
-    } catch {
-      return { ok: false, erro: "Resposta inesperada da Evolution API ao reconectar." }
+    // Instância travada em "connecting" não devolve QR. Reinicia para forçar
+    // a geração de um QR novo e tenta novamente.
+    await reiniciarInstancia(base, apiKey, instancia)
+    await esperar(2500)
+
+    r = await conectarEObterQr(base, apiKey, instancia)
+    if (r.jaConectado || r.qrBase64 || r.pairingCode) {
+      return { ok: true, ...r }
     }
 
-    // Alguns retornos indicam que já está conectado (sem QR).
-    const state = data.instance?.state ?? data.state
-    if (state === "open") {
-      return { ok: true, jaConectado: true }
+    return {
+      ok: false,
+      erro: r.erro || "A Evolution API não gerou o QR code mesmo após reiniciar a instância. Tente novamente em alguns segundos.",
     }
-
-    const qr = data.base64
-    const qrBase64 = qr ? (qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`) : undefined
-
-    if (!qrBase64 && !data.pairingCode) {
-      return { ok: false, erro: "A Evolution API não retornou QR code. Tente novamente em alguns segundos." }
-    }
-
-    return { ok: true, qrBase64, pairingCode: data.pairingCode }
   } catch (e) {
     return { ok: false, erro: mensagemErroRede(e) }
   }
+}
+
+function esperar(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Reinicia a instância (reseta o estado "connecting" travado).
+async function reiniciarInstancia(base: string, apiKey: string, instancia: string): Promise<void> {
+  try {
+    await fetchEvolution(`${base}/instance/restart/${encodeURIComponent(instancia)}`, {
+      method: "POST",
+      headers: { apikey: apiKey },
+    })
+  } catch {
+    // Se o restart falhar, seguimos para o connect mesmo assim.
+  }
+}
+
+type QrResultado = {
+  jaConectado?: boolean
+  qrBase64?: string
+  pairingCode?: string
+  erro?: string
+}
+
+// Chama /instance/connect e extrai QR / código de pareamento da resposta.
+async function conectarEObterQr(base: string, apiKey: string, instancia: string): Promise<QrResultado> {
+  const res = await fetchEvolution(`${base}/instance/connect/${encodeURIComponent(instancia)}`, {
+    method: "GET",
+    headers: { apikey: apiKey },
+  })
+  const corpo = await res.text().catch(() => "")
+  if (!res.ok) {
+    return { erro: `Evolution respondeu ${res.status}: ${corpo.slice(0, 300) || res.statusText}` }
+  }
+
+  let data: {
+    base64?: string
+    code?: string
+    pairingCode?: string
+    count?: number
+    instance?: { state?: string }
+    state?: string
+    qrcode?: { base64?: string; pairingCode?: string; code?: string }
+  } = {}
+  try {
+    data = JSON.parse(corpo)
+  } catch {
+    return { erro: "Resposta inesperada da Evolution API ao reconectar." }
+  }
+
+  const state = data.instance?.state ?? data.state
+  if (state === "open") {
+    return { jaConectado: true }
+  }
+
+  // O QR pode vir em `base64` (raiz) ou aninhado em `qrcode.base64`.
+  const qr = data.base64 ?? data.qrcode?.base64
+  const qrBase64 = qr ? (qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`) : undefined
+  const pairingCode = data.pairingCode ?? data.qrcode?.pairingCode
+
+  return { qrBase64, pairingCode }
 }
 
 // Garante o sufixo de grupo (@g.us). Aceita tanto "12036..." quanto "12036...@g.us".
