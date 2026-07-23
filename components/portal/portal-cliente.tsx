@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, type ReactNode } from "react"
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
 import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Download,
   ExternalLink,
@@ -520,9 +521,7 @@ export function PortalCliente({
                   titulo="Resumo estratégico"
                   subtitulo="O panorama da sua marca e o caminho que estamos trilhando."
                 >
-                  <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
-                    {cliente.resumoEstrategico}
-                  </p>
+                  <ResumoEstrategico texto={cliente.resumoEstrategico} />
                 </Card>
               )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -912,6 +911,41 @@ function TabTrigger({ value, icon: Icon, label }: { value: string; icon: typeof 
       <Icon className="h-3.5 w-3.5" />
       {label}
     </TabsTrigger>
+  )
+}
+
+// Resumo estratégico minimalista: mostra um trecho e expande sob demanda.
+function ResumoEstrategico({ texto }: { texto: string }) {
+  const [aberto, setAberto] = useState(false)
+
+  return (
+    <div>
+      <div className="relative">
+        <p
+          className={cn(
+            "whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90 transition-all",
+            !aberto && "line-clamp-4",
+          )}
+        >
+          {texto}
+        </p>
+        {!aberto && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent"
+          />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        aria-expanded={aberto}
+        className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+      >
+        {aberto ? "Ver menos" : "Ler texto completo"}
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", aberto && "rotate-180")} />
+      </button>
+    </div>
   )
 }
 
