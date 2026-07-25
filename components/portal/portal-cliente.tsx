@@ -512,7 +512,7 @@ export function PortalCliente({
                 </Card>
               )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Card titulo="Plano atual" subtitulo="A direç��o que estamos seguindo juntos.">
+                <Card titulo="Plano atual" subtitulo="A direção que estamos seguindo juntos.">
                   {estrategia.estrategiaAtual.length > 0 ? (
                     <ul className="space-y-2.5">
                       {estrategia.estrategiaAtual.map((item, i) => (
