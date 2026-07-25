@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, type ReactNode } from "react"
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
 import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Download,
   ExternalLink,
@@ -347,22 +348,7 @@ export function PortalCliente({
                 {conteudos.length > 0 ? (
                   <ul className="divide-y divide-border">
                     {conteudos.map((c) => (
-                      <li key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{c.titulo}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {c.formato} · {c.data}
-                          </p>
-                        </div>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                            conteudoInfo[c.status].classe,
-                          )}
-                        >
-                          {conteudoInfo[c.status].label}
-                        </span>
-                      </li>
+                      <ConteudoPortalItem key={c.id} conteudo={c} />
                     ))}
                   </ul>
                 ) : (
@@ -526,7 +512,7 @@ export function PortalCliente({
                 </Card>
               )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Card titulo="Plano atual" subtitulo="A direç��o que estamos seguindo juntos.">
+                <Card titulo="Plano atual" subtitulo="A direção que estamos seguindo juntos.">
                   {estrategia.estrategiaAtual.length > 0 ? (
                     <ul className="space-y-2.5">
                       {estrategia.estrategiaAtual.map((item, i) => (
@@ -939,4 +925,75 @@ function Card({
 
 function Vazio({ texto }: { texto: string }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{texto}</p>
+}
+
+// Item da pipeline de conteúdo no portal: o título é clicável e expande o roteiro completo,
+// permitindo que o cliente leia tudo antes de aprovar.
+function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
+  const [aberto, setAberto] = useState(false)
+  const temRoteiro = Boolean(conteudo.roteiro?.trim())
+
+  return (
+    <li className="py-3 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => temRoteiro && setAberto((v) => !v)}
+          disabled={!temRoteiro}
+          aria-expanded={temRoteiro ? aberto : undefined}
+          className={cn(
+            "group flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors",
+            temRoteiro
+              ? "cursor-pointer hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              : "cursor-default",
+          )}
+        >
+          {temRoteiro && (
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-primary",
+                aberto && "rotate-180",
+              )}
+            />
+          )}
+          <span className="min-w-0 flex-1">
+            <span
+              className={cn(
+                "block truncate text-sm font-medium text-foreground",
+                temRoteiro && "group-hover:text-primary group-hover:underline",
+              )}
+            >
+              {conteudo.titulo}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {conteudo.formato} · {conteudo.data}
+              {temRoteiro && !aberto && " · toque para ler o roteiro"}
+            </span>
+          </span>
+        </button>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+            conteudoInfo[conteudo.status].classe,
+          )}
+        >
+          {conteudoInfo[conteudo.status].label}
+        </span>
+      </div>
+
+      {temRoteiro && aberto && (
+        <div className="mt-3 animate-in fade-in-50 slide-in-from-top-1 duration-200">
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <div className="mb-2 flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold text-foreground">Roteiro</span>
+            </div>
+            <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+              {conteudo.roteiro}
+            </p>
+          </div>
+        </div>
+      )}
+    </li>
+  )
 }
