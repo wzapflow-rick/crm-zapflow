@@ -8,7 +8,6 @@ import {
   BarChart3,
   Brain,
   CalendarDays,
-  Download,
   ExternalLink,
   FileText,
   FlaskConical,
@@ -31,7 +30,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
   detalheClientePorId,
-  type Arquivo,
   type Cliente,
   type ConteudoItem,
   type Estrategia,
@@ -48,7 +46,6 @@ import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { RoteiroConteudoDialog } from "@/components/clientes/roteiro-conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
-import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
 import { ChatEquipe } from "@/components/clientes/chat-equipe"
 import { BannerUploader } from "@/components/clientes/banner-uploader"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
@@ -114,7 +111,6 @@ export function ClienteDetalhe({
   eventos,
   conteudos,
   estrategia,
-  arquivos,
   mensagens,
   resultados,
   historico,
@@ -132,7 +128,6 @@ export function ClienteDetalhe({
   eventos: EventoCliente[]
   conteudos: ConteudoItem[]
   estrategia: Estrategia
-  arquivos: Arquivo[]
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   historico: RegistroHistorico[]
@@ -264,7 +259,7 @@ export function ClienteDetalhe({
             <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
             <TabTrigger value="conteudo" icon={Video} label="Conteúdo" />
             <TabTrigger value="estrategia" icon={LineChart} label="Estratégia" />
-            <TabTrigger value="arquivos" icon={FolderOpen} label="Arquivos" />
+            <TabTrigger value="arquivos" icon={FolderOpen} label="Materiais" />
             <TabTrigger value="comunicacao" icon={MessageSquare} label="Comunicação" />
             <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
@@ -402,6 +397,8 @@ export function ClienteDetalhe({
                           roteiro={c.roteiro ?? ""}
                           legenda={c.legenda ?? ""}
                           direcionamento={c.direcionamento ?? ""}
+                          links={c.links ?? []}
+                          referencia={c.referencia ?? ""}
                           trigger={
                             <button
                               type="button"
@@ -412,7 +409,15 @@ export function ClienteDetalhe({
                             </button>
                           }
                         />
-                        <p className="mt-0.5 pl-5 text-xs text-muted-foreground">{c.formato} · {c.data}</p>
+                        <p className="mt-0.5 flex items-center gap-2 pl-5 text-xs text-muted-foreground">
+                          <span>{c.formato} · {c.data}</span>
+                          {((c.links?.length ?? 0) > 0 || c.referencia) && (
+                            <span className="inline-flex items-center gap-1 text-primary">
+                              <LinkIcon className="h-3 w-3" />
+                              {(c.links?.length ?? 0) + (c.referencia ? 1 : 0)}
+                            </span>
+                          )}
+                        </p>
                       </div>
                       {c.status === "publicado" && (
                         <PerformanceDialog
@@ -500,58 +505,15 @@ export function ClienteDetalhe({
             </div>
           </TabsContent>
 
-          {/* Arquivos */}
+          {/* Materiais — links que o cliente enviou pelo portal */}
           <TabsContent value="arquivos" className="mt-5">
-            <div className="mb-3 flex justify-end">
-              <ArquivosDialog
-                clienteId={cliente.id}
-                arquivos={arquivos}
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar arquivos
-                  </Button>
-                }
-              />
-            </div>
-            <Card titulo="Materiais e arquivos">
-              {arquivos.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {arquivos.map((a) => (
-                    <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                        <FolderOpen className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {a.tipo}
-                          {a.data && a.data !== "—" ? ` · ${a.data}` : ""}
-                        </p>
-                      </div>
-                      {a.url ? (
-                        <a
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Baixar / Abrir
-                        </a>
-                      ) : (
-                        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Vazio texto="Nenhum arquivo. Clique em Editar arquivos para adicionar um link." />
-              )}
-            </Card>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Os links de cada conteúdo (drive e referência) agora ficam dentro do próprio conteúdo, na aba
+              Conteúdo. Esta aba reúne os materiais que o cliente captou e enviou pelo portal.
+            </p>
 
             {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) */}
-            <Card titulo="Enviados pelo cliente" className="mt-4">
+            <Card titulo="Enviados pelo cliente">
               <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
                 <LinkIcon className="h-3.5 w-3.5 text-primary" />
                 Links de vídeos e fotos que o cliente enviou pelo portal.

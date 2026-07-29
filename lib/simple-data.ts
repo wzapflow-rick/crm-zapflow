@@ -71,6 +71,12 @@ export const clientePorId = (id: string) => clientes.find((c) => c.id === id)
 
 export type StatusConteudo = "ideia" | "roteiro" | "gravacao" | "edicao" | "aprovacao" | "aprovado" | "publicado"
 
+// Link do drive (vídeo bruto, editado, arte...) associado a um conteúdo.
+export type LinkConteudo = {
+  rotulo: string // ex.: "Vídeo editado", "Bruto", "Arte"
+  url: string
+}
+
 export type ConteudoItem = {
   id: string
   clienteId: string
@@ -82,6 +88,8 @@ export type ConteudoItem = {
   roteiro?: string // roteiro do conteúdo (falas, cenas, CTA, cortes...)
   legenda?: string // sugestão de legenda para a publicação
   direcionamento?: string // direcionamento interno (filmagem/videomaker + visual/design) — nunca exibido no portal
+  links?: LinkConteudo[] // links do drive do conteúdo (bruto, editado, arte...)
+  referencia?: string // link de referência do conteúdo (opcional)
 }
 
 export type EventoCliente = {

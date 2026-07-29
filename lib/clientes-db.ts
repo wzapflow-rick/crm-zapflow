@@ -6,6 +6,7 @@ import type {
   ConteudoItem,
   Estrategia,
   EventoCliente,
+  LinkConteudo,
   Mensagem,
   MetricaResultado,
   Meta,
@@ -365,6 +366,31 @@ type ConteudoRow = {
   roteiro: string | null
   legenda: string | null
   direcionamento: string | null
+  links: unknown
+  referencia: string | null
+}
+
+// Normaliza a lista de links (coluna jsonb) para o shape LinkConteudo[],
+// aceitando tanto array já parseado quanto string JSON, e descartando entradas inválidas.
+function sanitizarLinks(bruto: unknown): LinkConteudo[] {
+  let lista: unknown = bruto
+  if (typeof bruto === "string") {
+    try {
+      lista = JSON.parse(bruto)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(lista)) return []
+  return lista
+    .map((item) => {
+      const obj = (item ?? {}) as Record<string, unknown>
+      return {
+        rotulo: typeof obj.rotulo === "string" ? obj.rotulo.trim() : "",
+        url: typeof obj.url === "string" ? obj.url.trim() : "",
+      }
+    })
+    .filter((l) => l.url)
 }
 
 const FORMATOS_CONTEUDO: ConteudoItem["formato"][] = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"]
@@ -372,7 +398,7 @@ const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edic
 
 export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
   const rows = await query<ConteudoRow>(
-    `select id, titulo, formato, status, data, roteiro, legenda, direcionamento
+    `select id, titulo, formato, status, data, roteiro, legenda, direcionamento, links, referencia
      from public.conteudos
      where empresa_id = $1
      order by data desc nulls last, posicao desc, created_at desc`,
@@ -391,6 +417,8 @@ export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
     roteiro: r.roteiro ?? "",
     legenda: r.legenda ?? "",
     direcionamento: r.direcionamento ?? "",
+    links: sanitizarLinks(r.links),
+    referencia: r.referencia ?? "",
   }))
 }
 
@@ -402,6 +430,8 @@ export type ConteudoInput = {
   roteiro?: string
   legenda?: string
   direcionamento?: string
+  links?: LinkConteudo[]
+  referencia?: string
 }
 
 // Salva a lista de conteúdos do cliente regravando tudo numa transação.
@@ -418,8 +448,8 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
       const formato = FORMATOS_CONTEUDO.includes(c.formato as ConteudoItem["formato"]) ? c.formato : "Reels"
       const status = STATUS_CONTEUDO.includes(c.status as StatusConteudo) ? c.status : "ideia"
       await client.query(
-        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro, legenda, direcionamento)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro, legenda, direcionamento, links, referencia)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)`,
         [
           empresaId,
           titulo,
@@ -430,6 +460,8 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
           c.roteiro?.trim() || null,
           c.legenda?.trim() || null,
           c.direcionamento?.trim() || null,
+          JSON.stringify(sanitizarLinks(c.links)),
+          c.referencia?.trim() || null,
         ],
       )
     }
@@ -442,18 +474,33 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
   }
 }
 
-// Atualiza o roteiro, a sugestão de legenda e o direcionamento interno de um
-// conteúdo do pipeline (edição individual aberta pelo título).
+// Atualiza o roteiro, a sugestão de legenda, o direcionamento interno, os links
+// do drive e o link de referência de um conteúdo do pipeline (edição individual
+// aberta pelo título).
 export async function atualizarRoteiroConteudo(
   empresaId: string,
   conteudoId: string,
-  roteiro: string,
-  legenda: string,
-  direcionamento: string,
+  dados: {
+    roteiro: string
+    legenda: string
+    direcionamento: string
+    links: LinkConteudo[]
+    referencia: string
+  },
 ): Promise<void> {
   await query(
-    `update public.conteudos set roteiro = $1, legenda = $2, direcionamento = $3 where id = $4 and empresa_id = $5`,
-    [roteiro.trim() || null, legenda.trim() || null, direcionamento.trim() || null, conteudoId, empresaId],
+    `update public.conteudos
+       set roteiro = $1, legenda = $2, direcionamento = $3, links = $4::jsonb, referencia = $5
+     where id = $6 and empresa_id = $7`,
+    [
+      dados.roteiro.trim() || null,
+      dados.legenda.trim() || null,
+      dados.direcionamento.trim() || null,
+      JSON.stringify(sanitizarLinks(dados.links)),
+      dados.referencia.trim() || null,
+      conteudoId,
+      empresaId,
+    ],
   )
 }
 

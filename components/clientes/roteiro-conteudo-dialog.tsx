@@ -12,12 +12,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Lock } from "lucide-react"
+import { Link2, Lock, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { salvarRoteiroConteudoAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
+import type { LinkConteudo } from "@/lib/simple-data"
 
 const estadoInicial: EstadoForm = { ok: false }
 
@@ -38,6 +40,8 @@ export function RoteiroConteudoDialog({
   roteiro,
   legenda,
   direcionamento,
+  links,
+  referencia,
   trigger,
 }: {
   clienteId: string
@@ -47,23 +51,37 @@ export function RoteiroConteudoDialog({
   roteiro: string
   legenda: string
   direcionamento: string
+  links: LinkConteudo[]
+  referencia: string
   trigger: ReactNode
 }) {
   const [aberto, setAberto] = useState(false)
   const [valor, setValor] = useState(roteiro)
   const [valorLegenda, setValorLegenda] = useState(legenda)
   const [valorDirecionamento, setValorDirecionamento] = useState(direcionamento)
+  const [valorLinks, setValorLinks] = useState<LinkConteudo[]>(links)
+  const [valorReferencia, setValorReferencia] = useState(referencia)
   const [estado, formAction] = useActionState(salvarRoteiroConteudoAction, estadoInicial)
   const router = useRouter()
 
-  // Recarrega o roteiro, a legenda e o direcionamento atuais sempre que o diálogo abre.
+  // Recarrega roteiro, legenda, direcionamento, links e referência sempre que o diálogo abre.
   useEffect(() => {
     if (aberto) {
       setValor(roteiro)
       setValorLegenda(legenda)
       setValorDirecionamento(direcionamento)
+      setValorLinks(links)
+      setValorReferencia(referencia)
     }
-  }, [aberto, roteiro, legenda, direcionamento])
+  }, [aberto, roteiro, legenda, direcionamento, links, referencia])
+
+  const atualizarLink = (i: number, campo: keyof LinkConteudo, v: string) => {
+    setValorLinks((prev) => prev.map((l, idx) => (idx === i ? { ...l, [campo]: v } : l)))
+  }
+  const adicionarLink = () => setValorLinks((prev) => [...prev, { rotulo: "", url: "" }])
+  const removerLink = (i: number) => setValorLinks((prev) => prev.filter((_, idx) => idx !== i))
+
+  const linksJson = JSON.stringify(valorLinks.map((l) => ({ rotulo: l.rotulo, url: l.url })))
 
   useEffect(() => {
     if (estado.ok) {
@@ -79,13 +97,15 @@ export function RoteiroConteudoDialog({
         <DialogHeader>
           <DialogTitle className="text-pretty">{titulo}</DialogTitle>
           <DialogDescription>
-            Roteiro do conteúdo ({formato}). Detalhe falas, cenas, CTA e cortes, e sugira uma legenda para a publicação.
+            Conteúdo ({formato}): roteiro, legenda, links do drive e referência — tudo em um só lugar.
           </DialogDescription>
         </DialogHeader>
 
         <form action={formAction} className="grid gap-4">
           <input type="hidden" name="clienteId" value={clienteId} />
           <input type="hidden" name="conteudoId" value={conteudoId} />
+          <input type="hidden" name="links" value={linksJson} />
+          <input type="hidden" name="referencia" value={valorReferencia} />
 
           <div className="grid gap-1.5">
             <Label htmlFor="roteiro">Roteiro</Label>
@@ -113,6 +133,75 @@ export function RoteiroConteudoDialog({
             />
             <p className="text-xs text-muted-foreground">
               Texto sugerido para acompanhar a publicação (chamada, hashtags, CTA).
+            </p>
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label>Links do conteúdo</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                onClick={adicionarLink}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adicionar link
+              </Button>
+            </div>
+            {valorLinks.length === 0 && (
+              <p className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
+                Nenhum link. Adicione links do drive (vídeo bruto, editado, arte...).
+              </p>
+            )}
+            {valorLinks.map((l, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  aria-label="Rótulo do link"
+                  placeholder="Ex.: Vídeo editado"
+                  value={l.rotulo}
+                  onChange={(e) => atualizarLink(i, "rotulo", e.target.value)}
+                  className="w-36 shrink-0"
+                />
+                <Input
+                  type="url"
+                  inputMode="url"
+                  aria-label="URL do link"
+                  placeholder="https://drive.google.com/..."
+                  value={l.url}
+                  onChange={(e) => atualizarLink(i, "url", e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => removerLink(i)}
+                  aria-label="Remover link"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="referencia" className="flex items-center gap-1.5">
+              <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+              Link de referência
+            </Label>
+            <Input
+              id="referencia"
+              type="url"
+              inputMode="url"
+              value={valorReferencia}
+              onChange={(e) => setValorReferencia(e.target.value)}
+              placeholder="https://... (opcional)"
+            />
+            <p className="text-xs text-muted-foreground">
+              Vídeo ou post que serve de referência para este conteúdo.
             </p>
           </div>
 

@@ -966,7 +966,10 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
   const [aberto, setAberto] = useState(false)
   const temRoteiro = Boolean(conteudo.roteiro?.trim())
   const temLegenda = Boolean(conteudo.legenda?.trim())
-  const expansivel = temRoteiro || temLegenda
+  const linksValidos = (conteudo.links ?? []).filter((l) => l.url?.trim())
+  const temLinks = linksValidos.length > 0
+  const temReferencia = Boolean(conteudo.referencia?.trim())
+  const expansivel = temRoteiro || temLegenda || temLinks || temReferencia
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">

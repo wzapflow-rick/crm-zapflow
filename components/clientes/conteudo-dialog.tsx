@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { salvarConteudosAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
-import type { ConteudoItem, StatusConteudo } from "@/lib/simple-data"
+import type { ConteudoItem, LinkConteudo, StatusConteudo } from "@/lib/simple-data"
 
 const estadoInicial: EstadoForm = { ok: false }
 
@@ -42,6 +42,9 @@ type ConteudoEditavel = {
   roteiro: string
   legenda: string
   direcionamento: string
+  // Carregados apenas para preservar ao salvar a lista (editados no diálogo do título).
+  links: LinkConteudo[]
+  referencia: string
 }
 
 function mapearLinhas(conteudos: ConteudoItem[]): ConteudoEditavel[] {
@@ -53,6 +56,8 @@ function mapearLinhas(conteudos: ConteudoItem[]): ConteudoEditavel[] {
     roteiro: c.roteiro ?? "",
     legenda: c.legenda ?? "",
     direcionamento: c.direcionamento ?? "",
+    links: c.links ?? [],
+    referencia: c.referencia ?? "",
   }))
 }
 
@@ -99,7 +104,17 @@ export function ConteudoDialog({
   const adicionarLinha = () => {
     setLinhas((prev) => [
       ...prev,
-      { titulo: "", formato: "Reels", status: "ideia", data: "", roteiro: "", legenda: "", direcionamento: "" },
+      {
+        titulo: "",
+        formato: "Reels",
+        status: "ideia",
+        data: "",
+        roteiro: "",
+        legenda: "",
+        direcionamento: "",
+        links: [],
+        referencia: "",
+      },
     ])
   }
 
@@ -116,6 +131,8 @@ export function ConteudoDialog({
       roteiro: l.roteiro,
       legenda: l.legenda,
       direcionamento: l.direcionamento,
+      links: l.links,
+      referencia: l.referencia,
     })),
   )
 

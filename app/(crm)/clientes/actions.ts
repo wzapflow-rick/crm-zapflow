@@ -255,6 +255,8 @@ export async function salvarConteudosAction(
             roteiro: item.roteiro ? String(item.roteiro) : undefined,
             legenda: item.legenda ? String(item.legenda) : undefined,
             direcionamento: item.direcionamento ? String(item.direcionamento) : undefined,
+            links: Array.isArray(item.links) ? (item.links as ConteudoInput["links"]) : undefined,
+            referencia: item.referencia ? String(item.referencia) : undefined,
           }
         })
         .filter((c) => c.titulo.trim())
@@ -287,9 +289,23 @@ export async function salvarRoteiroConteudoAction(
   const roteiro = String(formData.get("roteiro") ?? "")
   const legenda = String(formData.get("legenda") ?? "")
   const direcionamento = String(formData.get("direcionamento") ?? "")
+  const referencia = String(formData.get("referencia") ?? "")
+
+  let links: NonNullable<ConteudoInput["links"]> = []
+  try {
+    const parsed = JSON.parse(String(formData.get("links") ?? "[]")) as unknown
+    if (Array.isArray(parsed)) {
+      links = parsed.map((l) => {
+        const item = (l ?? {}) as Record<string, unknown>
+        return { rotulo: String(item.rotulo ?? ""), url: String(item.url ?? "") }
+      })
+    }
+  } catch {
+    links = []
+  }
 
   try {
-    await atualizarRoteiroConteudo(clienteId, conteudoId, roteiro, legenda, direcionamento)
+    await atualizarRoteiroConteudo(clienteId, conteudoId, { roteiro, legenda, direcionamento, links, referencia })
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar o roteiro: ${msg}` }
