@@ -366,7 +366,7 @@ type ConteudoRow = {
 }
 
 const FORMATOS_CONTEUDO: ConteudoItem["formato"][] = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"]
-const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edicao", "aprovacao", "publicado"]
+const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edicao", "aprovacao", "aprovado", "publicado"]
 
 export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
   const rows = await query<ConteudoRow>(

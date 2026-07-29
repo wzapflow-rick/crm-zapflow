@@ -67,6 +67,7 @@ const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = 
   gravacao: { label: "Gravação", classe: "bg-chart-2/15 text-chart-2" },
   edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
   aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
+  aprovado: { label: "Aprovado", classe: "bg-success/15 text-success" },
   publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
 }
 
@@ -936,7 +937,7 @@ function textoComLinks(texto: string): ReactNode[] {
   return partes.map((parte, indice) => {
     if (/^https?:\/\//.test(parte)) {
       // Remove pontuação final comum que costuma "grudar" no fim de uma URL.
-      const match = parte.match(/^(.*?)([.,;:!?)\]]*)$/s)
+      const match = parte.match(/^(.*?)([.,;:!?)\]]*)$/)
       const url = match ? match[1] : parte
       const sufixo = match ? match[2] : ""
       return (

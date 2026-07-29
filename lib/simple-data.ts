@@ -69,7 +69,7 @@ export const clientePorId = (id: string) => clientes.find((c) => c.id === id)
 
 // ── Detalhe do cliente (submódulos) ──────────────────────────────────────────
 
-export type StatusConteudo = "ideia" | "roteiro" | "gravacao" | "edicao" | "aprovacao" | "publicado"
+export type StatusConteudo = "ideia" | "roteiro" | "gravacao" | "edicao" | "aprovacao" | "aprovado" | "publicado"
 
 export type ConteudoItem = {
   id: string

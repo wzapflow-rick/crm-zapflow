@@ -24,6 +24,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-success: var(--success);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -76,6 +77,7 @@
   --chart-3: oklch(0.62 0.16 280);
   --chart-4: oklch(0.72 0.14 340);
   --chart-5: oklch(0.45 0.2 300);
+  --success: oklch(0.6 0.14 150);
   --radius: 0.7rem;
   --sidebar: oklch(0.17 0.015 300);
   --sidebar-foreground: oklch(0.9 0.008 300);
@@ -113,6 +115,7 @@
   --chart-3: oklch(0.68 0.16 280);
   --chart-4: oklch(0.78 0.14 340);
   --chart-5: oklch(0.56 0.22 300);
+  --success: oklch(0.72 0.15 152);
   --sidebar: oklch(0.13 0.015 300);
   --sidebar-foreground: oklch(0.9 0.01 300);
   --sidebar-primary: oklch(0.66 0.26 305);

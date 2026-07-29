@@ -30,6 +30,7 @@ const STATUS: { valor: StatusConteudo; label: string }[] = [
   { valor: "gravacao", label: "Gravação" },
   { valor: "edicao", label: "Edição" },
   { valor: "aprovacao", label: "Aprovação" },
+  { valor: "aprovado", label: "Aprovado" },
   { valor: "publicado", label: "Publicado" },
 ]
 
