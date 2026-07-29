@@ -927,6 +927,37 @@ function Vazio({ texto }: { texto: string }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{texto}</p>
 }
 
+// Transforma URLs presentes em um texto livre (como o roteiro) em links clicáveis,
+// mantendo o restante do conteúdo — incluindo quebras de linha — intacto.
+function textoComLinks(texto: string): ReactNode[] {
+  const regexUrl = /(https?:\/\/[^\s]+)/g
+  const partes = texto.split(regexUrl)
+
+  return partes.map((parte, indice) => {
+    if (/^https?:\/\//.test(parte)) {
+      // Remove pontuação final comum que costuma "grudar" no fim de uma URL.
+      const match = parte.match(/^(.*?)([.,;:!?)\]]*)$/s)
+      const url = match ? match[1] : parte
+      const sufixo = match ? match[2] : ""
+      return (
+        <span key={indice}>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 break-all font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+          >
+            {url}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+          {sufixo}
+        </span>
+      )
+    }
+    return <span key={indice}>{parte}</span>
+  })
+}
+
 // Item da pipeline de conteúdo no portal: o título é clicável e expande o roteiro completo,
 // permitindo que o cliente leia tudo antes de aprovar.
 function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
@@ -989,7 +1020,7 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
               <span className="text-xs font-semibold text-foreground">Roteiro</span>
             </div>
             <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
-              {conteudo.roteiro}
+              {textoComLinks(conteudo.roteiro ?? "")}
             </p>
           </div>
         </div>
