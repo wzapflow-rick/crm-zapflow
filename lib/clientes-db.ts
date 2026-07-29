@@ -373,7 +373,7 @@ export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
     `select id, titulo, formato, status, data, roteiro
      from public.conteudos
      where empresa_id = $1
-     order by data asc nulls last, posicao asc, created_at asc`,
+     order by data desc nulls last, posicao desc, created_at desc`,
     [empresaId],
   )
   return rows.map((r) => ({
