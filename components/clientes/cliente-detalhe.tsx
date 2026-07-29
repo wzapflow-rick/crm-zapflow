@@ -401,6 +401,7 @@ export function ClienteDetalhe({
                           formato={c.formato}
                           roteiro={c.roteiro ?? ""}
                           legenda={c.legenda ?? ""}
+                          direcionamento={c.direcionamento ?? ""}
                           trigger={
                             <button
                               type="button"

@@ -254,6 +254,7 @@ export async function salvarConteudosAction(
             data: item.data ? String(item.data) : undefined,
             roteiro: item.roteiro ? String(item.roteiro) : undefined,
             legenda: item.legenda ? String(item.legenda) : undefined,
+            direcionamento: item.direcionamento ? String(item.direcionamento) : undefined,
           }
         })
         .filter((c) => c.titulo.trim())
@@ -285,9 +286,10 @@ export async function salvarRoteiroConteudoAction(
   }
   const roteiro = String(formData.get("roteiro") ?? "")
   const legenda = String(formData.get("legenda") ?? "")
+  const direcionamento = String(formData.get("direcionamento") ?? "")
 
   try {
-    await atualizarRoteiroConteudo(clienteId, conteudoId, roteiro, legenda)
+    await atualizarRoteiroConteudo(clienteId, conteudoId, roteiro, legenda, direcionamento)
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar o roteiro: ${msg}` }

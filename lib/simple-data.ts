@@ -81,6 +81,7 @@ export type ConteudoItem = {
   dataISO?: string // YYYY-MM-DD (para edição)
   roteiro?: string // roteiro do conteúdo (falas, cenas, CTA, cortes...)
   legenda?: string // sugestão de legenda para a publicação
+  direcionamento?: string // direcionamento interno (filmagem/videomaker + visual/design) — nunca exibido no portal
 }
 
 export type EventoCliente = {

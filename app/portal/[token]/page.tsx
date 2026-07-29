@@ -53,6 +53,10 @@ export default async function PortalPage({
     envios = []
   }
 
+  // Segurança: o direcionamento é interno da equipe e nunca deve ser
+  // enviado ao portal do cliente. Removemos o campo antes de renderizar.
+  const conteudosPortal = conteudos.map(({ direcionamento: _direcionamento, ...resto }) => resto)
+
   return (
     <PortalCliente
       token={token}
@@ -60,7 +64,7 @@ export default async function PortalPage({
       membros={membros}
       metas={metas}
       eventos={eventos}
-      conteudos={conteudos}
+      conteudos={conteudosPortal}
       estrategia={estrategia}
       arquivos={arquivos}
       mensagens={mensagens}

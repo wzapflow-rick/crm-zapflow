@@ -41,6 +41,7 @@ type ConteudoEditavel = {
   data: string
   roteiro: string
   legenda: string
+  direcionamento: string
 }
 
 function mapearLinhas(conteudos: ConteudoItem[]): ConteudoEditavel[] {
@@ -51,6 +52,7 @@ function mapearLinhas(conteudos: ConteudoItem[]): ConteudoEditavel[] {
     data: c.dataISO ?? "",
     roteiro: c.roteiro ?? "",
     legenda: c.legenda ?? "",
+    direcionamento: c.direcionamento ?? "",
   }))
 }
 
@@ -95,7 +97,10 @@ export function ConteudoDialog({
   }
 
   const adicionarLinha = () => {
-    setLinhas((prev) => [...prev, { titulo: "", formato: "Reels", status: "ideia", data: "", roteiro: "", legenda: "" }])
+    setLinhas((prev) => [
+      ...prev,
+      { titulo: "", formato: "Reels", status: "ideia", data: "", roteiro: "", legenda: "", direcionamento: "" },
+    ])
   }
 
   const removerLinha = (i: number) => {
@@ -110,6 +115,7 @@ export function ConteudoDialog({
       data: l.data,
       roteiro: l.roteiro,
       legenda: l.legenda,
+      direcionamento: l.direcionamento,
     })),
   )
 
