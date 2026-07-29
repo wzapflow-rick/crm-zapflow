@@ -8,6 +8,7 @@ import {
   getEventos,
   getConteudos,
   getEstrategia,
+  getArquivos,
   getMensagens,
   getResultados,
 } from "@/lib/clientes-db"
@@ -20,6 +21,7 @@ import { getExperimentos, type Experimento } from "@/lib/experimentos-db"
 import { getPadroes, getUltimaAnalise, type Padrao } from "@/lib/padroes-db"
 import { getEnvios, type EnvioCliente } from "@/lib/envios-db"
 import type {
+  Arquivo,
   Cliente,
   ConteudoItem,
   Estrategia,
@@ -47,6 +49,7 @@ export default async function ClientePage({
     eventos,
     conteudos,
     estrategia,
+    arquivos,
     mensagens,
     resultados,
     historico,
@@ -64,6 +67,7 @@ export default async function ClientePage({
     seguro<EventoCliente[]>(getEventos(id), []),
     seguro<ConteudoItem[]>(getConteudos(id), []),
     seguro<Estrategia>(getEstrategia(id), { estrategiaAtual: [], insights: [], concorrentes: [] }),
+    seguro<Arquivo[]>(getArquivos(id), []),
     seguro<Mensagem[]>(getMensagens(id), []),
     seguro<MetricaResultado[]>(getResultados(id), []),
     seguro<RegistroHistorico[]>(getHistorico(id), []),
@@ -90,6 +94,7 @@ export default async function ClientePage({
         eventos={eventos}
         conteudos={conteudos}
         estrategia={estrategia}
+        arquivos={arquivos}
         mensagens={mensagens}
         resultados={resultados}
         historico={historico}

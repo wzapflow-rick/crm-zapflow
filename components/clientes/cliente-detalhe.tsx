@@ -8,6 +8,7 @@ import {
   BarChart3,
   Brain,
   CalendarDays,
+  Download,
   ExternalLink,
   FileText,
   FlaskConical,
@@ -30,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
   detalheClientePorId,
+  type Arquivo,
   type Cliente,
   type ConteudoItem,
   type Estrategia,
@@ -46,6 +48,7 @@ import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
 import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
 import { RoteiroConteudoDialog } from "@/components/clientes/roteiro-conteudo-dialog"
 import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
+import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
 import { ChatEquipe } from "@/components/clientes/chat-equipe"
 import { BannerUploader } from "@/components/clientes/banner-uploader"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
@@ -111,6 +114,7 @@ export function ClienteDetalhe({
   eventos,
   conteudos,
   estrategia,
+  arquivos,
   mensagens,
   resultados,
   historico,
@@ -128,6 +132,7 @@ export function ClienteDetalhe({
   eventos: EventoCliente[]
   conteudos: ConteudoItem[]
   estrategia: Estrategia
+  arquivos: Arquivo[]
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   historico: RegistroHistorico[]
@@ -505,15 +510,68 @@ export function ClienteDetalhe({
             </div>
           </TabsContent>
 
-          {/* Materiais — links que o cliente enviou pelo portal */}
+          {/* Materiais — materiais gerais da equipe + envios do cliente pelo portal */}
           <TabsContent value="arquivos" className="mt-5">
             <p className="mb-3 text-sm text-muted-foreground">
               Os links de cada conteúdo (drive e referência) agora ficam dentro do próprio conteúdo, na aba
-              Conteúdo. Esta aba reúne os materiais que o cliente captou e enviou pelo portal.
+              Conteúdo. Aqui ficam os materiais gerais da equipe e o que o cliente captou e enviou pelo portal.
             </p>
 
+            {/* Materiais gerais da equipe (branding, drive, contratos...) — visíveis também no portal */}
+            <div className="mb-3 flex justify-end">
+              <ArquivosDialog
+                clienteId={cliente.id}
+                arquivos={arquivos}
+                trigger={
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar materiais
+                  </Button>
+                }
+              />
+            </div>
+            <Card titulo="Materiais da equipe">
+              <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                <FolderOpen className="h-3.5 w-3.5 text-primary" />
+                Materiais gerais que a equipe preparou (branding, drive, contratos...). Também aparecem no portal.
+              </p>
+              {arquivos.length > 0 ? (
+                <ul className="divide-y divide-border">
+                  {arquivos.map((a) => (
+                    <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                        <FolderOpen className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {a.tipo}
+                          {a.data && a.data !== "—" ? ` · ${a.data}` : ""}
+                        </p>
+                      </div>
+                      {a.url ? (
+                        <a
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          Baixar / Abrir
+                        </a>
+                      ) : (
+                        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Vazio texto="Nenhum material. Clique em Editar materiais para adicionar um link." />
+              )}
+            </Card>
+
             {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) */}
-            <Card titulo="Enviados pelo cliente">
+            <Card titulo="Enviados pelo cliente" className="mt-4">
               <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
                 <LinkIcon className="h-3.5 w-3.5 text-primary" />
                 Links de vídeos e fotos que o cliente enviou pelo portal.

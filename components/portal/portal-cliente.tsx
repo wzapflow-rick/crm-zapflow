@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Download,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -32,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import type {
+  Arquivo,
   Cliente,
   ConteudoItem,
   Estrategia,
@@ -137,6 +139,7 @@ export function PortalCliente({
   eventos,
   conteudos,
   estrategia,
+  arquivos,
   mensagens,
   resultados,
   envios,
@@ -148,6 +151,7 @@ export function PortalCliente({
   eventos: EventoCliente[]
   conteudos: ConteudoItem[]
   estrategia: Estrategia
+  arquivos: Arquivo[]
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   envios: EnvioCliente[]
@@ -460,6 +464,39 @@ export function PortalCliente({
                       </li>
                     ))}
                   </ul>
+                )}
+              </Card>
+
+              <Card titulo="Materiais e arquivos" subtitulo="Tudo o que a SIMPLE preparou para você.">
+                {arquivos.length > 0 ? (
+                  <ul className="divide-y divide-border">
+                    {arquivos.map((a) => (
+                      <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                          <FolderOpen className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
+                          <p className="text-xs text-muted-foreground">{a.tipo}</p>
+                        </div>
+                        {a.url ? (
+                          <a
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Baixar / Abrir
+                          </a>
+                        ) : (
+                          <span className="shrink-0 text-xs text-muted-foreground">Em breve</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Vazio texto="Nenhum material disponível ainda." />
                 )}
               </Card>
             </TabsContent>

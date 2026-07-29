@@ -7,6 +7,7 @@ import {
   getEventos,
   getConteudos,
   getEstrategia,
+  getArquivos,
   getMensagens,
   getResultados,
 } from "@/lib/clientes-db"
@@ -33,12 +34,13 @@ export default async function PortalPage({
     notFound()
   }
 
-  const [metas, eventos, conteudos, estrategia, mensagens, resultados, membros] =
+  const [metas, eventos, conteudos, estrategia, arquivos, mensagens, resultados, membros] =
     await Promise.all([
       getMetas(cliente.id).catch(() => []),
       getEventos(cliente.id).catch(() => []),
       getConteudos(cliente.id).catch(() => []),
       getEstrategia(cliente.id).catch(() => ({ estrategiaAtual: [], insights: [], concorrentes: [] })),
+      getArquivos(cliente.id).catch(() => []),
       getMensagens(cliente.id).catch(() => []),
       getResultados(cliente.id).catch(() => []),
       getMembros().catch(() => []),
@@ -64,6 +66,7 @@ export default async function PortalPage({
       eventos={eventos}
       conteudos={conteudosPortal}
       estrategia={estrategia}
+      arquivos={arquivos}
       mensagens={mensagens}
       resultados={resultados}
       envios={envios}
