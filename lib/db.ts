@@ -11,13 +11,39 @@ function makePool() {
   // O Postgres self-hosted da SIMPLE não usa TLS por padrão.
   // Se a string de conexão pedir SSL, habilitamos sem validar o certificado.
   const querSsl = /sslmode=require|ssl=true/i.test(connectionString)
+
+  // ── Por que estes números são baixos ───────────────────────────────────────
+  // Em serverless (Vercel), CADA instância da função tem o seu próprio pool.
+  // Com dezenas de instâncias simultâneas, um `max` alto multiplica e estoura
+  // o `max_connections` do Postgres (o erro "too many clients already").
+  // Por isso mantemos poucas conexões por instância e fechamos as ociosas rápido.
+  // Ajustável por env sem novo deploy, mas o padrão já é seguro.
+  const max = Number(process.env.PG_POOL_MAX) || 3
+
   const pool = new Pool({
     connectionString,
     ssl: querSsl ? { rejectUnauthorized: false } : false,
-    // 10 conexões: as páginas agora disparam muitas queries em paralelo (Promise.all).
-    max: 10,
-    idleTimeoutMillis: 30_000,
+    // Poucas conexões por instância; ainda cobre as queries em paralelo (Promise.all)
+    // porque cada página reutiliza e devolve rápido as conexões.
+    max,
+    // Fecha conexões ociosas em 10s — evita que instâncias "mornas" da Vercel
+    // fiquem segurando conexões idle (o que enchia o banco).
+    idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
+    // Recicla cada conexão após ~5min de vida. Impede que conexões presas em
+    // instâncias congeladas fiquem eternamente abertas do lado do Postgres.
+    maxLifetimeSeconds: 300,
+    // Permite que o pool não segure o event loop, ajudando a Vercel a encerrar
+    // instâncias ociosas (e, com elas, as conexões).
+    allowExitOnIdle: true,
+    // Detecta conexões mortas (derrubadas pela VPS/firewall) mais cedo.
+    keepAlive: true,
+    // Redes de segurança do lado do servidor: nenhuma query ou transação pode
+    // segurar uma conexão indefinidamente. Combate o acúmulo de "idle" e
+    // "idle in transaction" que travava o banco.
+    statement_timeout: 20_000,
+    query_timeout: 20_000,
+    idle_in_transaction_session_timeout: 10_000,
   })
   // Sem este handler, uma conexão ociosa derrubada pela VPS vira exceção
   // não tratada e mata o processo serverless inteiro.
