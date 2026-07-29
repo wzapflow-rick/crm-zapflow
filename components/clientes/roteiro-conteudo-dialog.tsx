@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { salvarRoteiroConteudoAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
 
@@ -34,6 +35,7 @@ export function RoteiroConteudoDialog({
   titulo,
   formato,
   roteiro,
+  legenda,
   trigger,
 }: {
   clienteId: string
@@ -41,17 +43,22 @@ export function RoteiroConteudoDialog({
   titulo: string
   formato: string
   roteiro: string
+  legenda: string
   trigger: ReactNode
 }) {
   const [aberto, setAberto] = useState(false)
   const [valor, setValor] = useState(roteiro)
+  const [valorLegenda, setValorLegenda] = useState(legenda)
   const [estado, formAction] = useActionState(salvarRoteiroConteudoAction, estadoInicial)
   const router = useRouter()
 
-  // Recarrega o roteiro atual sempre que o diálogo abre.
+  // Recarrega o roteiro e a legenda atuais sempre que o diálogo abre.
   useEffect(() => {
-    if (aberto) setValor(roteiro)
-  }, [aberto, roteiro])
+    if (aberto) {
+      setValor(roteiro)
+      setValorLegenda(legenda)
+    }
+  }, [aberto, roteiro, legenda])
 
   useEffect(() => {
     if (estado.ok) {
@@ -67,7 +74,7 @@ export function RoteiroConteudoDialog({
         <DialogHeader>
           <DialogTitle className="text-pretty">{titulo}</DialogTitle>
           <DialogDescription>
-            Roteiro do conteúdo ({formato}). Detalhe falas, cenas, CTA, legenda e sequência de cortes.
+            Roteiro do conteúdo ({formato}). Detalhe falas, cenas, CTA e cortes, e sugira uma legenda para a publicação.
           </DialogDescription>
         </DialogHeader>
 
@@ -75,14 +82,34 @@ export function RoteiroConteudoDialog({
           <input type="hidden" name="clienteId" value={clienteId} />
           <input type="hidden" name="conteudoId" value={conteudoId} />
 
-          <Textarea
-            name="roteiro"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            rows={12}
-            placeholder="Escreva o roteiro do conteúdo aqui..."
-            className="field-sizing-fixed resize-y"
-          />
+          <div className="grid gap-1.5">
+            <Label htmlFor="roteiro">Roteiro</Label>
+            <Textarea
+              id="roteiro"
+              name="roteiro"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              rows={10}
+              placeholder="Escreva o roteiro do conteúdo aqui..."
+              className="field-sizing-fixed resize-y"
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="legenda">Sugestão de legenda</Label>
+            <Textarea
+              id="legenda"
+              name="legenda"
+              value={valorLegenda}
+              onChange={(e) => setValorLegenda(e.target.value)}
+              rows={5}
+              placeholder="Escreva a sugestão de legenda para a publicação..."
+              className="field-sizing-fixed resize-y"
+            />
+            <p className="text-xs text-muted-foreground">
+              Texto sugerido para acompanhar a publicação (chamada, hashtags, CTA).
+            </p>
+          </div>
 
           {estado.erro && (
             <p className={cn("rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive")}>{estado.erro}</p>

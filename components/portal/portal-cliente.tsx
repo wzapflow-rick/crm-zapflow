@@ -19,6 +19,7 @@ import {
   LineChart,
   LinkIcon,
   MessageSquare,
+  Quote,
   Send,
   Sparkles,
   Target,
@@ -964,23 +965,25 @@ function textoComLinks(texto: string): ReactNode[] {
 function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
   const [aberto, setAberto] = useState(false)
   const temRoteiro = Boolean(conteudo.roteiro?.trim())
+  const temLegenda = Boolean(conteudo.legenda?.trim())
+  const expansivel = temRoteiro || temLegenda
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => temRoteiro && setAberto((v) => !v)}
-          disabled={!temRoteiro}
-          aria-expanded={temRoteiro ? aberto : undefined}
+          onClick={() => expansivel && setAberto((v) => !v)}
+          disabled={!expansivel}
+          aria-expanded={expansivel ? aberto : undefined}
           className={cn(
             "group flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors",
-            temRoteiro
+            expansivel
               ? "cursor-pointer hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               : "cursor-default",
           )}
         >
-          {temRoteiro && (
+          {expansivel && (
             <ChevronDown
               className={cn(
                 "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-primary",
@@ -992,14 +995,14 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
             <span
               className={cn(
                 "block truncate text-sm font-medium text-foreground",
-                temRoteiro && "group-hover:text-primary group-hover:underline",
+                expansivel && "group-hover:text-primary group-hover:underline",
               )}
             >
               {conteudo.titulo}
             </span>
             <span className="block text-xs text-muted-foreground">
               {conteudo.formato} · {conteudo.data}
-              {temRoteiro && !aberto && " · toque para ler o roteiro"}
+              {expansivel && !aberto && (temRoteiro ? " · toque para ler o roteiro" : " · toque para ver a legenda")}
             </span>
           </span>
         </button>
@@ -1013,17 +1016,30 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
         </span>
       </div>
 
-      {temRoteiro && aberto && (
-        <div className="mt-3 animate-in fade-in-50 slide-in-from-top-1 duration-200">
-          <div className="rounded-xl border border-border bg-muted/40 p-4">
-            <div className="mb-2 flex items-center gap-1.5">
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              <span className="text-xs font-semibold text-foreground">Roteiro</span>
+      {expansivel && aberto && (
+        <div className="mt-3 grid gap-3 animate-in fade-in-50 slide-in-from-top-1 duration-200">
+          {temRoteiro && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Roteiro</span>
+              </div>
+              <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                {textoComLinks(conteudo.roteiro ?? "")}
+              </p>
             </div>
-            <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
-              {textoComLinks(conteudo.roteiro ?? "")}
-            </p>
-          </div>
+          )}
+          {temLegenda && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <Quote className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Sugestão de legenda</span>
+              </div>
+              <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                {textoComLinks(conteudo.legenda ?? "")}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </li>
