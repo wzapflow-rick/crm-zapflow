@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
-  Download,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -33,7 +32,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import type {
-  Arquivo,
   Cliente,
   ConteudoItem,
   Estrategia,
@@ -139,7 +137,6 @@ export function PortalCliente({
   eventos,
   conteudos,
   estrategia,
-  arquivos,
   mensagens,
   resultados,
   envios,
@@ -151,7 +148,6 @@ export function PortalCliente({
   eventos: EventoCliente[]
   conteudos: ConteudoItem[]
   estrategia: Estrategia
-  arquivos: Arquivo[]
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   envios: EnvioCliente[]
@@ -436,7 +432,10 @@ export function PortalCliente({
               value="materiais"
               className="mt-6 space-y-4 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
-              <Card titulo="Enviar vídeos e fotos" subtitulo="Cole o link do seu material — sem limite de tamanho.">
+              <Card
+                titulo="Enviar vídeos e fotos"
+                subtitulo="Cole aqui os links dos materiais que você captou — sem limite de tamanho."
+              >
                 <FormEnvio token={token} />
                 {envios.length > 0 && (
                   <ul className="mt-6 divide-y divide-border">
@@ -461,39 +460,6 @@ export function PortalCliente({
                       </li>
                     ))}
                   </ul>
-                )}
-              </Card>
-
-              <Card titulo="Materiais e arquivos" subtitulo="Tudo o que a SIMPLE preparou para você.">
-                {arquivos.length > 0 ? (
-                  <ul className="divide-y divide-border">
-                    {arquivos.map((a) => (
-                      <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                          <FolderOpen className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                          <p className="text-xs text-muted-foreground">{a.tipo}</p>
-                        </div>
-                        {a.url ? (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Baixar / Abrir
-                          </a>
-                        ) : (
-                          <span className="shrink-0 text-xs text-muted-foreground">Em breve</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <Vazio texto="Nenhum material disponível ainda." />
                 )}
               </Card>
             </TabsContent>
@@ -1005,7 +971,7 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
             </span>
             <span className="block text-xs text-muted-foreground">
               {conteudo.formato} · {conteudo.data}
-              {expansivel && !aberto && (temRoteiro ? " · toque para ler o roteiro" : " · toque para ver a legenda")}
+              {expansivel && !aberto && (temRoteiro ? " · toque para ver os detalhes" : " · toque para ver mais")}
             </span>
           </span>
         </button>
@@ -1041,6 +1007,46 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
               <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
                 {textoComLinks(conteudo.legenda ?? "")}
               </p>
+            </div>
+          )}
+          {temLinks && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Links do conteúdo</span>
+              </div>
+              <ul className="grid gap-1.5">
+                {linksValidos.map((l, i) => (
+                  <li key={i}>
+                    <a
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 break-all text-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      {l.rotulo?.trim() || l.url}
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {temReferencia && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Referência</span>
+              </div>
+              <a
+                href={conteudo.referencia}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 break-all text-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                {conteudo.referencia}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
             </div>
           )}
         </div>
