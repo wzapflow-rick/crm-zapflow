@@ -199,16 +199,30 @@ async function conectarEObterQr(base: string, apiKey: string, instancia: string)
   return { qrBase64, pairingCode }
 }
 
-// Garante o sufixo de grupo (@g.us). Aceita tanto "12036..." quanto "12036...@g.us".
-function normalizarDestino(destino: string): string {
+// Tipo de destino: grupo (@g.us) ou contato individual/privado (@s.whatsapp.net).
+export type TipoDestino = "grupo" | "contato"
+
+// Monta o JID correto conforme o tipo de destino.
+// - Grupo:   "12036...@g.us"
+// - Contato: "5511999999999@s.whatsapp.net" (número no formato internacional, só dígitos)
+// Se o destino já vier com "@", é usado como está.
+function normalizarDestino(destino: string, tipo: TipoDestino): string {
   const limpo = destino.trim()
   if (!limpo) return ""
   if (limpo.includes("@")) return limpo
-  // Só dígitos e tem cara de id de grupo (longo) -> trata como grupo.
+  if (tipo === "contato") {
+    // Remove qualquer caractere que não seja dígito (espaços, +, (), -).
+    const digitos = limpo.replace(/\D/g, "")
+    return digitos ? `${digitos}@s.whatsapp.net` : ""
+  }
   return `${limpo}@g.us`
 }
 
-export async function enviarTextoWhatsApp(destino: string, texto: string): Promise<EnvioResultado> {
+export async function enviarTextoWhatsApp(
+  destino: string,
+  texto: string,
+  tipo: TipoDestino = "grupo",
+): Promise<EnvioResultado> {
   const base = process.env.EVOLUTION_API_URL?.replace(/\/+$/, "")
   const apiKey = process.env.EVOLUTION_API_KEY
   const instancia = process.env.EVOLUTION_INSTANCE
@@ -216,9 +230,9 @@ export async function enviarTextoWhatsApp(destino: string, texto: string): Promi
   if (!base || !apiKey || !instancia) {
     return { ok: false, status: 0, erro: "Evolution API não configurada (URL, KEY ou INSTANCE ausente)." }
   }
-  const number = normalizarDestino(destino)
+  const number = normalizarDestino(destino, tipo)
   if (!number) {
-    return { ok: false, status: 0, erro: "Destino (grupo) não informado." }
+    return { ok: false, status: 0, erro: "Destino não informado." }
   }
 
   try {
