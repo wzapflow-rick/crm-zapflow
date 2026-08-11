@@ -14,7 +14,7 @@ import {
   FileText,
   FlaskConical,
   FolderOpen,
-  Instagram,
+  Camera as Instagram,
   LineChart,
   LinkIcon,
   MessageSquare,

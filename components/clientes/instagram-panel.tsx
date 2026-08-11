@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import {
-  Instagram,
+  Camera as Instagram,
   Loader2,
   RefreshCw,
   Unplug,
