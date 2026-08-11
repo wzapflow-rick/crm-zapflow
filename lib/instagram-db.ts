@@ -211,6 +211,23 @@ export async function desconectarInstagram(empresaId: string): Promise<void> {
   await pool.query(`delete from public.instagram_conexao where empresa_id = $1`, [empresaId])
 }
 
+// Remove todas as conexões e mídias associadas a um usuário do Instagram
+// (ig_user_id). Usado pelos callbacks de desautorização e exclusão de dados
+// exigidos pela Meta. Retorna os empresaIds afetados.
+export async function excluirDadosPorIgUserId(igUserId: string): Promise<string[]> {
+  const pool = getPool()
+  const { rows } = await pool.query<{ empresa_id: string }>(
+    `select empresa_id from public.instagram_conexao where ig_user_id = $1`,
+    [igUserId],
+  )
+  const empresaIds = rows.map((r) => r.empresa_id)
+  for (const empresaId of empresaIds) {
+    await pool.query(`delete from public.instagram_midia where empresa_id = $1`, [empresaId])
+    await pool.query(`delete from public.instagram_conexao where empresa_id = $1`, [empresaId])
+  }
+  return empresaIds
+}
+
 export async function getMidiasInstagram(empresaId: string): Promise<MidiaInstagram[]> {
   const rows = await query<MidiaRow>(
     `select id, tipo, legenda, permalink, thumbnail_url, media_url, publicado_em, curtidas,
