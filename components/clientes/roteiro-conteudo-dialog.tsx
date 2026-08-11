@@ -12,8 +12,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Link2, Lock, Plus, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Link2, Lock, Plus, Trash2, ExternalLink } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -82,6 +82,18 @@ export function RoteiroConteudoDialog({
   const removerLink = (i: number) => setValorLinks((prev) => prev.filter((_, idx) => idx !== i))
 
   const linksJson = JSON.stringify(valorLinks.map((l) => ({ rotulo: l.rotulo, url: l.url })))
+
+  // Só habilita o botão "abrir" quando é um link http/https bem formado (segurança + evita abrir lixo).
+  const referenciaValida = (() => {
+    const v = valorReferencia.trim()
+    if (!v) return false
+    try {
+      const u = new URL(v)
+      return u.protocol === "http:" || u.protocol === "https:"
+    } catch {
+      return false
+    }
+  })()
 
   useEffect(() => {
     if (estado.ok) {
@@ -192,16 +204,31 @@ export function RoteiroConteudoDialog({
               <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
               Link de referência
             </Label>
-            <Input
-              id="referencia"
-              type="url"
-              inputMode="url"
-              value={valorReferencia}
-              onChange={(e) => setValorReferencia(e.target.value)}
-              placeholder="https://... (opcional)"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="referencia"
+                type="url"
+                inputMode="url"
+                value={valorReferencia}
+                onChange={(e) => setValorReferencia(e.target.value)}
+                placeholder="https://... (opcional)"
+              />
+              {referenciaValida && (
+                <a
+                  href={valorReferencia.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Abrir link em nova aba"
+                  className={cn(buttonVariants({ variant: "outline", size: "icon" }), "shrink-0")}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="sr-only">Abrir link de referência em nova aba</span>
+                </a>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               Vídeo ou post que serve de referência para este conteúdo.
+              {referenciaValida ? " Clique no ícone para abrir em uma nova aba." : ""}
             </p>
           </div>
 
