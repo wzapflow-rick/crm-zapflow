@@ -236,7 +236,9 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
      left join prox_post pp on pp.empresa_id = e.id
      left join meta_calc mc on mc.empresa_id = e.id
      left join tarefa_calc tc on tc.empresa_id = e.id
-     where e.status = 'ativo'
+     -- "Ativo" no app = recorrente E status 'ativo'. Avulsos (recorrente=false)
+     -- nunca entram nesta análise, mesmo que o status esteja 'ativo'.
+     where e.status = 'ativo' and e.recorrente is distinct from false
      order by e.nome asc`,
   )
 
