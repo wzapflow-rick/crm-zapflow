@@ -11,8 +11,11 @@ import {
   TrendingUp,
   Users,
   Flame,
-  Lightbulb,
-  CircleDot,
+  AlertTriangle,
+  CalendarClock,
+  ImageOff,
+  TrendingDown,
+  CheckCircle2,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
@@ -24,7 +27,8 @@ import type { ResumoTarefas } from "@/lib/tarefas-db"
 import type { ResumoFinanceiro } from "@/lib/financeiro-db"
 import type { ProximaGravacao } from "@/lib/eventos-db"
 import type { Membro } from "@/lib/membros-db"
-import { insightsSemana, receitaMensal } from "@/lib/simple-data"
+import type { AlertaCliente } from "@/lib/clientes-db"
+import { receitaMensal } from "@/lib/simple-data"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -66,6 +70,7 @@ export function Dashboard({
   clientesAtivos,
   proximasGravacoes,
   membros,
+  alertasAtencao,
 }: {
   resumoCrm: ResumoCrm
   resumoTarefas: ResumoTarefas
@@ -74,6 +79,7 @@ export function Dashboard({
   clientesAtivos: number
   proximasGravacoes: ProximaGravacao[]
   membros: Membro[]
+  alertasAtencao: AlertaCliente[]
 }) {
   const { usuario } = useApp()
   // Dados financeiros reais do mês (com fallback seguro caso o módulo não carregue)
@@ -186,23 +192,44 @@ export function Dashboard({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex flex-col rounded-xl border border-border bg-card p-5">
             <div className="flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-primary" />
+              <AlertTriangle className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold text-foreground">
-                Insights da semana
+                Clientes que precisam de atenção
               </h3>
+              {alertasAtencao.length > 0 && (
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
+                  {alertasAtencao.length}
+                </span>
+              )}
             </div>
-            <ul className="mt-4 space-y-3">
-              {insightsSemana.map((insight, i) => (
-                <li key={i} className="flex gap-2.5">
-                  <CircleDot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                  <span className="text-sm leading-snug text-foreground">
-                    {insight}
-                  </span>
-                </li>
-              ))}
-            </ul>
+
+            {alertasAtencao.length > 0 ? (
+              <ul className="mt-4 space-y-2.5">
+                {alertasAtencao.slice(0, 6).map((a, i) => (
+                  <li key={`${a.clienteId}-${a.tipo}-${i}`}>
+                    <Link
+                      href={`/clientes/${a.clienteId}`}
+                      className="group flex items-start gap-2.5 rounded-lg p-1.5 -mx-1.5 transition-colors hover:bg-muted/60"
+                    >
+                      <AlertaIcone tipo={a.tipo} />
+                      <span className="text-sm leading-snug text-foreground">
+                        <span className="font-medium">{a.clienteNome}</span>{" "}
+                        <span className="text-muted-foreground">{a.texto}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
+                <CheckCircle2 className="h-6 w-6 text-primary/70" />
+                <p className="text-sm text-muted-foreground">
+                  Tudo em dia. Nenhum cliente precisa de atenção agora.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -310,6 +337,16 @@ export function Dashboard({
         </div>
       </div>
     </main>
+  )
+}
+
+// Ícone contextual por tipo de alerta do cliente.
+function AlertaIcone({ tipo }: { tipo: AlertaCliente["tipo"] }) {
+  const Icon = tipo === "post" ? ImageOff : tipo === "renovacao" ? CalendarClock : TrendingDown
+  return (
+    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <Icon className="h-3.5 w-3.5" />
+    </span>
   )
 }
 

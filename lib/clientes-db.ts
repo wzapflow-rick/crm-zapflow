@@ -113,6 +113,128 @@ export async function getClientes(): Promise<Cliente[]> {
   return rows.map(mapRow)
 }
 
+// ── Clientes que precisam de atenção (Dashboard) ──────────────────────────
+// Detecta, em uma única query agregada, três situações de risco por cliente ativo:
+//  - sem post novo (nenhum conteúdo publicado) há muitos dias
+//  - perto da data de renovação (aniversário mensal da data de início)
+//  - alguma meta com menos da metade do alvo atingido
+export type AlertaCliente = {
+  clienteId: string
+  clienteNome: string
+  iniciais: string
+  cor: string
+  tipo: "post" | "renovacao" | "meta"
+  texto: string
+  severidade: number
+}
+
+const DIAS_SEM_POST_ALERTA = 7 // avisa quando passou uma semana sem publicar
+const DIAS_RENOVACAO_ALERTA = 10 // avisa quando faltam até 10 dias para renovar
+
+type AtencaoRow = {
+  id: string
+  nome: string
+  iniciais: string | null
+  cor: string | null
+  recorrente: boolean | null
+  desde: string | null
+  ultima_data: string | null
+  tem_meta_baixa: boolean | null
+}
+
+// Calcula quantos dias faltam para o próximo aniversário mensal de `desde`
+// (a "renovação" do contrato recorrente). Retorna null se não houver data.
+function diasParaRenovacao(desdeISO: string | null, hoje: Date): number | null {
+  if (!desdeISO) return null
+  const partes = desdeISO.split("-").map(Number)
+  if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null
+  const diaContrato = partes[2]
+  const base = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate())
+  // Testa este mês e o próximo; usa o último dia do mês quando o dia não existe (ex.: 31).
+  for (let offset = 0; offset <= 1; offset++) {
+    const ano = hoje.getUTCFullYear()
+    const mes = hoje.getUTCMonth() + offset
+    const ultimoDia = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate()
+    const dia = Math.min(diaContrato, ultimoDia)
+    const alvo = Date.UTC(ano, mes, dia)
+    if (alvo >= base) {
+      return Math.round((alvo - base) / 86_400_000)
+    }
+  }
+  return null
+}
+
+function diasDesde(dataISO: string | null, hoje: Date): number | null {
+  if (!dataISO) return null
+  const partes = dataISO.split("-").map(Number)
+  if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null
+  const alvo = Date.UTC(partes[0], partes[1] - 1, partes[2])
+  const base = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate())
+  return Math.round((base - alvo) / 86_400_000)
+}
+
+export async function getClientesAtencao(): Promise<AlertaCliente[]> {
+  const rows = await query<AtencaoRow>(
+    `with ult_post as (
+       select empresa_id, to_char(max(data), 'YYYY-MM-DD') as ultima_data
+       from public.conteudos
+       where status = 'publicado' and data is not null
+       group by empresa_id
+     ),
+     meta_ruim as (
+       select empresa_id,
+              bool_or(alvo > 0 and coalesce(atual, 0) < alvo / 2.0) as tem_meta_baixa
+       from public.metas
+       group by empresa_id
+     )
+     select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
+            to_char(e.desde, 'YYYY-MM-DD') as desde,
+            up.ultima_data,
+            coalesce(mr.tem_meta_baixa, false) as tem_meta_baixa
+     from public.empresas e
+     left join ult_post up on up.empresa_id = e.id
+     left join meta_ruim mr on mr.empresa_id = e.id
+     where e.status = 'ativo'
+     order by e.nome asc`,
+  )
+
+  const hoje = new Date()
+  const alertas: AlertaCliente[] = []
+
+  for (const r of rows) {
+    const base = {
+      clienteId: r.id,
+      clienteNome: r.nome ?? "Sem nome",
+      iniciais: r.iniciais || iniciaisDe(r.nome ?? ""),
+      cor: r.cor || "bg-primary",
+    }
+
+    // 1) Sem post novo
+    const diasPost = diasDesde(r.ultima_data, hoje)
+    if (diasPost === null) {
+      alertas.push({ ...base, tipo: "post", texto: "sem nenhum post publicado ainda", severidade: 100 })
+    } else if (diasPost >= DIAS_SEM_POST_ALERTA) {
+      alertas.push({ ...base, tipo: "post", texto: `sem post novo há ${diasPost} dias`, severidade: 90 + diasPost })
+    }
+
+    // 2) Perto da renovação (apenas clientes recorrentes com data de início)
+    if (r.recorrente !== false) {
+      const diasRenov = diasParaRenovacao(r.desde, hoje)
+      if (diasRenov !== null && diasRenov <= DIAS_RENOVACAO_ALERTA) {
+        const quando = diasRenov === 0 ? "renova hoje" : `está a ${diasRenov} dia${diasRenov === 1 ? "" : "s"} da renovação`
+        alertas.push({ ...base, tipo: "renovacao", texto: quando, severidade: 80 - diasRenov })
+      }
+    }
+
+    // 3) Meta abaixo da metade
+    if (r.tem_meta_baixa) {
+      alertas.push({ ...base, tipo: "meta", texto: "está com uma meta abaixo da metade", severidade: 70 })
+    }
+  }
+
+  return alertas.sort((a, b) => b.severidade - a.severidade)
+}
+
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
     `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
