@@ -504,6 +504,21 @@ export async function atualizarRoteiroConteudo(
   )
 }
 
+// Atualiza apenas o status de um conteúdo do pipeline. Usado quando o cliente
+// aprova uma peça pelo portal (status → "aprovado").
+export async function atualizarStatusConteudo(
+  empresaId: string,
+  conteudoId: string,
+  status: StatusConteudo,
+): Promise<void> {
+  const novoStatus = STATUS_CONTEUDO.includes(status) ? status : "aprovacao"
+  await query(`update public.conteudos set status = $1 where id = $2 and empresa_id = $3`, [
+    novoStatus,
+    conteudoId,
+    empresaId,
+  ])
+}
+
 // ── Arquivos (aba Arquivos · por link) ────────────────────────────────────
 
 type ArquivoRow = {

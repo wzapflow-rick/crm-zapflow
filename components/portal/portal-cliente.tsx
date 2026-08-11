@@ -48,6 +48,7 @@ import type { EnvioCliente } from "@/lib/envios-db"
 import {
   enviarMensagemPortalAction,
   enviarMaterialPortalAction,
+  aprovarConteudoPortalAction,
   type EstadoPortal,
 } from "@/app/portal/[token]/actions"
 
@@ -350,7 +351,7 @@ export function PortalCliente({
                 {conteudos.length > 0 ? (
                   <ul className="divide-y divide-border">
                     {conteudos.map((c) => (
-                      <ConteudoPortalItem key={c.id} conteudo={c} />
+                      <ConteudoPortalItem key={c.id} conteudo={c} token={token} />
                     ))}
                   </ul>
                 ) : (
@@ -965,7 +966,7 @@ function textoComLinks(texto: string): ReactNode[] {
 
 // Item da pipeline de conteúdo no portal: o título é clicável e expande o roteiro completo,
 // permitindo que o cliente leia tudo antes de aprovar.
-function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
+function ConteudoPortalItem({ conteudo, token }: { conteudo: ConteudoItem; token: string }) {
   const [aberto, setAberto] = useState(false)
   const temRoteiro = Boolean(conteudo.roteiro?.trim())
   const temLegenda = Boolean(conteudo.legenda?.trim())
@@ -973,6 +974,7 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
   const temLinks = linksValidos.length > 0
   const temReferencia = Boolean(conteudo.referencia?.trim())
   const expansivel = temRoteiro || temLegenda || temLinks || temReferencia
+  const emAprovacao = conteudo.status === "aprovacao"
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
@@ -1088,6 +1090,108 @@ function ConteudoPortalItem({ conteudo }: { conteudo: ConteudoItem }) {
           )}
         </div>
       )}
+
+      {/* Aprovação do cliente: aparece quando a peça está aguardando aprovação. */}
+      {emAprovacao && <BlocoAprovacaoConteudo token={token} conteudo={conteudo} />}
     </li>
+  )
+}
+
+// Bloco de aprovação exibido no portal para conteúdos em "aprovação".
+// O cliente escolhe entre "Aprovar" ou "Pedir ajuste" — este último abre uma
+// caixinha de texto para descrever o ajuste desejado.
+function BlocoAprovacaoConteudo({ token, conteudo }: { token: string; conteudo: ConteudoItem }) {
+  const [estado, formAction] = useActionState(aprovarConteudoPortalAction, estadoInicial)
+  const [modoAjuste, setModoAjuste] = useState(false)
+
+  if (estado.ok) {
+    return (
+      <div className="mt-3 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success animate-in fade-in-50 duration-200">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <span className="text-pretty">{estado.mensagem ?? "Recebemos sua resposta. Obrigado!"}</span>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4 animate-in fade-in-50 duration-200"
+    >
+      <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="conteudoId" value={conteudo.id} />
+
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <Clock className="h-3.5 w-3.5 text-primary" />
+        Aguardando sua aprovação
+      </p>
+
+      {!modoAjuste ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <BotaoAprovarConteudo />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setModoAjuste(true)}
+            className="gap-1.5"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Pedir ajuste
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-2 animate-in fade-in-50 slide-in-from-top-1 duration-200">
+          <Textarea
+            name="feedback"
+            required
+            rows={3}
+            autoFocus
+            placeholder="Descreva o ajuste que você gostaria de fazer..."
+            className="resize-none bg-background text-sm"
+          />
+          <div className="flex flex-wrap gap-2">
+            <BotaoEnviarAjuste />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setModoAjuste(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {estado.erro && <p className="mt-2 text-xs font-medium text-destructive">{estado.erro}</p>}
+    </form>
+  )
+}
+
+function BotaoAprovarConteudo() {
+  const { pending } = useFormStatus()
+  return (
+    <Button
+      type="submit"
+      name="decisao"
+      value="aprovado"
+      size="sm"
+      disabled={pending}
+      className="gap-1.5 bg-success text-success-foreground hover:bg-success/90"
+    >
+      <Check className="h-4 w-4" />
+      {pending ? "Aprovando..." : "Aprovar"}
+    </Button>
+  )
+}
+
+function BotaoEnviarAjuste() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" name="decisao" value="ajuste" size="sm" disabled={pending} className="gap-1.5">
+      <Send className="h-4 w-4" />
+      {pending ? "Enviando..." : "Enviar ajuste"}
+    </Button>
   )
 }
