@@ -11,17 +11,13 @@ import {
   TrendingUp,
   Users,
   Flame,
-  AlertTriangle,
-  CalendarClock,
-  ImageOff,
-  TrendingDown,
-  CheckCircle2,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import { AlertasAtencao } from "@/components/dashboard/alertas-atencao"
 import type { ResumoCrm } from "@/lib/crm-db"
 import type { ResumoTarefas } from "@/lib/tarefas-db"
 import type { ResumoFinanceiro } from "@/lib/financeiro-db"
@@ -192,45 +188,7 @@ export function Dashboard({
             </div>
           </div>
 
-          <div className="flex flex-col rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold text-foreground">
-                Clientes que precisam de atenção
-              </h3>
-              {alertasAtencao.length > 0 && (
-                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[11px] font-semibold text-primary">
-                  {alertasAtencao.length}
-                </span>
-              )}
-            </div>
-
-            {alertasAtencao.length > 0 ? (
-              <ul className="mt-4 space-y-2.5">
-                {alertasAtencao.slice(0, 6).map((a, i) => (
-                  <li key={`${a.clienteId}-${a.tipo}-${i}`}>
-                    <Link
-                      href={`/clientes/${a.clienteId}`}
-                      className="group flex items-start gap-2.5 rounded-lg p-1.5 -mx-1.5 transition-colors hover:bg-muted/60"
-                    >
-                      <AlertaIcone tipo={a.tipo} />
-                      <span className="text-sm leading-snug text-foreground">
-                        <span className="font-medium">{a.clienteNome}</span>{" "}
-                        <span className="text-muted-foreground">{a.texto}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
-                <CheckCircle2 className="h-6 w-6 text-primary/70" />
-                <p className="text-sm text-muted-foreground">
-                  Tudo em dia. Nenhum cliente precisa de atenção agora.
-                </p>
-              </div>
-            )}
-          </div>
+          <AlertasAtencao alertas={alertasAtencao} />
         </div>
 
         {/* Gravações + Tarefas + Leads */}
@@ -337,16 +295,6 @@ export function Dashboard({
         </div>
       </div>
     </main>
-  )
-}
-
-// Ícone contextual por tipo de alerta do cliente.
-function AlertaIcone({ tipo }: { tipo: AlertaCliente["tipo"] }) {
-  const Icon = tipo === "post" ? ImageOff : tipo === "renovacao" ? CalendarClock : TrendingDown
-  return (
-    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-      <Icon className="h-3.5 w-3.5" />
-    </span>
   )
 }
 

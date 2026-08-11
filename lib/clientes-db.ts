@@ -114,22 +114,41 @@ export async function getClientes(): Promise<Cliente[]> {
 }
 
 // ── Clientes que precisam de atenção (Dashboard) ──────────────────────────
-// Detecta, em uma única query agregada, três situações de risco por cliente ativo:
-//  - sem post novo (nenhum conteúdo publicado) há muitos dias
-//  - perto da data de renovação (aniversário mensal da data de início)
-//  - alguma meta com menos da metade do alvo atingido
+// Radar operacional: detecta, em uma única query agregada, situações de risco
+// APENAS de clientes com status 'ativo'. Cada situação vira um alerta com um
+// nível de prioridade e uma ação direta ("Ver cliente", "Ver resultados", ...).
+//
+// A estrutura é modular: novos tipos de alerta (financeiro, CRM, calendário...)
+// podem ser adicionados sem mudar o Dashboard — basta empurrar mais itens para
+// a lista de `AlertaCliente` seguindo o mesmo formato.
+export type PrioridadeAlerta = "critico" | "atencao" | "acompanhar"
+
 export type AlertaCliente = {
   clienteId: string
   clienteNome: string
   iniciais: string
   cor: string
-  tipo: "post" | "renovacao" | "meta"
+  // Origem do alerta (permite futuras fontes: financeiro, crm, calendario...)
+  categoria: "conteudo" | "renovacao" | "meta" | "tarefa"
+  prioridade: PrioridadeAlerta
   texto: string
+  acaoLabel: string
+  acaoUrl: string
   severidade: number
 }
 
-const DIAS_SEM_POST_ALERTA = 7 // avisa quando passou uma semana sem publicar
-const DIAS_RENOVACAO_ALERTA = 10 // avisa quando faltam até 10 dias para renovar
+const DIAS_SEM_POST_ATENCAO = 7 // avisa quando passou uma semana sem publicar
+const DIAS_SEM_POST_CRITICO = 10 // eleva para crítico após 10 dias
+const DIAS_RENOVACAO_CRITICO = 3 // renovação em até 3 dias = crítico
+const DIAS_RENOVACAO_ATENCAO = 15 // até 15 dias = atenção
+const DIAS_RENOVACAO_ACOMPANHAR = 30 // até 30 dias = acompanhar
+
+// Peso base por prioridade para ordenar críticos > atenção > acompanhar.
+const PESO_PRIORIDADE: Record<PrioridadeAlerta, number> = {
+  critico: 300,
+  atencao: 200,
+  acompanhar: 100,
+}
 
 type AtencaoRow = {
   id: string
@@ -139,7 +158,10 @@ type AtencaoRow = {
   recorrente: boolean | null
   desde: string | null
   ultima_data: string | null
-  tem_meta_baixa: boolean | null
+  proxima_post: string | null
+  pior_ratio: string | null
+  tarefas_atrasadas: string | number | null
+  tarefas_amanha: string | number | null
 }
 
 // Calcula quantos dias faltam para o próximo aniversário mensal de `desde`
@@ -181,19 +203,39 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
        where status = 'publicado' and data is not null
        group by empresa_id
      ),
-     meta_ruim as (
+     prox_post as (
+       select empresa_id, to_char(min(data), 'YYYY-MM-DD') as proxima_data
+       from public.conteudos
+       where status <> 'publicado' and data is not null and data >= current_date
+       group by empresa_id
+     ),
+     meta_calc as (
        select empresa_id,
-              bool_or(alvo > 0 and coalesce(atual, 0) < alvo / 2.0) as tem_meta_baixa
+              min(coalesce(atual, 0)::numeric / nullif(alvo, 0)::numeric) as pior_ratio
        from public.metas
+       where alvo is not null and alvo::numeric > 0
+       group by empresa_id
+     ),
+     tarefa_calc as (
+       select empresa_id,
+              count(*) filter (where prazo < current_date) as atrasadas,
+              count(*) filter (where prazo = current_date + 1) as vence_amanha
+       from public.tarefas
+       where status <> 'concluido' and empresa_id is not null and prazo is not null
        group by empresa_id
      )
      select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
             to_char(e.desde, 'YYYY-MM-DD') as desde,
             up.ultima_data,
-            coalesce(mr.tem_meta_baixa, false) as tem_meta_baixa
+            pp.proxima_data as proxima_post,
+            mc.pior_ratio::text as pior_ratio,
+            coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
+            coalesce(tc.vence_amanha, 0) as tarefas_amanha
      from public.empresas e
      left join ult_post up on up.empresa_id = e.id
-     left join meta_ruim mr on mr.empresa_id = e.id
+     left join prox_post pp on pp.empresa_id = e.id
+     left join meta_calc mc on mc.empresa_id = e.id
+     left join tarefa_calc tc on tc.empresa_id = e.id
      where e.status = 'ativo'
      order by e.nome asc`,
   )
@@ -208,30 +250,154 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
       iniciais: r.iniciais || iniciaisDe(r.nome ?? ""),
       cor: r.cor || "bg-primary",
     }
+    const verCliente = { acaoLabel: "Ver cliente", acaoUrl: `/clientes/${r.id}` }
 
-    // 1) Sem post novo
-    const diasPost = diasDesde(r.ultima_data, hoje)
-    if (diasPost === null) {
-      alertas.push({ ...base, tipo: "post", texto: "sem nenhum post publicado ainda", severidade: 100 })
-    } else if (diasPost >= DIAS_SEM_POST_ALERTA) {
-      alertas.push({ ...base, tipo: "post", texto: `sem post novo há ${diasPost} dias`, severidade: 90 + diasPost })
-    }
-
-    // 2) Perto da renovação (apenas clientes recorrentes com data de início)
-    if (r.recorrente !== false) {
-      const diasRenov = diasParaRenovacao(r.desde, hoje)
-      if (diasRenov !== null && diasRenov <= DIAS_RENOVACAO_ALERTA) {
-        const quando = diasRenov === 0 ? "renova hoje" : `está a ${diasRenov} dia${diasRenov === 1 ? "" : "s"} da renovação`
-        alertas.push({ ...base, tipo: "renovacao", texto: quando, severidade: 80 - diasRenov })
+    // 1) Conteúdo — sem publicação nova há muitos dias.
+    // Se houver uma próxima publicação agendada em até 2 dias, o calendário está
+    // fluindo e não geramos o alerta.
+    const diasProxPost = diasDesde(r.proxima_post, hoje) // negativo = futuro
+    const temProxPostBreve = diasProxPost !== null && diasProxPost >= -2
+    if (!temProxPostBreve) {
+      const diasPost = diasDesde(r.ultima_data, hoje)
+      if (diasPost === null) {
+        alertas.push({
+          ...base,
+          ...verCliente,
+          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+          categoria: "conteudo",
+          prioridade: "critico",
+          texto: "Ainda sem nenhum conteúdo publicado.",
+          severidade: PESO_PRIORIDADE.critico + 60,
+        })
+      } else if (diasPost >= DIAS_SEM_POST_CRITICO) {
+        alertas.push({
+          ...base,
+          ...verCliente,
+          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+          categoria: "conteudo",
+          prioridade: "critico",
+          texto: `Sem novo conteúdo há ${diasPost} dias.`,
+          severidade: PESO_PRIORIDADE.critico + Math.min(diasPost, 50),
+        })
+      } else if (diasPost >= DIAS_SEM_POST_ATENCAO) {
+        alertas.push({
+          ...base,
+          ...verCliente,
+          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+          categoria: "conteudo",
+          prioridade: "atencao",
+          texto: `Sem novo conteúdo há ${diasPost} dias.`,
+          severidade: PESO_PRIORIDADE.atencao + diasPost,
+        })
       }
     }
 
-    // 3) Meta abaixo da metade
-    if (r.tem_meta_baixa) {
-      alertas.push({ ...base, tipo: "meta", texto: "está com uma meta abaixo da metade", severidade: 70 })
+    // 2) Renovação (apenas clientes recorrentes com data de início).
+    if (r.recorrente !== false) {
+      const dr = diasParaRenovacao(r.desde, hoje)
+      if (dr !== null) {
+        if (dr === 0) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "critico",
+            texto: "Renovação hoje.",
+            severidade: PESO_PRIORIDADE.critico + 40,
+          })
+        } else if (dr <= DIAS_RENOVACAO_CRITICO) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "critico",
+            texto: `Renovação em ${dr} ${dr === 1 ? "dia" : "dias"}.`,
+            severidade: PESO_PRIORIDADE.critico + (DIAS_RENOVACAO_CRITICO - dr),
+          })
+        } else if (dr <= DIAS_RENOVACAO_ATENCAO) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "atencao",
+            texto: `Renovação em ${dr} dias.`,
+            severidade: PESO_PRIORIDADE.atencao + (DIAS_RENOVACAO_ATENCAO - dr),
+          })
+        } else if (dr <= DIAS_RENOVACAO_ACOMPANHAR) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "acompanhar",
+            texto: `Renovação em ${dr} dias.`,
+            severidade: PESO_PRIORIDADE.acompanhar + (DIAS_RENOVACAO_ACOMPANHAR - dr),
+          })
+        }
+      }
+    }
+
+    // 3) Meta do mês — usa a pior razão (atual/alvo) entre as metas cadastradas.
+    const ratio = r.pior_ratio !== null ? Number(r.pior_ratio) : null
+    if (ratio !== null && Number.isFinite(ratio)) {
+      const pct = Math.round(ratio * 100)
+      const acaoMeta = { acaoLabel: "Ver resultados", acaoUrl: `/clientes/${r.id}?aba=resultados` }
+      if (ratio < 0.3) {
+        alertas.push({
+          ...base,
+          ...acaoMeta,
+          categoria: "meta",
+          prioridade: "critico",
+          texto: `Meta do mês em ${pct}%.`,
+          severidade: PESO_PRIORIDADE.critico + (30 - pct),
+        })
+      } else if (ratio < 0.5) {
+        alertas.push({
+          ...base,
+          ...acaoMeta,
+          categoria: "meta",
+          prioridade: "atencao",
+          texto: `Meta do mês em ${pct}%.`,
+          severidade: PESO_PRIORIDADE.atencao + (50 - pct),
+        })
+      } else if (ratio < 0.7) {
+        alertas.push({
+          ...base,
+          ...acaoMeta,
+          categoria: "meta",
+          prioridade: "acompanhar",
+          texto: `Meta do mês em ${pct}%.`,
+          severidade: PESO_PRIORIDADE.acompanhar + (70 - pct),
+        })
+      }
+    }
+
+    // 4) Tarefas — atrasadas (crítico) ou vencendo amanhã (atenção).
+    const atrasadas = Number(r.tarefas_atrasadas ?? 0)
+    const amanha = Number(r.tarefas_amanha ?? 0)
+    const acaoTarefa = { acaoLabel: "Ver tarefas", acaoUrl: "/tarefas" }
+    if (atrasadas > 0) {
+      alertas.push({
+        ...base,
+        ...acaoTarefa,
+        categoria: "tarefa",
+        prioridade: "critico",
+        texto: `${atrasadas} ${atrasadas === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`,
+        severidade: PESO_PRIORIDADE.critico + 50 + Math.min(atrasadas, 20),
+      })
+    } else if (amanha > 0) {
+      alertas.push({
+        ...base,
+        ...acaoTarefa,
+        categoria: "tarefa",
+        prioridade: "atencao",
+        texto: `${amanha} ${amanha === 1 ? "tarefa vencendo amanhã" : "tarefas vencendo amanhã"}.`,
+        severidade: PESO_PRIORIDADE.atencao + Math.min(amanha, 20),
+      })
     }
   }
 
+  // Ordena por prioridade (crítico > atenção > acompanhar) e, dentro dela,
+  // pelo alerta mais urgente (maior severidade).
   return alertas.sort((a, b) => b.severidade - a.severidade)
 }
 
