@@ -14,6 +14,7 @@ import {
   FileText,
   FlaskConical,
   FolderOpen,
+  Instagram,
   LineChart,
   LinkIcon,
   MessageSquare,
@@ -65,6 +66,8 @@ import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performa
 import { ExperimentoDialog } from "@/components/clientes/experimento-dialog"
 import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
 import { PadroesPanel } from "@/components/clientes/padroes-panel"
+import { InstagramPanel } from "@/components/clientes/instagram-panel"
+import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
 import type { MemoriaCliente } from "@/lib/memoria-db"
@@ -126,6 +129,9 @@ export function ClienteDetalhe({
   padroes,
   ultimaAnalisePadroes,
   envios,
+  instagramConexao,
+  instagramMidias,
+  instagramConfigurado,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -144,6 +150,9 @@ export function ClienteDetalhe({
   padroes: Padrao[]
   ultimaAnalisePadroes: string | null
   envios: EnvioCliente[]
+  instagramConexao: ConexaoInstagram | null
+  instagramMidias: MidiaInstagram[]
+  instagramConfigurado: boolean
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -157,6 +166,11 @@ export function ClienteDetalhe({
   // Aba inicial: permite abrir direto numa aba via ?aba=... (ex.: notificações → comunicação).
   const searchParams = useSearchParams()
   const abaInicial = searchParams.get("aba") || "visao"
+
+  // Feedback do retorno do OAuth do Instagram (?ig_ok=1 / ?ig_erro=...).
+  const igErro = searchParams.get("ig_erro") || undefined
+  const igOk = searchParams.get("ig_ok") === "1"
+  const instagramAviso = igErro || igOk ? { erro: igErro, ok: igOk } : undefined
 
   return (
     <main className="flex-1 bg-background">
@@ -275,6 +289,7 @@ export function ClienteDetalhe({
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
             <TabTrigger value="reunioes" icon={Users} label="Reuniões" />
             <TabTrigger value="performance" icon={BarChart3} label="Performance" />
+            <TabTrigger value="instagram" icon={Instagram} label="Instagram" />
             <TabTrigger value="experimentos" icon={FlaskConical} label="Experimentos" />
             <TabTrigger value="padroes" icon={Network} label="Padrões" />
             <TabTrigger value="memoria" icon={Brain} label="Memória" />
@@ -917,6 +932,18 @@ export function ClienteDetalhe({
                 <Vazio texto='Nenhum conteúdo registrado. Clique em "Novo conteúdo", informe as métricas e a IA gera os aprendizados.' />
               </Card>
             )}
+          </TabsContent>
+
+          {/* Instagram (conexão com a conta profissional via Meta) */}
+          <TabsContent value="instagram" className="mt-5">
+            <InstagramPanel
+              clienteId={cliente.id}
+              clienteNome={cliente.nome}
+              conexao={instagramConexao}
+              midias={instagramMidias}
+              configurado={instagramConfigurado}
+              avisoUrl={instagramAviso}
+            />
           </TabsContent>
 
           {/* Experimentos (banco de testes — a IA consulta antes de sugerir estratégia) */}

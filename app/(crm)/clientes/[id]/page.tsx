@@ -20,6 +20,13 @@ import { getPerformance, type ConteudoPerformance } from "@/lib/performance-db"
 import { getExperimentos, type Experimento } from "@/lib/experimentos-db"
 import { getPadroes, getUltimaAnalise, type Padrao } from "@/lib/padroes-db"
 import { getEnvios, type EnvioCliente } from "@/lib/envios-db"
+import {
+  getConexaoInstagram,
+  getMidiasInstagram,
+  type ConexaoInstagram,
+  type MidiaInstagram,
+} from "@/lib/instagram-db"
+import { instagramConfigurado } from "@/lib/instagram-api"
 import type {
   Arquivo,
   Cliente,
@@ -60,6 +67,8 @@ export default async function ClientePage({
     padroes,
     ultimaAnalisePadroes,
     envios,
+    instagramConexao,
+    instagramMidias,
   ] = await Promise.all([
     seguro<Cliente | null>(getClientePorId(id), null),
     seguro<Membro[]>(getMembros(), []),
@@ -78,6 +87,8 @@ export default async function ClientePage({
     seguro<Padrao[]>(getPadroes(id), []),
     seguro<string | null>(getUltimaAnalise(id), null),
     seguro<EnvioCliente[]>(getEnvios(id), []),
+    seguro<ConexaoInstagram | null>(getConexaoInstagram(id), null),
+    seguro<MidiaInstagram[]>(getMidiasInstagram(id), []),
   ])
 
   if (!cliente) {
@@ -105,6 +116,9 @@ export default async function ClientePage({
         padroes={padroes}
         ultimaAnalisePadroes={ultimaAnalisePadroes}
         envios={envios}
+        instagramConexao={instagramConexao}
+        instagramMidias={instagramMidias}
+        instagramConfigurado={instagramConfigurado()}
       />
     </>
   )

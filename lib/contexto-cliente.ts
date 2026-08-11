@@ -8,6 +8,7 @@ import { getPerformance } from "@/lib/performance-db"
 import { getExperimentos } from "@/lib/experimentos-db"
 import { getPadroes } from "@/lib/padroes-db"
 import { getAprendizadosGlobais } from "@/lib/global-db"
+import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -47,12 +48,15 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const [performance, experimentos, padroes, aprendizadosGlobais] = await Promise.all([
-    getPerformance(empresaId).catch(() => []),
-    getExperimentos(empresaId).catch(() => []),
-    getPadroes(empresaId).catch(() => []),
-    getAprendizadosGlobais().catch(() => []),
-  ])
+  const [performance, experimentos, padroes, aprendizadosGlobais, instaConexao, instaMidias] =
+    await Promise.all([
+      getPerformance(empresaId).catch(() => []),
+      getExperimentos(empresaId).catch(() => []),
+      getPadroes(empresaId).catch(() => []),
+      getAprendizadosGlobais().catch(() => []),
+      getConexaoInstagram(empresaId).catch(() => null),
+      getMidiasInstagram(empresaId).catch(() => []),
+    ])
 
   const partes: string[] = []
 
@@ -182,6 +186,39 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     )
   }
 
+  if (instaConexao) {
+    const perfil = [
+      `Conta: @${instaConexao.username ?? "—"}${instaConexao.modo === "demo" ? " (DADOS DE DEMONSTRAÇÃO — não reais)" : ""}`,
+      instaConexao.seguidores != null ? `Seguidores: ${instaConexao.seguidores}` : "",
+      instaConexao.midiaCount != null ? `Publicações: ${instaConexao.midiaCount}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ")
+
+    const topPosts = [...instaMidias]
+      .sort((a, b) => (b.alcance ?? 0) - (a.alcance ?? 0))
+      .slice(0, 8)
+      .map((m) => {
+        const metr = [
+          m.alcance != null ? `${m.alcance} alcance` : "",
+          m.visualizacoes != null ? `${m.visualizacoes} views` : "",
+          m.curtidas != null ? `${m.curtidas} curtidas` : "",
+          m.comentarios != null ? `${m.comentarios} coment.` : "",
+          m.salvamentos != null ? `${m.salvamentos} salvos` : "",
+          m.compartilhamentos != null ? `${m.compartilhamentos} compart.` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+        const leg = m.legenda ? m.legenda.slice(0, 80) : "(sem legenda)"
+        return `- [${m.tipo}] ${leg}${metr ? ` — ${metr}.` : "."}`
+      })
+      .join("\n")
+
+    partes.push(
+      `\n## INSTAGRAM (dados da conta conectada)\n${perfil}${topPosts ? `\n### Publicações com melhor alcance\n${topPosts}` : ""}`,
+    )
+  }
+
   if (padroes.length > 0) {
     const linhas = padroes
       .map((p) => {
@@ -223,6 +260,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Performance", itens: performance.length },
       { rotulo: "Experimentos", itens: experimentos.length },
       { rotulo: "Padrões", itens: padroes.length },
+      { rotulo: "Instagram", itens: instaConexao ? instaMidias.length : 0 },
     ],
   }
 
