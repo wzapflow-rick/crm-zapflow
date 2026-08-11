@@ -663,6 +663,54 @@ export async function adicionarMensagemCliente(
   )
 }
 
+// Mensagens escritas pelos CLIENTES no portal (de_cliente = true), de todos os
+// clientes, mais recentes primeiro. Usado para o sino de notificações da equipe.
+export type NotificacaoMensagem = {
+  id: string
+  clienteId: string
+  clienteNome: string
+  iniciais: string
+  cor: string
+  autorNome: string
+  texto: string
+  data: string
+  createdAt: string
+}
+
+export async function getMensagensClientesRecentes(limite = 20): Promise<NotificacaoMensagem[]> {
+  const rows = await query<{
+    id: string
+    empresa_id: string
+    empresa_nome: string
+    iniciais: string | null
+    cor: string | null
+    autor_nome: string | null
+    texto: string
+    data: string | null
+    created_at: string
+  }>(
+    `select c.id, c.empresa_id, e.nome as empresa_nome, e.iniciais, e.cor,
+            c.autor_nome, c.texto, c.data, c.created_at
+     from public.comunicacoes c
+     join public.empresas e on e.id = c.empresa_id
+     where c.de_cliente = true
+     order by c.created_at desc
+     limit $1`,
+    [limite],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    clienteId: r.empresa_id,
+    clienteNome: r.empresa_nome,
+    iniciais: r.iniciais ?? "?",
+    cor: r.cor ?? "bg-primary",
+    autorNome: r.autor_nome ?? "Cliente",
+    texto: r.texto,
+    data: r.data ?? "",
+    createdAt: r.created_at,
+  }))
+}
+
 // Mensagem enviada pela EQUIPE (chat do painel interno) — append-only, aparece no portal
 // do cliente como resposta da SIMPLE. de_cliente = false.
 export async function adicionarMensagemEquipe(

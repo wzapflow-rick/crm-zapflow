@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   ArrowDownRight,
@@ -153,6 +154,10 @@ export function ClienteDetalhe({
   // Usa dados reais do banco; sem dados ainda, mostra estado vazio editável.
   const resumo = cliente.resumoEstrategico?.trim() || ""
 
+  // Aba inicial: permite abrir direto numa aba via ?aba=... (ex.: notificações → comunicação).
+  const searchParams = useSearchParams()
+  const abaInicial = searchParams.get("aba") || "visao"
+
   return (
     <main className="flex-1 bg-background">
       <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
@@ -258,7 +263,7 @@ export function ClienteDetalhe({
         </div>
 
         {/* Abas */}
-        <Tabs defaultValue="visao" className="mt-6">
+        <Tabs defaultValue={abaInicial} className="mt-6">
           <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] group-data-horizontal/tabs:h-auto md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
             <TabTrigger value="visao" icon={Target} label="Visão geral" />
             <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />

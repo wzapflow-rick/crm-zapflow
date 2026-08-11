@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
+import { Notificacoes } from "@/components/simple/notificacoes"
 
 export function Topbar({ titulo }: { titulo: string }) {
   const { usuario, setNavAberta } = useApp()
@@ -30,7 +31,8 @@ export function Topbar({ titulo }: { titulo: string }) {
         />
       </div>
 
-      <div className="flex items-center gap-2 px-2 py-1.5">
+      <div className="flex items-center gap-1 px-1 py-1.5 sm:gap-2 sm:px-2">
+        <Notificacoes />
         <Avatar className="h-8 w-8">
           <AvatarFallback className={cn(usuario.cor, "text-xs text-primary-foreground")}>
             {usuario.iniciais}
