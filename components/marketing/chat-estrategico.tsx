@@ -7,6 +7,7 @@ import { Brain, Loader2, SendHorizontal, Sparkles, Trash2, Database } from "luci
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Markdown } from "@/components/ui/markdown"
 import { carregarChatClienteAction, limparChatAction } from "@/app/(crm)/marketing/chat-actions"
 import type { ResumoContexto } from "@/lib/contexto-cliente"
 
@@ -179,9 +180,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
               )}
 
               {messages.map((m) => (
-                <Bolha key={m.id} papel={m.role}>
-                  {textoDe(m)}
-                </Bolha>
+                <Bolha key={m.id} papel={m.role} texto={textoDe(m)} />
               ))}
 
               {status === "submitted" && (
@@ -304,19 +303,19 @@ function textoDe(m: UIMessage): string {
     .join("")
 }
 
-function Bolha({ papel, children }: { papel: string; children: React.ReactNode }) {
+function Bolha({ papel, texto }: { papel: string; texto: string }) {
   const isUser = papel === "user"
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
           isUser
-            ? "rounded-br-sm bg-primary text-primary-foreground"
+            ? "whitespace-pre-wrap rounded-br-sm bg-primary text-primary-foreground"
             : "rounded-bl-sm border border-border bg-background text-foreground",
         )}
       >
-        {children}
+        {isUser ? texto : <Markdown>{texto}</Markdown>}
       </div>
     </div>
   )
