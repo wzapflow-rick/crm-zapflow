@@ -8,6 +8,7 @@ import { getPerformance } from "@/lib/performance-db"
 import { getExperimentos } from "@/lib/experimentos-db"
 import { getPadroes } from "@/lib/padroes-db"
 import { getAprendizadosGlobais } from "@/lib/global-db"
+import { getOperacoes } from "@/lib/operacoes-db"
 import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
@@ -48,12 +49,13 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const [performance, experimentos, padroes, aprendizadosGlobais, instaConexao, instaMidias] =
+  const [performance, experimentos, padroes, aprendizadosGlobais, operacoes, instaConexao, instaMidias] =
     await Promise.all([
       getPerformance(empresaId).catch(() => []),
       getExperimentos(empresaId).catch(() => []),
       getPadroes(empresaId).catch(() => []),
       getAprendizadosGlobais().catch(() => []),
+      getOperacoes().catch(() => []),
       getConexaoInstagram(empresaId).catch(() => null),
       getMidiasInstagram(empresaId).catch(() => []),
     ])
@@ -241,6 +243,28 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     )
   }
 
+  // Operações da SIMPLE: testes reais e controlados da agência. São a fonte
+  // mais confiável para decisões (dado real > achismo). Damos prioridade a elas.
+  const operacoesComValor = operacoes.filter(
+    (o) => o.vencedor || o.aprendizados.length > 0 || o.recomendacoes.length > 0,
+  )
+  if (operacoesComValor.length > 0) {
+    const linhas = operacoesComValor
+      .slice(0, 15)
+      .map((o) => {
+        const partesOp = [`### ${o.titulo} (${o.status})`]
+        if (o.objetivo) partesOp.push(`Objetivo: ${o.objetivo}.`)
+        if (o.vencedor) partesOp.push(`VENCEDOR: ${o.vencedor}.`)
+        if (o.aprendizados.length) partesOp.push(`Aprendizados: ${o.aprendizados.join("; ")}.`)
+        if (o.recomendacoes.length) partesOp.push(`Recomendações: ${o.recomendacoes.join("; ")}.`)
+        return partesOp.join("\n")
+      })
+      .join("\n\n")
+    partes.push(
+      `\n## OPERAÇÕES DA SIMPLE (testes controlados da agência — DADO REAL, não achismo; use como base PRIORITÁRIA para roteiros, ganchos e decisões de conteúdo)\n${linhas}`,
+    )
+  }
+
   const resumo: ResumoContexto = {
     nome: cliente.nome,
     segmento: cliente.segmento,
@@ -260,6 +284,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Performance", itens: performance.length },
       { rotulo: "Experimentos", itens: experimentos.length },
       { rotulo: "Padrões", itens: padroes.length },
+      { rotulo: "Operações", itens: operacoesComValor.length },
       { rotulo: "Instagram", itens: instaConexao ? instaMidias.length : 0 },
     ],
   }

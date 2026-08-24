@@ -13,6 +13,7 @@ import {
   Loader2,
   Brain,
   Globe,
+  FlaskConical,
 } from "lucide-react"
 import { gerarInsightsAction, type EstadoInsights } from "@/app/(crm)/marketing/actions"
 import { Button } from "@/components/ui/button"
@@ -22,20 +23,24 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { ChatEstrategico, type ClienteOpcao } from "@/components/marketing/chat-estrategico"
 import { InteligenciaGlobal } from "@/components/marketing/inteligencia-global"
+import { Operacoes } from "@/components/marketing/operacoes"
 import type { AprendizadoGlobal } from "@/lib/global-db"
+import type { Operacao } from "@/lib/operacoes-db"
 
 const estadoInicial: EstadoInsights = { ok: false }
 
-type Aba = "chat" | "global" | "insights"
+type Aba = "chat" | "global" | "operacoes" | "insights"
 
 export function MarketingView({
   clientes,
   aprendizadosGlobais,
   ultimaAnaliseGlobal,
+  operacoes,
 }: {
   clientes: ClienteOpcao[]
   aprendizadosGlobais: AprendizadoGlobal[]
   ultimaAnaliseGlobal: string | null
+  operacoes: Operacao[]
 }) {
   const [aba, setAba] = useState<Aba>("chat")
 
@@ -56,6 +61,13 @@ export function MarketingView({
         <BotaoAba ativo={aba === "global"} onClick={() => setAba("global")} icon={<Globe className="h-4 w-4" />}>
           Inteligência global
         </BotaoAba>
+        <BotaoAba
+          ativo={aba === "operacoes"}
+          onClick={() => setAba("operacoes")}
+          icon={<FlaskConical className="h-4 w-4" />}
+        >
+          Operações
+        </BotaoAba>
         <BotaoAba ativo={aba === "insights"} onClick={() => setAba("insights")} icon={<AtSign className="h-4 w-4" />}>
           Insights de Instagram
         </BotaoAba>
@@ -65,6 +77,7 @@ export function MarketingView({
       {aba === "global" && (
         <InteligenciaGlobal aprendizados={aprendizadosGlobais} ultimaAnalise={ultimaAnaliseGlobal} />
       )}
+      {aba === "operacoes" && <Operacoes operacoes={operacoes} />}
       {aba === "insights" && <InsightsInstagram />}
     </div>
   )

@@ -3,16 +3,18 @@ import { seguro } from "@/lib/db"
 import { getClientes } from "@/lib/clientes-db"
 import type { Cliente } from "@/lib/simple-data"
 import { getAprendizadosGlobais, getUltimaAnaliseGlobal, type AprendizadoGlobal } from "@/lib/global-db"
+import { getOperacoes, type Operacao } from "@/lib/operacoes-db"
 
 // Lê o banco a cada request: garante que clientes recém-criados apareçam no seletor.
 export const dynamic = "force-dynamic"
 
 export default async function MarketingPage() {
   // Todas as buscas em paralelo: uma ida ao banco em vez de 2 em série.
-  const [clientes, aprendizadosGlobais, ultimaAnaliseGlobal] = await Promise.all([
+  const [clientes, aprendizadosGlobais, ultimaAnaliseGlobal, operacoes] = await Promise.all([
     seguro<Cliente[]>(getClientes(), []),
     seguro<AprendizadoGlobal[]>(getAprendizadosGlobais(), []),
     seguro<string | null>(getUltimaAnaliseGlobal(), null),
+    seguro<Operacao[]>(getOperacoes(), []),
   ])
 
   // Passa apenas os campos necessários ao seletor (evita enviar dados demais ao client).
@@ -31,6 +33,7 @@ export default async function MarketingPage() {
       clientes={opcoes}
       aprendizadosGlobais={aprendizadosGlobais}
       ultimaAnaliseGlobal={ultimaAnaliseGlobal}
+      operacoes={operacoes}
     />
   )
 }
