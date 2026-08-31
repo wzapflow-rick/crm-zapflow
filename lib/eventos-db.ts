@@ -18,6 +18,7 @@ type EventoRow = {
   tipo: string | null
   data: string | null
   hora: string | null
+  hora_fim: string | null
   empresa_id: string | null
   responsavel_id: string | null
   responsaveis_ids: string[] | null
@@ -39,6 +40,7 @@ function mapRow(r: EventoRow): Evento {
     tipo: normalizarTipo(r.tipo),
     data: r.data ?? "",
     hora: r.hora ?? "",
+    horaFim: r.hora_fim ?? "",
     clienteId: r.empresa_id ?? "",
     responsaveisIds,
     concluido: r.concluido ?? false,
@@ -51,6 +53,7 @@ function mapRow(r: EventoRow): Evento {
 const SELECT_COLS = `id, titulo, descricao, tipo,
   data::text as data,
   substring(hora::text from 1 for 5) as hora,
+  substring(hora_fim::text from 1 for 5) as hora_fim,
   empresa_id, responsavel_id, responsaveis_ids, concluido`
 
 export async function getEventos(): Promise<Evento[]> {
@@ -98,14 +101,15 @@ export async function criarEvento(input: EventoInput): Promise<void> {
   const responsaveis = input.responsaveisIds ?? []
   await query(
     `insert into public.agenda_compromissos
-       (titulo, descricao, tipo, data, hora, empresa_id, responsavel_id, responsaveis_ids)
-     values ($1, $2, $3, $4, $5, $6, $7, $8::uuid[])`,
+       (titulo, descricao, tipo, data, hora, hora_fim, empresa_id, responsavel_id, responsaveis_ids)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9::uuid[])`,
     [
       titulo,
       input.descricao?.trim() || null,
       normalizarTipo(input.tipo),
       input.data || null,
       input.hora || null,
+      input.horaFim || null,
       input.clienteId || null,
       responsaveis[0] || null,
       responsaveis,
@@ -119,8 +123,8 @@ export async function atualizarEvento(id: string, input: EventoInput): Promise<v
   const responsaveis = input.responsaveisIds ?? []
   await query(
     `update public.agenda_compromissos
-     set titulo = $2, descricao = $3, tipo = $4, data = $5, hora = $6,
-         empresa_id = $7, responsavel_id = $8, responsaveis_ids = $9::uuid[], updated_at = now()
+     set titulo = $2, descricao = $3, tipo = $4, data = $5, hora = $6, hora_fim = $7,
+         empresa_id = $8, responsavel_id = $9, responsaveis_ids = $10::uuid[], updated_at = now()
      where id = $1`,
     [
       id,
@@ -129,6 +133,7 @@ export async function atualizarEvento(id: string, input: EventoInput): Promise<v
       normalizarTipo(input.tipo),
       input.data || null,
       input.hora || null,
+      input.horaFim || null,
       input.clienteId || null,
       responsaveis[0] || null,
       responsaveis,

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { Bell, MessageSquare } from "lucide-react"
+import { Bell, MessageSquare, AlertTriangle } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -20,13 +20,32 @@ type NotificacaoMensagem = {
   createdAt: string
 }
 
+type TarefaAtrasada = {
+  id: string
+  titulo: string
+  clienteNome: string
+  responsavelNome: string
+  prazo: string
+  prazoLabel: string
+  diasAtraso: number
+  prioridade: string
+}
+
+type RespostaNotificacoes = {
+  mensagens: NotificacaoMensagem[]
+  tarefasAtrasadas: TarefaAtrasada[]
+}
+
 const LS_KEY = "crm:notificacoes:lidasAte"
 
-async function buscar(url: string): Promise<NotificacaoMensagem[]> {
+async function buscar(url: string): Promise<RespostaNotificacoes> {
   const res = await fetch(url, { cache: "no-store" })
   if (!res.ok) throw new Error("Falha ao buscar notificações")
-  const json = (await res.json()) as { mensagens: NotificacaoMensagem[] }
-  return json.mensagens ?? []
+  const json = (await res.json()) as Partial<RespostaNotificacoes>
+  return {
+    mensagens: json.mensagens ?? [],
+    tarefasAtrasadas: json.tarefasAtrasadas ?? [],
+  }
 }
 
 // Toca um bip curto usando a Web Audio API (sem precisar de arquivo de áudio).
@@ -54,10 +73,12 @@ function tocarBip() {
 }
 
 export function Notificacoes() {
-  const { data: mensagens = [] } = useSWR("/api/notificacoes", buscar, {
+  const { data } = useSWR("/api/notificacoes", buscar, {
     refreshInterval: 15000,
     revalidateOnFocus: true,
   })
+  const mensagens = data?.mensagens ?? []
+  const tarefasAtrasadas = data?.tarefasAtrasadas ?? []
 
   const [aberto, setAberto] = useState(false)
   const [lidasAte, setLidasAte] = useState<string>("")
@@ -103,6 +124,9 @@ export function Notificacoes() {
     [mensagens, lidasAte],
   )
 
+  // O badge soma mensagens novas + tarefas atrasadas (alerta persistente).
+  const totalBadge = naoLidas.length + tarefasAtrasadas.length
+
   function abrir() {
     const proximo = !aberto
     setAberto(proximo)
@@ -119,34 +143,81 @@ export function Notificacoes() {
       <button
         onClick={abrir}
         className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        aria-label={naoLidas.length > 0 ? `${naoLidas.length} mensagens novas` : "Notificações"}
+        aria-label={
+          totalBadge > 0
+            ? `${totalBadge} notificações (${tarefasAtrasadas.length} tarefas atrasadas)`
+            : "Notificações"
+        }
       >
         <Bell className="h-5 w-5" />
-        {naoLidas.length > 0 && (
+        {totalBadge > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-            {naoLidas.length > 9 ? "9+" : naoLidas.length}
+            {totalBadge > 9 ? "9+" : totalBadge}
           </span>
         )}
       </button>
 
       {aberto && (
         <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border border-border bg-popover shadow-lg animate-in fade-in-0 zoom-in-95">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="text-sm font-semibold text-popover-foreground">Mensagens dos clientes</span>
-            {naoLidas.length > 0 && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                {naoLidas.length} nova{naoLidas.length > 1 ? "s" : ""}
-              </span>
+          <ScrollArea className="max-h-[26rem]">
+            {/* Seção: tarefas atrasadas */}
+            {tarefasAtrasadas.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between border-b border-border bg-destructive/5 px-4 py-3">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    Tarefas atrasadas
+                  </span>
+                  <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                    {tarefasAtrasadas.length}
+                  </span>
+                </div>
+                <ul className="divide-y divide-border">
+                  {tarefasAtrasadas.map((t) => (
+                    <li key={t.id}>
+                      <Link
+                        href="/tarefas"
+                        onClick={() => setAberto(false)}
+                        className="flex gap-3 px-4 py-3 transition-colors hover:bg-accent"
+                      >
+                        <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                          <AlertTriangle className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-xs font-semibold text-foreground">{t.titulo}</span>
+                            <span className="shrink-0 text-[10px] font-medium text-destructive">
+                              {t.diasAtraso === 1 ? "1 dia" : `${t.diasAtraso} dias`}
+                            </span>
+                          </div>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {[t.responsavelNome, t.clienteNome].filter(Boolean).join(" · ") || "Sem responsável"}
+                            {t.prazoLabel ? ` · venceu ${t.prazoLabel}` : ""}
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-          </div>
 
-          {mensagens.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-              <MessageSquare className="h-6 w-6 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Nenhuma mensagem por enquanto.</p>
+            {/* Seção: mensagens dos clientes */}
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <span className="text-sm font-semibold text-popover-foreground">Mensagens dos clientes</span>
+              {naoLidas.length > 0 && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  {naoLidas.length} nova{naoLidas.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
-          ) : (
-            <ScrollArea className="max-h-80">
+
+            {mensagens.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Nenhuma mensagem por enquanto.</p>
+              </div>
+            ) : (
               <ul className="divide-y divide-border">
                 {mensagens.map((m) => {
                   const nova = !lidasAte || m.createdAt > lidasAte
@@ -167,12 +238,8 @@ export function Notificacoes() {
                         </Avatar>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-xs font-semibold text-foreground">
-                              {m.clienteNome}
-                            </span>
-                            {m.data && (
-                              <span className="shrink-0 text-[10px] text-muted-foreground">{m.data}</span>
-                            )}
+                            <span className="truncate text-xs font-semibold text-foreground">{m.clienteNome}</span>
+                            {m.data && <span className="shrink-0 text-[10px] text-muted-foreground">{m.data}</span>}
                           </div>
                           <p className="line-clamp-2 text-xs text-muted-foreground">{m.texto}</p>
                         </div>
@@ -182,8 +249,8 @@ export function Notificacoes() {
                   )
                 })}
               </ul>
-            </ScrollArea>
-          )}
+            )}
+          </ScrollArea>
         </div>
       )}
     </div>

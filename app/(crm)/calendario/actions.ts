@@ -23,6 +23,7 @@ function lerEvento(formData: FormData): EventoInput {
     tipo: String(formData.get("tipo") ?? "reuniao"),
     data: String(formData.get("data") ?? ""),
     hora: String(formData.get("hora") ?? ""),
+    horaFim: String(formData.get("horaFim") ?? ""),
     clienteId: String(formData.get("clienteId") ?? ""),
     responsaveisIds,
   }

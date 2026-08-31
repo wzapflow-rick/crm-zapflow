@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { Topbar } from "@/components/simple/topbar"
 import { EventoDialog, type ClienteOpcao } from "@/components/calendario/evento-dialog"
 import { criarEventoAction, atualizarEventoAction, excluirEventoAction } from "@/app/(crm)/calendario/actions"
-import { ESTILO_TIPO, TIPOS_EVENTO, type Evento, type ItemCalendario } from "@/lib/eventos-types"
+import { ESTILO_TIPO, TIPOS_EVENTO, calcularDuracao, type Evento, type ItemCalendario } from "@/lib/eventos-types"
 import type { Tarefa } from "@/lib/tarefas-types"
 import type { Membro } from "@/lib/membros-db"
 
@@ -358,7 +358,13 @@ export function CalendarioView({
                         </span>
                         {i.hora ? (
                           <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> {i.hora}
+                            <Clock className="h-3 w-3" />
+                            {ev?.horaFim ? `${i.hora}–${ev.horaFim}` : i.hora}
+                            {ev?.horaFim && calcularDuracao(i.hora, ev.horaFim) && (
+                              <span className="text-muted-foreground/80">
+                                ({calcularDuracao(i.hora, ev.horaFim)})
+                              </span>
+                            )}
                           </span>
                         ) : (
                           <span>{i.origem === "tarefa" ? "Prazo" : "Dia inteiro"}</span>
