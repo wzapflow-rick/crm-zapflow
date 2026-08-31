@@ -144,6 +144,61 @@ function descreverPrazo(prazo: string | null): { label: string; atrasada: boolea
   return { label: `${dia.toString().padStart(2, "0")}/${mes.toString().padStart(2, "0")}`, atrasada: false }
 }
 
+// ── Tarefas atrasadas (para o sino de notificações e alertas) ──────────────
+
+export type TarefaAtrasada = {
+  id: string
+  titulo: string
+  clienteNome: string
+  responsavelNome: string
+  prazo: string // YYYY-MM-DD
+  prazoLabel: string // DD/MM
+  diasAtraso: number
+  prioridade: Prioridade
+}
+
+// Lista tarefas não concluídas cujo prazo já passou (comparando pela data no
+// fuso de São Paulo). Ordena da mais atrasada para a menos atrasada.
+export async function getTarefasAtrasadas(): Promise<TarefaAtrasada[]> {
+  const rows = await query<{
+    id: string
+    titulo: string
+    prazo: string | null
+    prioridade: string | null
+    cliente_nome: string | null
+    responsavel_nome: string | null
+    dias_atraso: number | null
+  }>(
+    `select t.id, t.titulo,
+            to_char(t.prazo, 'YYYY-MM-DD') as prazo,
+            t.prioridade,
+            e.nome as cliente_nome,
+            eq.nome as responsavel_nome,
+            ((now() at time zone 'America/Sao_Paulo')::date - t.prazo) as dias_atraso
+     from public.tarefas t
+     left join public.empresas e on e.id = t.empresa_id
+     left join public.equipe eq on eq.id = t.responsavel_id
+     where t.status <> 'concluido'
+       and t.prazo is not null
+       and t.prazo < (now() at time zone 'America/Sao_Paulo')::date
+     order by t.prazo asc`,
+  )
+  return rows.map((r) => {
+    const prazo = r.prazo ?? ""
+    const [, mes, dia] = prazo.split("-")
+    return {
+      id: r.id,
+      titulo: r.titulo,
+      clienteNome: r.cliente_nome ?? "",
+      responsavelNome: r.responsavel_nome ?? "",
+      prazo,
+      prazoLabel: dia && mes ? `${dia}/${mes}` : "",
+      diasAtraso: r.dias_atraso ?? 0,
+      prioridade: normalizarPrioridade(r.prioridade),
+    }
+  })
+}
+
 export async function getResumoTarefas(limite = 5): Promise<ResumoTarefas> {
   const rows = await query<ResumoRow>(
     `select t.id, t.titulo, t.descricao, t.empresa_id, t.responsavel_id,

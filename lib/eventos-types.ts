@@ -17,6 +17,7 @@ export type Evento = {
   tipo: TipoEvento
   data: string // YYYY-MM-DD
   hora: string // HH:MM ("" se o dia inteiro)
+  horaFim: string // HH:MM ("" quando não informado); usado para calcular a duração
   clienteId: string
   responsaveisIds: string[] // pode ter vários responsáveis
   concluido: boolean // marcado no checklist de Tarefas
@@ -28,6 +29,7 @@ export type EventoInput = {
   tipo?: string
   data?: string
   hora?: string
+  horaFim?: string
   clienteId?: string
   responsaveisIds?: string[]
 }
@@ -69,4 +71,29 @@ export const ESTILO_TIPO: Record<string, { ponto: string; chip: string; label: s
 export function normalizarTipo(valor: string | null | undefined): TipoEvento {
   const ids = TIPOS_EVENTO.map((t) => t.id) as string[]
   return (ids.includes(valor ?? "") ? valor : "reuniao") as TipoEvento
+}
+
+// Converte "HH:MM" em minutos desde a meia-noite. Retorna null se inválido.
+function minutosDe(hhmm: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm.trim())
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h > 23 || min > 59) return null
+  return h * 60 + min
+}
+
+// Rótulo amigável da duração entre início e fim (ex.: "1h30", "45min", "2h").
+// Retorna "" quando não há como calcular (falta início/fim ou fim <= início).
+export function calcularDuracao(hora: string, horaFim: string): string {
+  const ini = minutosDe(hora || "")
+  const fim = minutosDe(horaFim || "")
+  if (ini === null || fim === null) return ""
+  const diff = fim - ini
+  if (diff <= 0) return ""
+  const h = Math.floor(diff / 60)
+  const min = diff % 60
+  if (h === 0) return `${min}min`
+  if (min === 0) return `${h}h`
+  return `${h}h${String(min).padStart(2, "0")}`
 }
