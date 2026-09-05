@@ -10,6 +10,11 @@ import { getPadroes } from "@/lib/padroes-db"
 import { getAprendizadosGlobais } from "@/lib/global-db"
 import { getOperacoes } from "@/lib/operacoes-db"
 import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
+import {
+  analisarMidiasInstagram,
+  formatarResumoInteligencia,
+  selecionarEvidenciasInstagram,
+} from "@/lib/inteligencia-cliente"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -102,10 +107,13 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
   }
 
   if (conteudos.length > 0) {
-    const amostra = conteudos.slice(0, 15)
+    const amostra = conteudos.slice(0, 30)
     partes.push(
-      `\n## CONTEÚDOS (${conteudos.length} no total, amostra)\n${amostra
-        .map((c) => `- [${c.status}] ${c.titulo} (${c.formato})`)
+      `\n## CONTEÚDOS DO SIMPLE OS (${conteudos.length} no total; amostra detalhada)\n${amostra
+        .map((c) => {
+          const detalhes = [c.legenda, c.roteiro, c.direcionamento].filter(Boolean).join(" | ").slice(0, 500)
+          return `- [${c.status}] ${c.titulo} (${c.formato})${c.dataISO ? ` em ${c.dataISO}` : ""}${detalhes ? ` — ${detalhes}` : ""}`
+        })
         .join("\n")}`,
     )
   }
@@ -216,8 +224,12 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       })
       .join("\n")
 
+    const inteligencia = analisarMidiasInstagram(instaMidias)
+    inteligencia.conteudosSIMPLE = conteudos.length
+    const resumoNumerico = formatarResumoInteligencia(inteligencia)
+    const evidencias = selecionarEvidenciasInstagram(instaMidias)
     partes.push(
-      `\n## INSTAGRAM (dados da conta conectada)\n${perfil}${topPosts ? `\n### Publicações com melhor alcance\n${topPosts}` : ""}`,
+      `\n## INSTAGRAM (dados da conta conectada)\n${perfil}${topPosts ? `\n### Publicações com melhor alcance\n${topPosts}` : ""}\n\n### ANÁLISE NUMÉRICA COMPLETA\n${resumoNumerico}${evidencias ? `\n### EVIDÊNCIAS DE PUBLICAÇÕES\n${evidencias}` : ""}`,
     )
   }
 

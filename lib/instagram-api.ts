@@ -150,31 +150,55 @@ type MediaApiItem = {
   comments_count?: number
 }
 
-// Busca as mídias mais recentes e, para cada uma, os insights disponíveis.
+// Busca todo o histórico paginado e, para cada mídia, os insights disponíveis.
 export async function buscarMidias(token: string, limite = 25): Promise<MidiaUpsert[]> {
   const fields =
     "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count"
-  const res = await fetch(`${GRAPH}/${API_VERSION}/me/media?fields=${fields}&limit=${limite}&access_token=${token}`)
-  const json = (await res.json()) as { data?: MediaApiItem[]; error?: { message?: string } }
-  if (!res.ok) throw new Error(json.error?.message || "Falha ao buscar as mídias.")
-  const itens = json.data ?? []
+  const itens: MediaApiItem[] = []
+  const ids = new Set<string>()
+  let proximaUrl: string | null = `${GRAPH}/${API_VERSION}/me/media?fields=${fields}&limit=${limite}&access_token=${encodeURIComponent(token)}`
+  let paginas = 0
+
+  while (proximaUrl && paginas < 100) {
+    const res = await fetch(proximaUrl)
+    const json = (await res.json()) as {
+      data?: MediaApiItem[]
+      paging?: { next?: string }
+      error?: { message?: string }
+    }
+    if (!res.ok) throw new Error(json.error?.message || "Falha ao buscar as mídias.")
+    for (const item of json.data ?? []) {
+      if (!ids.has(item.id)) {
+        ids.add(item.id)
+        itens.push(item)
+      }
+    }
+    proximaUrl = json.paging?.next ?? null
+    paginas += 1
+  }
 
   const resultado: MidiaUpsert[] = []
-  for (const item of itens) {
-    const tipo = item.media_product_type === "REELS" ? "REELS" : item.media_type ?? "IMAGE"
-    const insights = await buscarInsightsMidia(token, item.id, tipo).catch(() => ({}))
-    resultado.push({
-      id: item.id,
-      tipo,
-      legenda: item.caption ?? "",
-      permalink: item.permalink ?? "",
-      thumbnailUrl: item.thumbnail_url ?? item.media_url ?? "",
-      mediaUrl: item.media_url ?? "",
-      publicadoEm: item.timestamp ?? null,
-      curtidas: item.like_count ?? null,
-      comentarios: item.comments_count ?? null,
-      ...insights,
-    })
+  for (let inicio = 0; inicio < itens.length; inicio += 6) {
+    const lote = itens.slice(inicio, inicio + 6)
+    const processados = await Promise.all(
+      lote.map(async (item) => {
+        const tipo = item.media_product_type === "REELS" ? "REELS" : item.media_type ?? "IMAGE"
+        const insights = await buscarInsightsMidia(token, item.id, tipo).catch(() => ({}))
+        return {
+          id: item.id,
+          tipo,
+          legenda: item.caption ?? "",
+          permalink: item.permalink ?? "",
+          thumbnailUrl: item.thumbnail_url ?? item.media_url ?? "",
+          mediaUrl: item.media_url ?? "",
+          publicadoEm: item.timestamp ?? null,
+          curtidas: item.like_count ?? null,
+          comentarios: item.comments_count ?? null,
+          ...insights,
+        }
+      }),
+    )
+    resultado.push(...processados)
   }
   return resultado
 }

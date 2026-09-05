@@ -18,6 +18,7 @@ import {
   salvarConexaoInstagram,
   salvarMidiasInstagram,
 } from "@/lib/instagram-db"
+import { atualizarInteligenciaCliente } from "@/lib/inteligencia-cliente"
 
 export type EstadoInstagram = { ok: boolean; erro?: string; mensagem?: string }
 
@@ -67,12 +68,15 @@ export async function sincronizarInstagramAction(empresaId: string): Promise<Est
       const cliente = await getClientePorId(id)
       const perfil = gerarPerfilDemo(cliente?.nome ?? "Cliente")
       await salvarMidiasInstagram(id, gerarMidiasDemo())
-      await marcarSyncInstagram(id, {
-        seguidores: perfil.seguidores,
-        segue: perfil.segue,
-        midiaCount: perfil.midiaCount,
-      })
-    } catch (e) {
+    await marcarSyncInstagram(id, {
+      seguidores: perfil.seguidores,
+      segue: perfil.segue,
+      midiaCount: perfil.midiaCount,
+    })
+    await atualizarInteligenciaCliente(id).catch((erro) => {
+      console.error("[inteligencia] falha após sync demo:", erro instanceof Error ? erro.message : erro)
+    })
+  } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro desconhecido."
       return { ok: false, erro: `Falha ao atualizar demonstração: ${msg}` }
     }
@@ -121,6 +125,9 @@ export async function sincronizarInstagramAction(empresaId: string): Promise<Est
       seguidores: perfil.seguidores,
       segue: perfil.segue,
       midiaCount: perfil.midiaCount,
+    })
+    await atualizarInteligenciaCliente(id).catch((erro) => {
+      console.error("[inteligencia] falha após sync Instagram:", erro instanceof Error ? erro.message : erro)
     })
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido."

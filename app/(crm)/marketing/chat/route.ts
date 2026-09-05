@@ -34,6 +34,13 @@ export async function POST(req: Request) {
 # CONTEXTO DO CLIENTE ATUAL
 Você está em uma conversa estratégica sobre o cliente abaixo. Use TUDO o que sabe sobre ele para responder com precisão e profundidade, como se tivesse participado de todas as reuniões desde o primeiro dia. Nunca peça informações que já estão aqui. Quando fizer sentido, conecte sua resposta às metas, ao histórico e aos resultados deste cliente.
 
+# POLÍTICA DE EVIDÊNCIAS
+- Os dados do cliente atual têm prioridade sobre conhecimento genérico, dados globais ou suposições.
+- Ao citar Instagram, informe números, período, tipo de publicação e tamanho da amostra quando disponíveis.
+- Não diga que um formato ou tema "funciona" apenas porque teve um post de destaque; trate isso como hipótese quando a amostra for pequena.
+- Se uma métrica não estiver disponível, escreva "sem dado" em vez de estimar.
+- Diferencie sempre: dado observado, interpretação e próximo experimento recomendado.
+
 ${contexto.texto}`
 
   // Persiste a última mensagem do usuário antes de gerar a resposta.

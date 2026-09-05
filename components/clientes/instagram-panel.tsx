@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   FlaskConical,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
 import {
@@ -98,12 +98,14 @@ export function InstagramPanel({
           </p>
 
           <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row">
-            <Button asChild disabled={!configurado} className={cn(!configurado && "pointer-events-none opacity-50")}>
-              <a href={`/api/instagram/connect?empresa=${clienteId}`}>
-                <Instagram className="h-4 w-4" />
-                Conectar conta real
-              </a>
-            </Button>
+            <a
+              aria-disabled={!configurado}
+              className={cn(buttonVariants(), !configurado && "pointer-events-none opacity-50")}
+              href={configurado ? `/api/instagram/connect?empresa=${clienteId}` : undefined}
+            >
+              <Instagram className="h-4 w-4" />
+              Conectar conta real
+            </a>
             <Button variant="outline" onClick={() => rodar("demo")} disabled={pending}>
               {carregando("demo") ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />}
               Ativar demonstração

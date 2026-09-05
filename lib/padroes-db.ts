@@ -1,5 +1,5 @@
 import "server-only"
-import { query } from "@/lib/db"
+import { query, getPool } from "@/lib/db"
 
 export type ConfiancaPadrao = "alta" | "media" | "baixa"
 
@@ -50,13 +50,24 @@ export async function substituirPadroes(
   empresaId: string,
   padroes: { categoria: string; padrao: string; evidencia: string; confianca: ConfiancaPadrao }[],
 ): Promise<void> {
-  await query("DELETE FROM cliente_padrao WHERE empresa_id = $1", [empresaId])
-  for (const p of padroes) {
-    await query(
-      `INSERT INTO cliente_padrao (empresa_id, categoria, padrao, evidencia, confianca)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [empresaId, p.categoria, p.padrao, p.evidencia, p.confianca],
-    )
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("BEGIN")
+    await client.query("DELETE FROM cliente_padrao WHERE empresa_id = $1", [empresaId])
+    for (const p of padroes) {
+      await client.query(
+        `INSERT INTO cliente_padrao (empresa_id, categoria, padrao, evidencia, confianca)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [empresaId, p.categoria, p.padrao, p.evidencia, p.confianca],
+      )
+    }
+    await client.query("COMMIT")
+  } catch (error) {
+    await client.query("ROLLBACK")
+    throw error
+  } finally {
+    client.release()
   }
 }
 
