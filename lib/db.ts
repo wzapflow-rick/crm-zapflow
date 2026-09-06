@@ -8,19 +8,30 @@ function makePool() {
   if (!connectionString) {
     throw new Error("CRM_DATABASE_URL não configurada no ambiente.")
   }
-  // O Postgres self-hosted da SIMPLE não usa TLS por padrão.
-  // Se a string de conexão pedir SSL, habilitamos sem validar o certificado.
-  const querSsl = /sslmode=require|ssl=true/i.test(connectionString)
+  // Remove parâmetros de SSL da URL para que o pg-connection-string não
+  // sobrescreva a configuração explícita nem emita avisos de compatibilidade.
+  const url = new URL(connectionString)
+  const sslMode = url.searchParams.get("sslmode")?.toLowerCase()
+  const sslParam = url.searchParams.get("ssl")?.toLowerCase()
+  const querSsl =
+    sslParam === "true" ||
+    (sslMode !== undefined && !["disable", "allow"].includes(sslMode))
+
+  url.searchParams.delete("sslmode")
+  url.searchParams.delete("ssl")
+  url.searchParams.delete("uselibpqcompat")
+
   const pool = new Pool({
-    connectionString,
+    connectionString: url.toString(),
     ssl: querSsl ? { rejectUnauthorized: false } : false,
     // Limita o fan-out por instância serverless para não saturar o Postgres.
     max: 5,
     min: 0,
     idleTimeoutMillis: 20_000,
     connectionTimeoutMillis: 5_000,
+    // O limite é aplicado no cliente. Proxies como PgBouncer não aceitam
+    // statement_timeout como parâmetro de inicialização da conexão.
     query_timeout: 10_000,
-    statement_timeout: 8_000,
     allowExitOnIdle: true,
     application_name: "simple-crm",
   })
