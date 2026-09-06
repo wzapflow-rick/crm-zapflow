@@ -24,7 +24,9 @@ export async function POST(req: Request) {
     return new Response("Cliente não informado.", { status: 400 })
   }
 
-  const contexto = await montarContextoCliente(empresaId)
+  const ultimaMensagem = messages[messages.length - 1]
+  const consulta = ultimaMensagem?.role === "user" ? textoDaMensagem(ultimaMensagem) : ""
+  const contexto = await montarContextoCliente(empresaId, consulta)
   if (!contexto) {
     return new Response("Cliente não encontrado.", { status: 404 })
   }

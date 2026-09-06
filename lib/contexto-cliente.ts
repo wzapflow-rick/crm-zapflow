@@ -11,6 +11,7 @@ import { getAprendizadosGlobais } from "@/lib/global-db"
 import { getOperacoes } from "@/lib/operacoes-db"
 import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
 import { compararAnalisesIa, getHistoricoAnalisesIa } from "@/lib/analises-ia-db"
+import { buscarEvidenciasSemanticas, formatarEvidenciasSemanticas } from "@/lib/busca-semantica"
 import {
   analisarMidiasInstagram,
   formatarResumoInteligencia,
@@ -41,7 +42,7 @@ function linhasMetas(metas: { rotulo: string; atual: number; alvo: number; unida
 
 // Monta TODA a memória disponível do cliente no banco e devolve em dois formatos:
 // um resumo para a UI e um texto pronto para o system prompt.
-export async function montarContextoCliente(empresaId: string): Promise<ContextoCliente | null> {
+export async function montarContextoCliente(empresaId: string, consulta = ""): Promise<ContextoCliente | null> {
   const cliente = await getClientePorId(empresaId)
   if (!cliente) return null
 
@@ -236,6 +237,19 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     partes.push(
       `\n## INSTAGRAM (dados da conta conectada)\n${perfil}${topPosts ? `\n### Publicações com melhor alcance\n${topPosts}` : ""}\n\n### ANÁLISE NUMÉRICA COMPLETA\n${resumoNumerico}${evidencias ? `\n### EVIDÊNCIAS DE PUBLICAÇÕES\n${evidencias}` : ""}`,
     )
+  }
+
+  if (consulta.trim()) {
+    const evidenciasSemanticas = await buscarEvidenciasSemanticas({
+      empresaId,
+      consulta,
+      midias: instaMidias,
+      conteudos,
+    })
+    const textoEvidencias = formatarEvidenciasSemanticas(evidenciasSemanticas)
+    if (textoEvidencias) {
+      partes.push(`\n## EVIDÊNCIAS SEMANTICAMENTE RELEVANTES PARA A PERGUNTA\n${textoEvidencias}\nUse estas evidências como apoio específico para a pergunta atual. Relevância não prova causalidade; cite a origem e diferencie observação de interpretação.`)
+    }
   }
 
   if (historicoAnalisesIa.length > 0) {
