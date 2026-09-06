@@ -43,16 +43,20 @@ async function obterColunasChat(): Promise<Set<string>> {
 
 async function detectarColunasCompativeis() {
   const colunas = await obterColunasChat()
+  const papeis = COLUNAS_PAPEL_COMPATIVEIS.filter((coluna) => colunas.has(coluna))
+  const textos = COLUNAS_TEXTO_COMPATIVEIS.filter((coluna) => colunas.has(coluna))
   return {
-    papel: COLUNAS_PAPEL_COMPATIVEIS.find((coluna) => colunas.has(coluna)) ?? null,
-    texto: COLUNAS_TEXTO_COMPATIVEIS.find((coluna) => colunas.has(coluna)) ?? null,
+    papel: papeis[0] ?? null,
+    texto: textos[0] ?? null,
+    papeis,
+    textos,
   }
 }
 
 function avisarSchemaIncompativel() {
   if (avisoSchemaEmitido) return
   avisoSchemaEmitido = true
-  console.warn("[chat-db] histórico sem colunas compatíveis; execute scripts/016-cliente-chat-texto.sql")
+  console.warn("[chat-db] histórico sem colunas compatíveis; execute scripts/017-padronizar-cliente-chat.sql")
 }
 
 export async function getChatMensagens(empresaId: string): Promise<ChatMensagem[]> {
@@ -91,11 +95,11 @@ export async function salvarChatMensagem(
     return
   }
 
-  await query(`insert into public.cliente_chat (empresa_id, ${colunas.papel}, ${colunas.texto}) values ($1, $2, $3)`, [
-    empresaId,
-    papel,
-    limpo,
-  ])
+  const nomesColunas = ["empresa_id", ...colunas.papeis, ...colunas.textos]
+  const valores = [empresaId, ...colunas.papeis.map(() => papel), ...colunas.textos.map(() => limpo)]
+  const placeholders = valores.map((_, indice) => `$${indice + 1}`).join(", ")
+
+  await query(`insert into public.cliente_chat (${nomesColunas.join(", ")}) values (${placeholders})`, valores)
 }
 
 export async function limparChat(empresaId: string): Promise<void> {
