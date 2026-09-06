@@ -10,6 +10,7 @@ import { getPadroes } from "@/lib/padroes-db"
 import { getAprendizadosGlobais } from "@/lib/global-db"
 import { getOperacoes } from "@/lib/operacoes-db"
 import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
+import { getHistoricoAnalisesIa } from "@/lib/analises-ia-db"
 import {
   analisarMidiasInstagram,
   formatarResumoInteligencia,
@@ -54,7 +55,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const [performance, experimentos, padroes, aprendizadosGlobais, operacoes, instaConexao, instaMidias] =
+  const [performance, experimentos, padroes, aprendizadosGlobais, operacoes, instaConexao, instaMidias, historicoAnalisesIa] =
     await Promise.all([
       getPerformance(empresaId).catch(() => []),
       getExperimentos(empresaId).catch(() => []),
@@ -63,6 +64,7 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       getOperacoes().catch(() => []),
       getConexaoInstagram(empresaId).catch(() => null),
       getMidiasInstagram(empresaId).catch(() => []),
+      getHistoricoAnalisesIa(empresaId, 5),
     ])
 
   const partes: string[] = []
@@ -234,6 +236,26 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     partes.push(
       `\n## INSTAGRAM (dados da conta conectada)\n${perfil}${topPosts ? `\n### Publicações com melhor alcance\n${topPosts}` : ""}\n\n### ANÁLISE NUMÉRICA COMPLETA\n${resumoNumerico}${evidencias ? `\n### EVIDÊNCIAS DE PUBLICAÇÕES\n${evidencias}` : ""}`,
     )
+  }
+
+  if (historicoAnalisesIa.length > 0) {
+    const linhas = historicoAnalisesIa.map((analise, indice) => {
+      const qualidade = typeof analise.qualidade.nivel === "string" ? `${analise.qualidade.nivel} (${analise.qualidade.percentual ?? "n/d"}%)` : "n/d"
+      const metricas = analise.metricas
+      const alcance = typeof metricas.alcanceTotal === "number" ? metricas.alcanceTotal : "n/d"
+      const engajamento = typeof metricas.engajamentoMedio === "number" ? `${metricas.engajamentoMedio}%` : "n/d"
+      const padroes = Array.isArray(analise.padroes)
+        ? analise.padroes.slice(0, 3).map((padrao) => {
+            if (!padrao || typeof padrao !== "object") return ""
+            const item = padrao as { categoria?: string; padrao?: string; confianca?: string }
+            return item.padrao ? `[${item.categoria ?? "geral"}] ${item.padrao} (${item.confianca ?? "n/d"})` : ""
+          }).filter(Boolean).join("; ")
+        : ""
+      return `- ${indice === 0 ? "Atual" : `Anterior ${indice}`} | analisada em ${new Date(analise.analisadoEm).toLocaleDateString("pt-BR")} | ${analise.postsInstagram} posts Instagram | alcance total ${alcance} | engajamento médio ${engajamento} | qualidade ${qualidade}${padroes ? ` | padrões: ${padroes}` : ""}`
+    }).join("\n")
+    partes.push(`\n## MEMÓRIA ANALÍTICA VERSIONADA (mais recente primeiro)
+${linhas}
+Use este histórico para explicar evolução e persistência de padrões. Não trate análises antigas como estado atual quando houver uma análise mais recente.`)
   }
 
   if (padroes.length > 0) {

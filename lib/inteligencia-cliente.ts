@@ -6,6 +6,7 @@ import { z } from "zod"
 import { getConteudos } from "@/lib/clientes-db"
 import { getMidiasInstagram, type MidiaInstagram } from "@/lib/instagram-db"
 import { substituirPadroes, type ConfiancaPadrao } from "@/lib/padroes-db"
+import { salvarAnaliseIa } from "@/lib/analises-ia-db"
 
 const MODELO = "gpt-4o"
 const MAX_EVIDENCIAS_PARA_MODELO = 80
@@ -234,6 +235,18 @@ export async function atualizarInteligenciaCliente(empresaId: string): Promise<v
     const payload = montarEvidencias(conteudos, resumo)
 
     if (midias.length === 0 && conteudos.length === 0) {
+      await salvarAnaliseIa({
+        empresaId: id,
+        analisadoEm: resumo.analisadoEm,
+        periodoInicio: null,
+        periodoFim: null,
+        postsInstagram: 0,
+        conteudosSimple: 0,
+        resumo: resumo as unknown as Record<string, unknown>,
+        metricas: resumo.metricas as unknown as Record<string, unknown>,
+        qualidade: resumo.qualidade as unknown as Record<string, unknown>,
+        padroes: [],
+      }).catch(() => {})
       await substituirPadroes(id, [])
       return
     }
@@ -245,7 +258,22 @@ export async function atualizarInteligenciaCliente(empresaId: string): Promise<v
       prompt: JSON.stringify({ clienteId: id, resumo, evidencias: payload }),
     })
 
-    await substituirPadroes(id, object.padroes as PadraoGerado[])
+    const padroes = object.padroes as PadraoGerado[]
+    await salvarAnaliseIa({
+      empresaId: id,
+      analisadoEm: resumo.analisadoEm,
+      periodoInicio: resumo.periodo.inicio,
+      periodoFim: resumo.periodo.fim,
+      postsInstagram: resumo.postsInstagram,
+      conteudosSimple: resumo.conteudosSIMPLE,
+      resumo: resumo as unknown as Record<string, unknown>,
+      metricas: resumo.metricas as unknown as Record<string, unknown>,
+      qualidade: resumo.qualidade as unknown as Record<string, unknown>,
+      padroes,
+    }).catch((error) => {
+      console.warn("[inteligencia] não foi possível salvar o histórico; padrões atuais serão mantidos:", error instanceof Error ? error.message : error)
+    })
+    await substituirPadroes(id, padroes)
   })()
 
   execucoes.set(id, execucao)
