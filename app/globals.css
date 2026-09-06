@@ -135,26 +135,6 @@
   --sidebar-ring: oklch(0.66 0.26 305);
 }
 
-@keyframes faixa-continuous {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-.faixa-continuous-track {
-  animation: faixa-continuous 32s linear infinite;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .faixa-continuous-track {
-    animation-play-state: paused;
-  }
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
