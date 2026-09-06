@@ -30,6 +30,10 @@ export async function POST(req: Request) {
 
   const ultimaMensagem = messages[messages.length - 1]
   const consulta = ultimaMensagem?.role === "user" ? textoDaMensagem(ultimaMensagem) : ""
+  const historicoConversa = messages
+    .slice(Math.max(0, messages.length - 5), -1)
+    .map((mensagem) => `${mensagem.role === "assistant" ? "Assistente" : "Usuário"}: ${textoDaMensagem(mensagem)}`)
+    .join("\n")
   const contexto = await montarContextoCliente(empresaId, consulta)
   if (!contexto) {
     return new Response("Cliente não encontrado.", { status: 404 })
@@ -42,10 +46,15 @@ Você está em uma conversa estratégica sobre o cliente abaixo. Use TUDO o que 
 
 # POLÍTICA DE EVIDÊNCIAS
 - Os dados do cliente atual têm prioridade sobre conhecimento genérico, dados globais ou suposições.
-- Ao citar Instagram, informe números, período, tipo de publicação e tamanho da amostra quando disponíveis.
+- Em análises factuais de Instagram, informe números, período, tipo de publicação e tamanho da amostra quando disponíveis.
 - Não diga que um formato ou tema "funciona" apenas porque teve um post de destaque; trate isso como hipótese quando a amostra for pequena.
-- Se uma métrica não estiver disponível, escreva "sem dado" em vez de estimar.
-- Diferencie sempre: dado observado, interpretação e próximo experimento recomendado.
+- Em análises factuais, se uma métrica não estiver disponível, escreva "sem dado" em vez de estimar e diferencie dado observado, interpretação e próximo experimento recomendado.
+- Em entregas criativas, use as evidências disponíveis como direção estratégica, sem exigir métricas para executar o pedido.
+
+# CONTINUIDADE E MELHOR ESFORÇO
+- Interprete confirmações curtas como "sim", "é disso que preciso" ou "pode fazer" à luz das mensagens anteriores e execute integralmente a entrega oferecida.
+- Em pedidos criativos ou operacionais, nunca recuse por haver poucos dados. Use todo o contexto disponível, complete as lacunas com escolhas estratégicas razoáveis e apresente essas escolhas como sugestões, não como fatos do cliente.
+- Se você oferecer espontaneamente criar roteiros, ideias, planos ou qualquer outro material e o usuário aceitar, entregue o material na resposta seguinte sem pedir novamente informações que já constam no contexto.
 
 # APRESENTAÇÃO DA RESPOSTA
 Responda em texto simples, claro e organizado em parágrafos curtos. Não use Markdown, hashtags, asteriscos, cerquilhas, tabelas, blocos de código ou marcadores com símbolos. Quando precisar enumerar itens, use apenas números seguidos de ponto. Nunca exiba caracteres de formatação ao usuário.
@@ -68,6 +77,7 @@ ${contexto.texto}`
       empresaId,
       pergunta: consulta,
       contexto: system,
+      historicoConversa,
       respostaInicial,
     })
     await salvarChatMensagem(empresaId, "assistant", resultado.respostaFinal).catch(() => {})

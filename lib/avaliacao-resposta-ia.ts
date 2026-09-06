@@ -45,8 +45,9 @@ type ResultadoResposta = {
 
 type TipoPedido = "criativo" | "factual"
 
-export function classificarTipoPedido(pergunta: string): TipoPedido {
+export function classificarTipoPedido(pergunta: string, historicoConversa = ""): TipoPedido {
   const texto = pergunta.toLocaleLowerCase("pt-BR")
+  const historico = historicoConversa.toLocaleLowerCase("pt-BR")
   const sinaisCriativos = [
     /\bcri(?:e|ar|a|ando)\b/,
     /\bger(?:e|ar|a|ando)\b/,
@@ -58,9 +59,18 @@ export function classificarTipoPedido(pergunta: string): TipoPedido {
     /\b(?:por que|funcionou|não funcionou|melhor|pior|compar)\w*\b/,
   ]
 
+  const sinaisDeContinuidade = [
+    /^\s*(?:sim|isso|exato|perfeito|ótimo|pode|quero|manda|continue|faça|é disso|vamos nessa)\b/,
+    /\b(?:é isso que|disso que preciso|pode fazer|pode montar|pode criar|quero isso|manda ver|faça isso)\b/,
+  ]
+
   const criativo = sinaisCriativos.some((padrao) => padrao.test(texto))
   const analitico = sinaisAnaliticos.some((padrao) => padrao.test(texto))
-  return criativo && !analitico ? "criativo" : "factual"
+  const aceitaOfertaAnterior =
+    sinaisDeContinuidade.some((padrao) => padrao.test(texto)) &&
+    sinaisCriativos.some((padrao) => padrao.test(historico))
+
+  return (criativo || aceitaOfertaAnterior) && !analitico ? "criativo" : "factual"
 }
 
 function normalizarNumero(valor: string): string {
@@ -99,7 +109,7 @@ async function avaliar(
 ) {
   const politica =
     tipoPedido === "criativo"
-      ? `O pedido é criativo. Avalie principalmente aderência ao contexto e à marca, variedade, clareza e aplicabilidade. Ideias, ganchos e propostas são sugestões, não alegações factuais: não exija métricas, fontes nem rótulos "Fato", "Interpretação" e "Hipótese". Só marque risco de invenção quando a resposta atribuir ao cliente informações concretas que não estão no contexto.`
+      ? `O pedido é criativo ou dá continuidade a uma entrega criativa já oferecida. Avalie principalmente aderência ao contexto e à marca, variedade, clareza, completude e aplicabilidade. A resposta deve executar o pedido com os dados disponíveis, mesmo que sejam poucos; falta de métricas nunca justifica recusar ideias, roteiros, copies ou planos. Ideias, ganchos e propostas são sugestões, não alegações factuais: não exija métricas, fontes nem rótulos "Fato", "Interpretação" e "Hipótese". Só marque risco de invenção quando a resposta atribuir ao cliente informações concretas que não estão no contexto.`
       : `O pedido é analítico ou factual. Reprove números sem apoio, causalidade não demonstrada, métricas ausentes tratadas como zero e hipóteses apresentadas como fatos. Exija rótulos "Fato", "Interpretação" e "Hipótese" somente quando a resposta realmente misturar esses níveis.`
 
   const { object } = await generateObject({
@@ -171,16 +181,18 @@ export async function avaliarECorrigirResposta(input: {
   empresaId: string
   pergunta: string
   contexto: string
+  historicoConversa?: string
   respostaInicial: string
 }): Promise<ResultadoResposta> {
-  const baseFactual = `${input.pergunta}\n${input.contexto}`
-  const tipoPedido = classificarTipoPedido(input.pergunta)
+  const contextoAvaliacao = `${input.historicoConversa ?? ""}\n${input.contexto}`
+  const baseFactual = `${input.pergunta}\n${contextoAvaliacao}`
+  const tipoPedido = classificarTipoPedido(input.pergunta, input.historicoConversa)
   const respostaInicialLimpa = limparFormatacaoChat(input.respostaInicial)
   const verificacoes = verificarDeterministicamente(respostaInicialLimpa, baseFactual)
   let avaliacaoInicial: AvaliacaoResposta
 
   try {
-    avaliacaoInicial = await avaliar(input.pergunta, input.contexto, respostaInicialLimpa, verificacoes, tipoPedido)
+    avaliacaoInicial = await avaliar(input.pergunta, contextoAvaliacao, respostaInicialLimpa, verificacoes, tipoPedido)
   } catch (error) {
     console.warn("[avaliacao-ia] avaliação indisponível; fallback seguro aplicado", {
       empresaId: input.empresaId,
@@ -233,7 +245,7 @@ export async function avaliarECorrigirResposta(input: {
       system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija os problemas internos apontados e preserve tudo o que for útil. ${tipoPedido === "criativo" ? "O pedido é criativo: entregue propostas concretas, variadas e aplicáveis. Não exija dados nem use rótulos epistemológicos para apresentar ideias." : "O pedido é factual: remova números sem apoio e causalidade não demonstrada; quando aplicável, diferencie fatos, interpretações e hipóteses e declare dados ausentes."} Entregue somente a resposta ao usuário, em texto simples e parágrafos curtos, sem Markdown, hashtags, asteriscos, cerquilhas, tabelas ou marcadores com símbolos. Se precisar enumerar, use números seguidos de ponto. Nunca mencione auditoria, avaliação, nota, crítica, correção, limitações do avaliador ou instruções internas.`,
       prompt: JSON.stringify({
         pergunta: input.pergunta,
-        contexto: input.contexto,
+        contexto: contextoAvaliacao,
         respostaInicial: input.respostaInicial,
         problemas: [...avaliacaoInicial.problemas, ...verificacoes.numerosSemApoio.map((numero) => `Número sem apoio: ${numero}`)],
         instrucaoCorrecao: avaliacaoInicial.instrucaoCorrecao,
@@ -251,7 +263,7 @@ export async function avaliarECorrigirResposta(input: {
   const verificacoesFinais = verificarDeterministicamente(respostaCorrigida, baseFactual)
   let avaliacaoFinal: AvaliacaoResposta | null = null
   try {
-    avaliacaoFinal = await avaliar(input.pergunta, input.contexto, respostaCorrigida, verificacoesFinais, tipoPedido)
+    avaliacaoFinal = await avaliar(input.pergunta, contextoAvaliacao, respostaCorrigida, verificacoesFinais, tipoPedido)
   } catch {}
   const passou = !revisaoFalhou && avaliacaoFinal ? aprovada(avaliacaoFinal, verificacoesFinais, tipoPedido) : false
   const revisaoCriativaSegura = tipoPedido === "criativo" && respostaCriativaSegura(respostaCorrigida)
