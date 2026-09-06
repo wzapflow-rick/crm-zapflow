@@ -43,6 +43,26 @@ type ResultadoResposta = {
   respostaConservadora: boolean
 }
 
+type TipoPedido = "criativo" | "factual"
+
+export function classificarTipoPedido(pergunta: string): TipoPedido {
+  const texto = pergunta.toLocaleLowerCase("pt-BR")
+  const sinaisCriativos = [
+    /\bcri(?:e|ar|a|ando)\b/,
+    /\bger(?:e|ar|a|ando)\b/,
+    /\b(?:ideias?|ganchos?|roteiros?|legendas?|copies?|campanhas?|calendário editorial|pautas?)\b/,
+    /\b(?:sugira|proponha|elabore|escreva|planeje)\b/,
+  ]
+  const sinaisAnaliticos = [
+    /\b(?:analise|diagnóstico|resultado|performance|métrica|dados?|alcance|engajamento|conversão)\b/,
+    /\b(?:por que|funcionou|não funcionou|melhor|pior|compar)\w*\b/,
+  ]
+
+  const criativo = sinaisCriativos.some((padrao) => padrao.test(texto))
+  const analitico = sinaisAnaliticos.some((padrao) => padrao.test(texto))
+  return criativo && !analitico ? "criativo" : "factual"
+}
+
 function normalizarNumero(valor: string): string {
   return valor.replace(/\s/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".")
 }
@@ -70,23 +90,50 @@ function verificarDeterministicamente(resposta: string, baseFactual: string): Ve
   }
 }
 
-async function avaliar(pergunta: string, contexto: string, resposta: string, verificacoes: VerificacoesDeterministicas) {
+async function avaliar(
+  pergunta: string,
+  contexto: string,
+  resposta: string,
+  verificacoes: VerificacoesDeterministicas,
+  tipoPedido: TipoPedido,
+) {
+  const politica =
+    tipoPedido === "criativo"
+      ? `O pedido é criativo. Avalie principalmente aderência ao contexto e à marca, variedade, clareza e aplicabilidade. Ideias, ganchos e propostas são sugestões, não alegações factuais: não exija métricas, fontes nem rótulos "Fato", "Interpretação" e "Hipótese". Só marque risco de invenção quando a resposta atribuir ao cliente informações concretas que não estão no contexto.`
+      : `O pedido é analítico ou factual. Reprove números sem apoio, causalidade não demonstrada, métricas ausentes tratadas como zero e hipóteses apresentadas como fatos. Exija rótulos "Fato", "Interpretação" e "Hipótese" somente quando a resposta realmente misturar esses níveis.`
+
   const { object } = await generateObject({
     model: openai(MODELO_AVALIACAO),
     schema: schemaAvaliacao,
-    system: `Você audita respostas estratégicas do SIMPLE OS. Seja rigoroso e use somente a pergunta e o contexto fornecidos. Reprove números sem apoio, causalidade não demonstrada, métricas ausentes tratadas como zero e hipóteses apresentadas como fatos. Rótulos Fato, Interpretação e Hipótese são necessários quando a resposta mistura esses níveis, mas não precisam aparecer artificialmente em respostas puramente operacionais. Fontes devem indicar blocos ou registros reconhecíveis do contexto, nunca URLs ou referências inventadas.`,
-    prompt: JSON.stringify({ pergunta, contexto, resposta, verificacoes }),
+    system: `Você audita respostas estratégicas do SIMPLE OS. Seja rigoroso, mas proporcional ao tipo de solicitação. ${politica} Fontes devem indicar blocos ou registros reconhecíveis do contexto, nunca URLs ou referências inventadas. Críticas, notas e instruções desta auditoria são internas e jamais devem ser redigidas como resposta ao usuário.`,
+    prompt: JSON.stringify({ tipoPedido, pergunta, contexto, resposta, verificacoes }),
   })
   return object
 }
 
-function aprovada(avaliacao: AvaliacaoResposta, verificacoes: VerificacoesDeterministicas): boolean {
+function aprovada(
+  avaliacao: AvaliacaoResposta,
+  verificacoes: VerificacoesDeterministicas,
+  tipoPedido: TipoPedido,
+): boolean {
+  if (tipoPedido === "criativo") {
+    return avaliacao.notaGeral >= 70 && avaliacao.aderenciaContexto >= 65 && avaliacao.utilidadePratica >= 65 && !avaliacao.riscoInvencao
+  }
   return avaliacao.notaGeral >= LIMIAR_APROVACAO && !avaliacao.riscoInvencao && verificacoes.numerosSemApoio.length === 0
 }
 
-function respostaConservadora(pergunta: string, problemas: string[]): string {
-  const limitacoes = problemas.slice(0, 3).join("; ") || "as evidências disponíveis não sustentam uma conclusão segura"
-  return `Não consigo responder com segurança a esta pergunta usando apenas os dados disponíveis do cliente. As principais limitações são: ${limitacoes}.\n\nRecomendo atualizar ou ampliar os dados do período e refazer a pergunta para que a análise diferencie fatos observados, interpretações e hipóteses.`
+function respostaSemDados(): string {
+  return "Ainda não há dados suficientes deste cliente para responder com segurança. Se você incluir o período e as métricas que deseja analisar, consigo preparar uma leitura objetiva e indicar o próximo passo."
+}
+
+function contemParecerInterno(resposta: string): boolean {
+  return /nota geral|avaliação (?:automática|inicial|final)|instrução (?:de )?correção|problemas? (?:identificados|apontados)|vai contra a exigência|a resposta começa com ["']?(?:fato|interpretação|hipótese)|suporte factual|separação epistêmica/i.test(
+    resposta,
+  )
+}
+
+function respostaCriativaSegura(resposta: string): boolean {
+  return resposta.trim().length > 0 && !contemParecerInterno(resposta)
 }
 
 async function salvarAuditoria(input: {
@@ -127,20 +174,22 @@ export async function avaliarECorrigirResposta(input: {
   respostaInicial: string
 }): Promise<ResultadoResposta> {
   const baseFactual = `${input.pergunta}\n${input.contexto}`
+  const tipoPedido = classificarTipoPedido(input.pergunta)
   const respostaInicialLimpa = limparFormatacaoChat(input.respostaInicial)
   const verificacoes = verificarDeterministicamente(respostaInicialLimpa, baseFactual)
   let avaliacaoInicial: AvaliacaoResposta
 
   try {
-    avaliacaoInicial = await avaliar(input.pergunta, input.contexto, respostaInicialLimpa, verificacoes)
+    avaliacaoInicial = await avaliar(input.pergunta, input.contexto, respostaInicialLimpa, verificacoes, tipoPedido)
   } catch (error) {
-    console.warn("[avaliacao-ia] avaliação indisponível; resposta conservadora aplicada", {
+    console.warn("[avaliacao-ia] avaliação indisponível; fallback seguro aplicado", {
       empresaId: input.empresaId,
       erro: error instanceof Error ? error.message : "erro desconhecido",
     })
+    const preservarResposta = tipoPedido === "criativo" && respostaCriativaSegura(respostaInicialLimpa)
     const resultado: ResultadoResposta = {
       respostaInicial: input.respostaInicial,
-      respostaFinal: respostaConservadora(input.pergunta, ["não foi possível validar automaticamente a resposta"]),
+      respostaFinal: preservarResposta ? respostaInicialLimpa : respostaSemDados(),
       avaliacaoInicial: {
         notaGeral: 0,
         aderenciaContexto: 0,
@@ -155,14 +204,14 @@ export async function avaliarECorrigirResposta(input: {
       },
       avaliacaoFinal: null,
       verificacoes,
-      correcaoAplicada: true,
-      respostaConservadora: true,
+      correcaoAplicada: !preservarResposta,
+      respostaConservadora: !preservarResposta,
     }
     await salvarAuditoria({ empresaId: input.empresaId, pergunta: input.pergunta, resultado }).catch(() => {})
     return resultado
   }
 
-  if (aprovada(avaliacaoInicial, verificacoes)) {
+  if (aprovada(avaliacaoInicial, verificacoes, tipoPedido)) {
     const resultado: ResultadoResposta = {
       respostaInicial: input.respostaInicial,
       respostaFinal: respostaInicialLimpa,
@@ -181,7 +230,7 @@ export async function avaliarECorrigirResposta(input: {
   try {
     const revisao = await generateText({
       model: openai(MODELO_CHAT),
-      system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija todos os problemas apontados. Preserve o que for útil, remova números sem apoio e causalidade não demonstrada. Quando aplicável, separe explicitamente Fato, Interpretação e Hipótese. Se faltarem dados, declare a limitação. Entregue somente texto simples em parágrafos curtos, sem Markdown, hashtags, asteriscos, cerquilhas, tabelas ou marcadores com símbolos. Se precisar enumerar, use números seguidos de ponto. Não mencione esta auditoria nem o processo de correção.`,
+      system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija os problemas internos apontados e preserve tudo o que for útil. ${tipoPedido === "criativo" ? "O pedido é criativo: entregue propostas concretas, variadas e aplicáveis. Não exija dados nem use rótulos epistemológicos para apresentar ideias." : "O pedido é factual: remova números sem apoio e causalidade não demonstrada; quando aplicável, diferencie fatos, interpretações e hipóteses e declare dados ausentes."} Entregue somente a resposta ao usuário, em texto simples e parágrafos curtos, sem Markdown, hashtags, asteriscos, cerquilhas, tabelas ou marcadores com símbolos. Se precisar enumerar, use números seguidos de ponto. Nunca mencione auditoria, avaliação, nota, crítica, correção, limitações do avaliador ou instruções internas.`,
       prompt: JSON.stringify({
         pergunta: input.pergunta,
         contexto: input.contexto,
@@ -192,28 +241,37 @@ export async function avaliarECorrigirResposta(input: {
     })
     respostaCorrigida = limparFormatacaoChat(revisao.text)
   } catch (error) {
-    console.warn("[avaliacao-ia] revisão indisponível; resposta conservadora aplicada", {
+    console.warn("[avaliacao-ia] revisão indisponível; fallback seguro aplicado", {
       empresaId: input.empresaId,
       erro: error instanceof Error ? error.message : "erro desconhecido",
     })
     revisaoFalhou = true
-    respostaCorrigida = respostaConservadora(input.pergunta, avaliacaoInicial.problemas)
+    respostaCorrigida = tipoPedido === "criativo" ? respostaInicialLimpa : respostaSemDados()
   }
   const verificacoesFinais = verificarDeterministicamente(respostaCorrigida, baseFactual)
   let avaliacaoFinal: AvaliacaoResposta | null = null
   try {
-    avaliacaoFinal = await avaliar(input.pergunta, input.contexto, respostaCorrigida, verificacoesFinais)
+    avaliacaoFinal = await avaliar(input.pergunta, input.contexto, respostaCorrigida, verificacoesFinais, tipoPedido)
   } catch {}
-  const passou = !revisaoFalhou && avaliacaoFinal ? aprovada(avaliacaoFinal, verificacoesFinais) : false
-  const problemasFinais = avaliacaoFinal?.problemas ?? avaliacaoInicial.problemas
+  const passou = !revisaoFalhou && avaliacaoFinal ? aprovada(avaliacaoFinal, verificacoesFinais, tipoPedido) : false
+  const revisaoCriativaSegura = tipoPedido === "criativo" && respostaCriativaSegura(respostaCorrigida)
+  const inicialCriativaSegura = tipoPedido === "criativo" && respostaCriativaSegura(respostaInicialLimpa)
+  const podePreservarCriativa = revisaoCriativaSegura || inicialCriativaSegura
+  const respostaFinal = passou
+    ? respostaCorrigida
+    : revisaoCriativaSegura
+      ? respostaCorrigida
+      : inicialCriativaSegura
+        ? respostaInicialLimpa
+        : respostaSemDados()
   const resultado: ResultadoResposta = {
     respostaInicial: input.respostaInicial,
-    respostaFinal: passou ? respostaCorrigida : respostaConservadora(input.pergunta, problemasFinais),
+    respostaFinal,
     avaliacaoInicial,
     avaliacaoFinal,
     verificacoes: verificacoesFinais,
     correcaoAplicada: true,
-    respostaConservadora: !passou,
+    respostaConservadora: !passou && !podePreservarCriativa,
   }
   await salvarAuditoria({ empresaId: input.empresaId, pergunta: input.pergunta, resultado }).catch((error) => {
     console.warn("[avaliacao-ia] auditoria não persistida", {

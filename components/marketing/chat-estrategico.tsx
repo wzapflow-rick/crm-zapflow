@@ -213,6 +213,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
+                      if (e.nativeEvent.isComposing || e.keyCode === 229) return
                       e.preventDefault()
                       enviar(input)
                     }
