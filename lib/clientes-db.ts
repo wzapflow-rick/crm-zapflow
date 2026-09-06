@@ -158,7 +158,6 @@ type AtencaoRow = {
   recorrente: boolean | null
   desde: string | null
   ultima_data: string | null
-  proxima_post: string | null
   pior_ratio: string | null
   tarefas_atrasadas: string | number | null
   tarefas_amanha: string | number | null
@@ -197,16 +196,10 @@ function diasDesde(dataISO: string | null, hoje: Date): number | null {
 
 export async function getClientesAtencao(): Promise<AlertaCliente[]> {
   const rows = await query<AtencaoRow>(
-    `with ult_post as (
-       select empresa_id, to_char(max(data), 'YYYY-MM-DD') as ultima_data
-       from public.conteudos
-       where status = 'publicado' and data is not null
-       group by empresa_id
-     ),
-     prox_post as (
-       select empresa_id, to_char(min(data), 'YYYY-MM-DD') as proxima_data
-       from public.conteudos
-       where status <> 'publicado' and data is not null and data >= current_date
+    `with ult_post_instagram as (
+       select empresa_id, to_char(max(publicado_em), 'YYYY-MM-DD') as ultima_data
+       from public.instagram_midia
+       where publicado_em is not null
        group by empresa_id
      ),
      meta_calc as (
@@ -227,13 +220,11 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
      select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
             to_char(e.desde, 'YYYY-MM-DD') as desde,
             up.ultima_data,
-            pp.proxima_data as proxima_post,
             mc.pior_ratio::text as pior_ratio,
             coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
             coalesce(tc.vence_amanha, 0) as tarefas_amanha
      from public.empresas e
-     left join ult_post up on up.empresa_id = e.id
-     left join prox_post pp on pp.empresa_id = e.id
+     left join ult_post_instagram up on up.empresa_id = e.id
      left join meta_calc mc on mc.empresa_id = e.id
      left join tarefa_calc tc on tc.empresa_id = e.id
      -- "Ativo" no app = recorrente E status 'ativo'. Avulsos (recorrente=false)
@@ -254,44 +245,38 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
     }
     const verCliente = { acaoLabel: "Ver cliente", acaoUrl: `/clientes/${r.id}` }
 
-    // 1) Conteúdo — sem publicação nova há muitos dias.
-    // Se houver uma próxima publicação agendada em até 2 dias, o calendário está
-    // fluindo e não geramos o alerta.
-    const diasProxPost = diasDesde(r.proxima_post, hoje) // negativo = futuro
-    const temProxPostBreve = diasProxPost !== null && diasProxPost >= -2
-    if (!temProxPostBreve) {
-      const diasPost = diasDesde(r.ultima_data, hoje)
-      if (diasPost === null) {
-        alertas.push({
-          ...base,
-          ...verCliente,
-          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
-          categoria: "conteudo",
-          prioridade: "critico",
-          texto: "Ainda sem nenhum conteúdo publicado.",
-          severidade: PESO_PRIORIDADE.critico + 60,
-        })
-      } else if (diasPost >= DIAS_SEM_POST_CRITICO) {
-        alertas.push({
-          ...base,
-          ...verCliente,
-          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
-          categoria: "conteudo",
-          prioridade: "critico",
-          texto: `Sem novo conteúdo há ${diasPost} dias.`,
-          severidade: PESO_PRIORIDADE.critico + Math.min(diasPost, 50),
-        })
-      } else if (diasPost >= DIAS_SEM_POST_ATENCAO) {
-        alertas.push({
-          ...base,
-          ...verCliente,
-          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
-          categoria: "conteudo",
-          prioridade: "atencao",
-          texto: `Sem novo conteúdo há ${diasPost} dias.`,
-          severidade: PESO_PRIORIDADE.atencao + diasPost,
-        })
-      }
+    // 1) Instagram — considera somente publicações sincronizadas pela API oficial.
+    const diasPost = diasDesde(r.ultima_data, hoje)
+    if (diasPost === null) {
+      alertas.push({
+        ...base,
+        ...verCliente,
+        acaoUrl: `/clientes/${r.id}?aba=instagram`,
+        categoria: "conteudo",
+        prioridade: "critico",
+        texto: "Nenhuma publicação sincronizada no Instagram.",
+        severidade: PESO_PRIORIDADE.critico + 60,
+      })
+    } else if (diasPost >= DIAS_SEM_POST_CRITICO) {
+      alertas.push({
+        ...base,
+        ...verCliente,
+        acaoUrl: `/clientes/${r.id}?aba=instagram`,
+        categoria: "conteudo",
+        prioridade: "critico",
+        texto: `Sem nova publicação no Instagram há ${diasPost} dias.`,
+        severidade: PESO_PRIORIDADE.critico + Math.min(diasPost, 50),
+      })
+    } else if (diasPost >= DIAS_SEM_POST_ATENCAO) {
+      alertas.push({
+        ...base,
+        ...verCliente,
+        acaoUrl: `/clientes/${r.id}?aba=instagram`,
+        categoria: "conteudo",
+        prioridade: "atencao",
+        texto: `Sem nova publicação no Instagram há ${diasPost} dias.`,
+        severidade: PESO_PRIORIDADE.atencao + diasPost,
+      })
     }
 
     // 2) Renovação (apenas clientes recorrentes com data de início).
