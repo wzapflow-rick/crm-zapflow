@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
@@ -45,28 +46,29 @@ import {
 } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
-import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
-import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
-import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
-import { RoteiroConteudoDialog } from "@/components/clientes/roteiro-conteudo-dialog"
-import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
-import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
-import { ChatEquipe } from "@/components/clientes/chat-equipe"
 import { BannerUploader } from "@/components/clientes/banner-uploader"
-import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
-import { HistoricoDialog } from "@/components/clientes/historico-dialog"
 import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-button"
-import { MemoriaSecao } from "@/components/clientes/memoria-secao"
-import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
 import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
-import { PerformanceDialog } from "@/components/clientes/performance-dialog"
 import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
-import { ExperimentoDialog } from "@/components/clientes/experimento-dialog"
 import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
-import { PadroesPanel } from "@/components/clientes/padroes-panel"
-import { InstagramPanel } from "@/components/clientes/instagram-panel"
+
+const VisaoGeralDialog = dynamic(() => import("@/components/clientes/visao-geral-dialog").then((m) => m.VisaoGeralDialog))
+const CalendarioDialog = dynamic(() => import("@/components/clientes/calendario-dialog").then((m) => m.CalendarioDialog))
+const ConteudoDialog = dynamic(() => import("@/components/clientes/conteudo-dialog").then((m) => m.ConteudoDialog))
+const RoteiroConteudoDialog = dynamic(() => import("@/components/clientes/roteiro-conteudo-dialog").then((m) => m.RoteiroConteudoDialog))
+const EstrategiaDialog = dynamic(() => import("@/components/clientes/estrategia-dialog").then((m) => m.EstrategiaDialog))
+const ArquivosDialog = dynamic(() => import("@/components/clientes/arquivos-dialog").then((m) => m.ArquivosDialog))
+const ChatEquipe = dynamic(() => import("@/components/clientes/chat-equipe").then((m) => m.ChatEquipe))
+const ResultadosDialog = dynamic(() => import("@/components/clientes/resultados-dialog").then((m) => m.ResultadosDialog))
+const HistoricoDialog = dynamic(() => import("@/components/clientes/historico-dialog").then((m) => m.HistoricoDialog))
+const MemoriaSecao = dynamic(() => import("@/components/clientes/memoria-secao").then((m) => m.MemoriaSecao))
+const ReuniaoDialog = dynamic(() => import("@/components/clientes/reuniao-dialog").then((m) => m.ReuniaoDialog))
+const PerformanceDialog = dynamic(() => import("@/components/clientes/performance-dialog").then((m) => m.PerformanceDialog))
+const ExperimentoDialog = dynamic(() => import("@/components/clientes/experimento-dialog").then((m) => m.ExperimentoDialog))
+const PadroesPanel = dynamic(() => import("@/components/clientes/padroes-panel").then((m) => m.PadroesPanel))
+const InstagramPanel = dynamic(() => import("@/components/clientes/instagram-panel").then((m) => m.InstagramPanel))
 import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"

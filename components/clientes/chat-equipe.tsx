@@ -59,10 +59,12 @@ export function ChatEquipe({
     () => buscarMensagens(clienteId),
     {
       fallbackData: mensagens,
-      refreshInterval: 4000,
+      refreshInterval: 12_000,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 2000,
+      dedupingInterval: 5_000,
     },
   )
   const lista = data ?? mensagens

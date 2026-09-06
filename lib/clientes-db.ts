@@ -196,26 +196,34 @@ function diasDesde(dataISO: string | null, hoje: Date): number | null {
 
 export async function getClientesAtencao(): Promise<AlertaCliente[]> {
   const rows = await query<AtencaoRow>(
-    `with ult_post_instagram as (
-       select empresa_id, to_char(max(publicado_em), 'YYYY-MM-DD') as ultima_data
-       from public.instagram_midia
-       where publicado_em is not null
-       group by empresa_id
+    `with active_empresas as materialized (
+       select id, nome, iniciais, cor, recorrente, desde
+       from public.empresas
+       where status = 'ativo' and recorrente is distinct from false
+     ),
+     ult_post_instagram as (
+       select i.empresa_id, to_char(max(i.publicado_em), 'YYYY-MM-DD') as ultima_data
+       from public.instagram_midia i
+       join active_empresas e on e.id = i.empresa_id
+       where i.publicado_em is not null
+       group by i.empresa_id
      ),
      meta_calc as (
-       select empresa_id,
-              min(coalesce(atual, 0)::numeric / nullif(alvo, 0)::numeric) as pior_ratio
-       from public.metas
-       where alvo is not null and alvo::numeric > 0
-       group by empresa_id
+       select m.empresa_id,
+              min(coalesce(m.atual, 0)::numeric / nullif(m.alvo, 0)::numeric) as pior_ratio
+       from public.metas m
+       join active_empresas e on e.id = m.empresa_id
+       where m.alvo is not null and m.alvo::numeric > 0
+       group by m.empresa_id
      ),
      tarefa_calc as (
-       select empresa_id,
-              count(*) filter (where prazo < current_date) as atrasadas,
-              count(*) filter (where prazo = current_date + 1) as vence_amanha
-       from public.tarefas
-       where status <> 'concluido' and empresa_id is not null and prazo is not null
-       group by empresa_id
+       select t.empresa_id,
+              count(*) filter (where t.prazo < current_date) as atrasadas,
+              count(*) filter (where t.prazo = current_date + 1) as vence_amanha
+       from public.tarefas t
+       join active_empresas e on e.id = t.empresa_id
+       where t.status <> 'concluido' and t.prazo is not null
+       group by t.empresa_id
      )
      select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
             to_char(e.desde, 'YYYY-MM-DD') as desde,
@@ -223,13 +231,10 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             mc.pior_ratio::text as pior_ratio,
             coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
             coalesce(tc.vence_amanha, 0) as tarefas_amanha
-     from public.empresas e
+     from active_empresas e
      left join ult_post_instagram up on up.empresa_id = e.id
      left join meta_calc mc on mc.empresa_id = e.id
      left join tarefa_calc tc on tc.empresa_id = e.id
-     -- "Ativo" no app = recorrente E status 'ativo'. Avulsos (recorrente=false)
-     -- nunca entram nesta análise, mesmo que o status esteja 'ativo'.
-     where e.status = 'ativo' and e.recorrente is distinct from false
      order by e.nome asc`,
   )
 

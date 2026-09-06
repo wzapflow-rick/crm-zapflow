@@ -74,8 +74,11 @@ function tocarBip() {
 
 export function Notificacoes() {
   const { data } = useSWR("/api/notificacoes", buscar, {
-    refreshInterval: 15000,
+    refreshInterval: 60_000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
     revalidateOnFocus: true,
+    dedupingInterval: 10_000,
   })
   const mensagens = data?.mensagens ?? []
   const tarefasAtrasadas = data?.tarefasAtrasadas ?? []
