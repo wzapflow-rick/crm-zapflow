@@ -1,6 +1,7 @@
 import "server-only"
 import { createHash } from "node:crypto"
-import { embedMany, gateway } from "ai"
+import { embedMany } from "ai"
+import { openai } from "@ai-sdk/openai"
 import { query } from "@/lib/db"
 import type { MidiaInstagram } from "@/lib/instagram-db"
 type ConteudoParaEmbedding = {
@@ -14,7 +15,7 @@ type ConteudoParaEmbedding = {
   direcionamento?: string
 }
 
-const MODELO_EMBEDDING = "openai/text-embedding-3-small"
+const MODELO_EMBEDDING = "text-embedding-3-small"
 const LIMITE_DOCUMENTOS = 120
 const LIMITE_EVIDENCIAS = 8
 
@@ -115,7 +116,7 @@ export async function indexarAcervoSemantico(input: EntradaIndexacao): Promise<{
   if (pendentes.length === 0) return { indexados: 0, ignorados: documentos.length }
 
   const { embeddings } = await embedMany({
-    model: gateway.embeddingModel(MODELO_EMBEDDING),
+    model: openai.textEmbeddingModel(MODELO_EMBEDDING),
     values: pendentes.map((documento) => documento.texto),
     maxParallelCalls: 2,
     maxRetries: 1,
@@ -144,7 +145,7 @@ export async function buscarEvidenciasSemanticas(input: EntradaIndexacao & { con
   try {
     await indexarAcervoSemantico(input)
     const [consultaEmbedding] = (await embedMany({
-      model: gateway.embeddingModel(MODELO_EMBEDDING),
+      model: openai.textEmbeddingModel(MODELO_EMBEDDING),
       values: [consulta],
       maxRetries: 1,
     })).embeddings

@@ -5,6 +5,7 @@ import {
   convertToModelMessages,
   type UIMessage,
 } from "ai"
+import { openai } from "@ai-sdk/openai"
 import { PERSONA } from "@/lib/persona"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { salvarChatMensagem } from "@/lib/chat-db"
@@ -59,7 +60,7 @@ ${contexto.texto}`
 
   try {
     const { text: respostaInicial } = await generateText({
-      model: MODELO_CHAT,
+      model: openai(MODELO_CHAT),
       system,
       messages: await convertToModelMessages(messages),
     })
@@ -83,10 +84,21 @@ ${contexto.texto}`
     })
     return createUIMessageStreamResponse({ stream })
   } catch (error) {
+    const mensagem = error instanceof Error ? error.message : "erro desconhecido"
     console.error("[chat-estrategico] falha no pipeline validado", {
       empresaId,
-      erro: error instanceof Error ? error.message : "erro desconhecido",
+      erro: mensagem,
     })
+
+    if (/401|incorrect api key|invalid.*key|authentication/i.test(mensagem)) {
+      return new Response("A autenticação com a OpenAI falhou. Verifique a configuração do servidor.", { status: 502 })
+    }
+    if (/429|rate limit|quota|billing/i.test(mensagem)) {
+      return new Response("A OpenAI atingiu o limite de uso no momento. Aguarde um pouco e tente novamente.", { status: 429 })
+    }
+    if (/model|does not exist|access/i.test(mensagem)) {
+      return new Response("O modelo de IA está temporariamente indisponível para esta conta.", { status: 502 })
+    }
     return new Response("Não foi possível gerar e validar a resposta. Tente novamente.", { status: 500 })
   }
 }

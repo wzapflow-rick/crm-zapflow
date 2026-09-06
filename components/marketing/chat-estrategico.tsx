@@ -194,7 +194,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
 
               {error && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  Ocorreu um erro ao gerar a resposta. Verifique a chave da OpenAI e tente novamente.
+                  {error.message || "Ocorreu um erro ao gerar a resposta. Tente novamente em alguns instantes."}
                 </div>
               )}
             </div>

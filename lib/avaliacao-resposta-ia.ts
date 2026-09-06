@@ -1,12 +1,13 @@
 import "server-only"
 
 import { generateObject, generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { query } from "@/lib/db"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
 
-export const MODELO_CHAT = "openai/gpt-5.4-mini"
-const MODELO_AVALIACAO = "openai/gpt-5.4-mini"
+export const MODELO_CHAT = "gpt-5.4-mini"
+const MODELO_AVALIACAO = "gpt-5.4-mini"
 const LIMIAR_APROVACAO = 80
 
 const schemaAvaliacao = z.object({
@@ -71,7 +72,7 @@ function verificarDeterministicamente(resposta: string, baseFactual: string): Ve
 
 async function avaliar(pergunta: string, contexto: string, resposta: string, verificacoes: VerificacoesDeterministicas) {
   const { object } = await generateObject({
-    model: MODELO_AVALIACAO,
+    model: openai(MODELO_AVALIACAO),
     schema: schemaAvaliacao,
     system: `Você audita respostas estratégicas do SIMPLE OS. Seja rigoroso e use somente a pergunta e o contexto fornecidos. Reprove números sem apoio, causalidade não demonstrada, métricas ausentes tratadas como zero e hipóteses apresentadas como fatos. Rótulos Fato, Interpretação e Hipótese são necessários quando a resposta mistura esses níveis, mas não precisam aparecer artificialmente em respostas puramente operacionais. Fontes devem indicar blocos ou registros reconhecíveis do contexto, nunca URLs ou referências inventadas.`,
     prompt: JSON.stringify({ pergunta, contexto, resposta, verificacoes }),
@@ -179,7 +180,7 @@ export async function avaliarECorrigirResposta(input: {
   let revisaoFalhou = false
   try {
     const revisao = await generateText({
-      model: MODELO_CHAT,
+      model: openai(MODELO_CHAT),
       system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija todos os problemas apontados. Preserve o que for útil, remova números sem apoio e causalidade não demonstrada. Quando aplicável, separe explicitamente Fato, Interpretação e Hipótese. Se faltarem dados, declare a limitação. Entregue somente texto simples em parágrafos curtos, sem Markdown, hashtags, asteriscos, cerquilhas, tabelas ou marcadores com símbolos. Se precisar enumerar, use números seguidos de ponto. Não mencione esta auditoria nem o processo de correção.`,
       prompt: JSON.stringify({
         pergunta: input.pergunta,
