@@ -18,7 +18,8 @@ type ChatRow = {
 }
 
 const COLUNAS_PAPEL_COMPATIVEIS = ["papel", "role", "remetente", "tipo"] as const
-let colunaPapelPromise: Promise<(typeof COLUNAS_PAPEL_COMPATIVEIS)[number] | null> | null = null
+const COLUNAS_TEXTO_COMPATIVEIS = ["texto", "mensagem", "conteudo", "message", "content"] as const
+let colunasChatPromise: Promise<Set<string>> | null = null
 let avisoSchemaEmitido = false
 
 function normalizarPapel(valor: string | null): "user" | "assistant" {
@@ -26,38 +27,43 @@ function normalizarPapel(valor: string | null): "user" | "assistant" {
   return ["assistant", "assistente", "ia", "bot", "simple"].includes(normalizado) ? "assistant" : "user"
 }
 
-async function detectarColunaPapel(): Promise<(typeof COLUNAS_PAPEL_COMPATIVEIS)[number] | null> {
-  if (!colunaPapelPromise) {
-    colunaPapelPromise = query<{ column_name: string }>(
+async function obterColunasChat(): Promise<Set<string>> {
+  if (!colunasChatPromise) {
+    colunasChatPromise = query<{ column_name: string }>(
       `select column_name
        from information_schema.columns
        where table_schema = 'public'
          and table_name = 'cliente_chat'
          and column_name = any($1::text[])`,
-      [COLUNAS_PAPEL_COMPATIVEIS],
-    ).then((rows) => {
-      const nomes = new Set(rows.map((row) => row.column_name))
-      return COLUNAS_PAPEL_COMPATIVEIS.find((coluna) => nomes.has(coluna)) ?? null
-    })
+      [[...COLUNAS_PAPEL_COMPATIVEIS, ...COLUNAS_TEXTO_COMPATIVEIS]],
+    ).then((rows) => new Set(rows.map((row) => row.column_name)))
   }
-  return colunaPapelPromise
+  return colunasChatPromise
+}
+
+async function detectarColunasCompativeis() {
+  const colunas = await obterColunasChat()
+  return {
+    papel: COLUNAS_PAPEL_COMPATIVEIS.find((coluna) => colunas.has(coluna)) ?? null,
+    texto: COLUNAS_TEXTO_COMPATIVEIS.find((coluna) => colunas.has(coluna)) ?? null,
+  }
 }
 
 function avisarSchemaIncompativel() {
   if (avisoSchemaEmitido) return
   avisoSchemaEmitido = true
-  console.warn("[chat-db] histórico sem coluna de papel compatível; execute scripts/015-cliente-chat-papel.sql")
+  console.warn("[chat-db] histórico sem colunas compatíveis; execute scripts/016-cliente-chat-texto.sql")
 }
 
 export async function getChatMensagens(empresaId: string): Promise<ChatMensagem[]> {
-  const colunaPapel = await detectarColunaPapel()
-  if (!colunaPapel) {
+  const colunas = await detectarColunasCompativeis()
+  if (!colunas.papel || !colunas.texto) {
     avisarSchemaIncompativel()
     return []
   }
 
   const rows = await query<ChatRow>(
-    `select id, ${colunaPapel} as papel, texto, created_at
+    `select id, ${colunas.papel} as papel, ${colunas.texto} as texto, created_at
      from public.cliente_chat
      where empresa_id = $1
      order by created_at asc`,
@@ -79,13 +85,13 @@ export async function salvarChatMensagem(
   const limpo = texto.trim()
   if (!limpo) return
 
-  const colunaPapel = await detectarColunaPapel()
-  if (!colunaPapel) {
+  const colunas = await detectarColunasCompativeis()
+  if (!colunas.papel || !colunas.texto) {
     avisarSchemaIncompativel()
     return
   }
 
-  await query(`insert into public.cliente_chat (empresa_id, ${colunaPapel}, texto) values ($1, $2, $3)`, [
+  await query(`insert into public.cliente_chat (empresa_id, ${colunas.papel}, ${colunas.texto}) values ($1, $2, $3)`, [
     empresaId,
     papel,
     limpo,
