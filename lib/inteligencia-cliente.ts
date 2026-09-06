@@ -23,6 +23,26 @@ export type MetricaInteligencia = {
   engajamentoMedio: number | null
 }
 
+export type CampoCobertura = {
+  campo: string
+  preenchidos: number
+  total: number
+  percentual: number
+}
+
+export type DiagnosticoQualidade = {
+  nivel: "alta" | "media" | "baixa" | "sem_dados"
+  percentual: number
+  amostraSuficiente: boolean
+  campos: CampoCobertura[]
+  postsSemLegenda: number
+  postsSemData: number
+  periodoDias: number | null
+  ultimaSync: string | null
+  syncAtualizada: boolean | null
+  alertas: string[]
+}
+
 export type ResumoInteligencia = {
   analisadoEm: string
   postsInstagram: number
@@ -33,6 +53,7 @@ export type ResumoInteligencia = {
   melhores: { id: string; formato: string; legenda: string; alcance: number | null; engajamento: number | null; data: string }[]
   recentes: { id: string; formato: string; legenda: string; alcance: number | null; engajamento: number | null; data: string }[]
   cobertura: string
+  qualidade: DiagnosticoQualidade
 }
 
 type PadraoGerado = { categoria: string; padrao: string; evidencia: string; confianca: ConfiancaPadrao }
@@ -54,6 +75,15 @@ function numero(valor: number | null | undefined): number {
 
 function media(valores: number[]): number | null {
   return valores.length ? Number((valores.reduce((total, valor) => total + valor, 0) / valores.length).toFixed(2)) : null
+}
+
+function percentual(preenchidos: number, total: number): number {
+  return total === 0 ? 0 : Math.round((preenchidos / total) * 100)
+}
+
+function coberturaCampo(campo: string, valores: unknown[], total: number): CampoCobertura {
+  const preenchidos = valores.filter((valor) => valor !== null && valor !== undefined && valor !== "").length
+  return { campo, preenchidos, total, percentual: percentual(preenchidos, total) }
 }
 
 function engajamento(post: MidiaInstagram): number | null {
@@ -80,8 +110,56 @@ function evidencia(post: MidiaInstagram) {
   }
 }
 
-export function analisarMidiasInstagram(midias: MidiaInstagram[]): ResumoInteligencia {
-  const comAlcance = midias.filter((post) => (post.alcance ?? 0) > 0)
+export function analisarMidiasInstagram(
+  midias: MidiaInstagram[],
+  opcoes: { ultimaSync?: string | null; midiaCountEsperada?: number | null } = {},
+): ResumoInteligencia {
+  const comAlcance = midias.filter((post) => post.alcance !== null && post.alcance !== undefined)
+  const total = midias.length
+  const datasValidas = midias.map((post) => dataValida(post.publicadoEm)).filter((value): value is string => value != null).sort()
+  const inicioTimestamp = datasValidas[0] ? Date.parse(datasValidas[0]) : null
+  const fimTimestamp = datasValidas.at(-1) ? Date.parse(datasValidas.at(-1)!) : null
+  const periodoDias = inicioTimestamp !== null && fimTimestamp !== null
+    ? Math.max(0, Math.round((fimTimestamp - inicioTimestamp) / 86_400_000))
+    : null
+  const ultimaSyncTimestamp = opcoes.ultimaSync ? Date.parse(opcoes.ultimaSync) : null
+  const idadeSyncDias = ultimaSyncTimestamp && !Number.isNaN(ultimaSyncTimestamp)
+    ? Math.max(0, Math.floor((Date.now() - ultimaSyncTimestamp) / 86_400_000))
+    : null
+  const campos = [
+    coberturaCampo("alcance", midias.map((post) => post.alcance), total),
+    coberturaCampo("impressões", midias.map((post) => post.impressoes), total),
+    coberturaCampo("visualizações", midias.map((post) => post.visualizacoes), total),
+    coberturaCampo("curtidas", midias.map((post) => post.curtidas), total),
+    coberturaCampo("comentários", midias.map((post) => post.comentarios), total),
+    coberturaCampo("salvamentos", midias.map((post) => post.salvamentos), total),
+    coberturaCampo("compartilhamentos", midias.map((post) => post.compartilhamentos), total),
+    coberturaCampo("legenda", midias.map((post) => post.legenda.trim()), total),
+    coberturaCampo("data", midias.map((post) => dataValida(post.publicadoEm)), total),
+  ]
+  const coberturaMedia = total === 0 ? 0 : Math.round(campos.reduce((soma, campo) => soma + campo.percentual, 0) / campos.length)
+  const alertas: string[] = []
+  if (total === 0) alertas.push("Nenhum post do Instagram foi sincronizado.")
+  if (total > 0 && total < 10) alertas.push(`A amostra tem apenas ${total} post${total === 1 ? "" : "s"}; conclusões devem ser tratadas como hipóteses.`)
+  if (comAlcance.length < total) alertas.push(`${total - comAlcance.length} post${total - comAlcance.length === 1 ? "" : "s"} não possuem alcance; médias e rankings podem estar incompletos.`)
+  if (datasValidas.length < total) alertas.push(`${total - datasValidas.length} post${total - datasValidas.length === 1 ? "" : "s"} não possuem data válida.`)
+  if (opcoes.midiaCountEsperada != null && opcoes.midiaCountEsperada > total) alertas.push(`A conta informa ${opcoes.midiaCountEsperada} publicações, mas apenas ${total} foram armazenadas no SIMPLE OS.`)
+  if (idadeSyncDias != null && idadeSyncDias > 7) alertas.push(`A última sincronização tem ${idadeSyncDias} dias; os números podem estar desatualizados.`)
+  if (coberturaMedia < 60 && total > 0) alertas.push(`A cobertura média dos campos é de ${coberturaMedia}%; trate métricas ausentes como desconhecidas, não como zero.`)
+  const percentualQualidade = total === 0 ? 0 : Math.round((coberturaMedia * 0.7) + (Math.min(total, 30) / 30 * 30))
+  const qualidade: DiagnosticoQualidade = {
+    nivel: total === 0 ? "sem_dados" : percentualQualidade >= 80 ? "alta" : percentualQualidade >= 60 ? "media" : "baixa",
+    percentual: percentualQualidade,
+    amostraSuficiente: total >= 10,
+    campos,
+    postsSemLegenda: total - campos.find((campo) => campo.campo === "legenda")!.preenchidos,
+    postsSemData: total - campos.find((campo) => campo.campo === "data")!.preenchidos,
+    periodoDias,
+    ultimaSync: opcoes.ultimaSync ?? null,
+    syncAtualizada: idadeSyncDias == null ? null : idadeSyncDias <= 7,
+    alertas,
+  }
+
   const alcances = comAlcance.map((post) => numero(post.alcance))
   const metricas: MetricaInteligencia = {
     total: midias.length,
@@ -124,6 +202,7 @@ export function analisarMidiasInstagram(midias: MidiaInstagram[]): ResumoIntelig
     melhores: ordenadas.slice(0, 20).map(evidencia),
     recentes,
     cobertura: `${comAlcance.length} de ${midias.length} posts possuem alcance; ${midias.filter((post) => engajamento(post) != null).length} possuem base para taxa de engajamento.`,
+    qualidade,
   }
 }
 
@@ -162,7 +241,7 @@ export async function atualizarInteligenciaCliente(empresaId: string): Promise<v
     const { object } = await generateObject({
       model: openai(MODELO),
       schema: schemaAprendizados,
-      system: `Você é a camada de análise factual do SIMPLE OS. Gere aprendizados somente com os dados recebidos do cliente atual. Nunca invente números, datas, causalidade ou conversões. Se a amostra for pequena, use confiança baixa ou média e diga isso na evidência. Diferencie correlação de causalidade. Priorize métricas observadas do Instagram e conteúdos cadastrados no SIMPLE OS. Responda em português do Brasil, com recomendações específicas e auditáveis.`,
+      system: `Você é a camada de análise factual do SIMPLE OS. Gere aprendizados somente com os dados recebidos do cliente atual. Nunca invente números, datas, causalidade ou conversões. Um valor null, n/d ou sem dados significa métrica desconhecida, nunca zero. Use o diagnóstico de qualidade recebido: quando a amostra for pequena, a sincronização estiver desatualizada ou a cobertura estiver incompleta, reduza a confiança e declare a limitação na evidência. Diferencie correlação de causalidade. Priorize métricas observadas do Instagram e conteúdos cadastrados no SIMPLE OS. Responda em português do Brasil, com recomendações específicas e auditáveis.`,
       prompt: JSON.stringify({ clienteId: id, resumo, evidencias: payload }),
     })
 
@@ -180,7 +259,10 @@ export async function atualizarInteligenciaCliente(empresaId: string): Promise<v
 export function formatarResumoInteligencia(resumo: ResumoInteligencia): string {
   const metricas = resumo.metricas
   const formato = resumo.porFormato.map((item) => `${item.formato}: ${item.posts} posts, alcance médio ${item.alcanceMedio ?? "sem dados"}, engajamento médio ${item.engajamentoMedio != null ? `${item.engajamentoMedio}%` : "sem dados"}`).join(" | ")
-  return [`Posts Instagram analisados: ${resumo.postsInstagram}. Conteúdos SIMPLE OS: ${resumo.conteudosSIMPLE}.`, `Período: ${resumo.periodo.inicio ?? "sem início"} a ${resumo.periodo.fim ?? "sem fim"}.`, `Alcance total: ${metricas.alcanceTotal}; alcance médio: ${metricas.alcanceMedio ?? "sem dados"}; curtidas: ${metricas.curtidasTotal}; comentários: ${metricas.comentariosTotal}; salvamentos: ${metricas.salvamentosTotal}; compartilhamentos: ${metricas.compartilhamentosTotal}; visualizações: ${metricas.visualizacoesTotal}.`, `Engajamento médio calculável: ${metricas.engajamentoMedio != null ? `${metricas.engajamentoMedio}%` : "sem dados"}. ${resumo.cobertura}`, formato ? `Por formato: ${formato}.` : ""].filter(Boolean).join("\n")
+  const qualidade = resumo.qualidade
+  const campos = qualidade.campos.map((campo) => `${campo.campo} ${campo.percentual}%`).join(", ")
+  const alertas = qualidade.alertas.length > 0 ? `\nAlertas de qualidade: ${qualidade.alertas.join(" | ")}` : "\nAlertas de qualidade: nenhum alerta relevante."
+  return [`Posts Instagram analisados: ${resumo.postsInstagram}. Conteúdos SIMPLE OS: ${resumo.conteudosSIMPLE}.`, `Período: ${resumo.periodo.inicio ?? "sem início"} a ${resumo.periodo.fim ?? "sem fim"} (${qualidade.periodoDias != null ? `${qualidade.periodoDias} dias` : "período desconhecido"}).`, `Alcance total: ${metricas.alcanceTotal}; alcance médio: ${metricas.alcanceMedio ?? "sem dados"}; curtidas: ${metricas.curtidasTotal}; comentários: ${metricas.comentariosTotal}; salvamentos: ${metricas.salvamentosTotal}; compartilhamentos: ${metricas.compartilhamentosTotal}; visualizações: ${metricas.visualizacoesTotal}.`, `Engajamento médio calculável: ${metricas.engajamentoMedio != null ? `${metricas.engajamentoMedio}%` : "sem dados"}. ${resumo.cobertura}`, `Qualidade dos dados: ${qualidade.nivel} (${qualidade.percentual}%). Amostra suficiente: ${qualidade.amostraSuficiente ? "sim" : "não"}. Cobertura por campo: ${campos}.${alertas}`, formato ? `Por formato: ${formato}.` : ""].filter(Boolean).join("\n")
 }
 
 export function selecionarEvidenciasInstagram(midias: MidiaInstagram[], limite = 24): string {

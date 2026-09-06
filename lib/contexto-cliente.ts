@@ -224,7 +224,10 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       })
       .join("\n")
 
-    const inteligencia = analisarMidiasInstagram(instaMidias)
+    const inteligencia = analisarMidiasInstagram(instaMidias, {
+      ultimaSync: instaConexao.ultimaSync,
+      midiaCountEsperada: instaConexao.midiaCount,
+    })
     inteligencia.conteudosSIMPLE = conteudos.length
     const resumoNumerico = formatarResumoInteligencia(inteligencia)
     const evidencias = selecionarEvidenciasInstagram(instaMidias)
