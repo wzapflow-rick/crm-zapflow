@@ -579,7 +579,7 @@ export async function getEventos(empresaId: string): Promise<EventoCliente[]> {
     `select id, titulo, tipo, data, hora
      from public.agenda_compromissos
      where empresa_id = $1
-     order by data asc nulls last, hora asc nulls last, created_at asc`,
+     order by data desc nulls last, hora desc nulls last, created_at desc`,
     [empresaId],
   )
   return rows.map((r) => ({
