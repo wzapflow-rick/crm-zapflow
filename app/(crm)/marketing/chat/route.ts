@@ -1,13 +1,16 @@
-import { streamText, convertToModelMessages, type UIMessage } from "ai"
-import { openai } from "@ai-sdk/openai"
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  generateText,
+  convertToModelMessages,
+  type UIMessage,
+} from "ai"
 import { PERSONA } from "@/lib/persona"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { salvarChatMensagem } from "@/lib/chat-db"
+import { avaliarECorrigirResposta, MODELO_CHAT } from "@/lib/avaliacao-resposta-ia"
 
-// Modelo usado no chat estratégico. Troque aqui se sua conta tiver outro acesso.
-const MODELO = "gpt-4o"
-
-export const maxDuration = 60
+export const maxDuration = 120
 
 function textoDaMensagem(msg: UIMessage | undefined): string {
   if (!msg?.parts) return ""
@@ -51,14 +54,36 @@ ${contexto.texto}`
     await salvarChatMensagem(empresaId, "user", textoDaMensagem(ultima)).catch(() => {})
   }
 
-  const result = streamText({
-    model: openai(MODELO),
-    system,
-    messages: await convertToModelMessages(messages),
-    onFinish: async ({ text }) => {
-      await salvarChatMensagem(empresaId, "assistant", text).catch(() => {})
-    },
-  })
+  try {
+    const { text: respostaInicial } = await generateText({
+      model: MODELO_CHAT,
+      system,
+      messages: await convertToModelMessages(messages),
+    })
+    const resultado = await avaliarECorrigirResposta({
+      empresaId,
+      pergunta: consulta,
+      contexto: system,
+      respostaInicial,
+    })
+    await salvarChatMensagem(empresaId, "assistant", resultado.respostaFinal).catch(() => {})
 
-  return result.toUIMessageStreamResponse()
+    const stream = createUIMessageStream<UIMessage>({
+      originalMessages: messages,
+      execute: ({ writer }) => {
+        const id = crypto.randomUUID()
+        writer.write({ type: "text-start", id })
+        writer.write({ type: "text-delta", id, delta: resultado.respostaFinal })
+        writer.write({ type: "text-end", id })
+      },
+      onError: () => "Não foi possível apresentar a resposta validada.",
+    })
+    return createUIMessageStreamResponse({ stream })
+  } catch (error) {
+    console.error("[chat-estrategico] falha no pipeline validado", {
+      empresaId,
+      erro: error instanceof Error ? error.message : "erro desconhecido",
+    })
+    return new Response("Não foi possível gerar e validar a resposta. Tente novamente.", { status: 500 })
+  }
 }
