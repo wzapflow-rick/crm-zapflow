@@ -10,7 +10,7 @@ import { getPadroes } from "@/lib/padroes-db"
 import { getAprendizadosGlobais } from "@/lib/global-db"
 import { getOperacoes } from "@/lib/operacoes-db"
 import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
-import { getHistoricoAnalisesIa } from "@/lib/analises-ia-db"
+import { compararAnalisesIa, getHistoricoAnalisesIa } from "@/lib/analises-ia-db"
 import {
   analisarMidiasInstagram,
   formatarResumoInteligencia,
@@ -239,6 +239,21 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
   }
 
   if (historicoAnalisesIa.length > 0) {
+    const comparacao = compararAnalisesIa(historicoAnalisesIa)
+    if (comparacao.disponivel) {
+      const formatarMetrica = (nome: string, valor: { atual: number | null; anterior: number | null; absoluta: number | null; percentual: number | null; direcao: string }) => {
+        if (valor.direcao === "sem_dados") return `${nome}: sem dados comparáveis`
+        const percentual = valor.percentual === null ? "percentual n/d" : `${valor.percentual > 0 ? "+" : ""}${valor.percentual}%`
+        return `${nome}: ${valor.direcao}, ${valor.atual} vs ${valor.anterior} (${percentual})`
+      }
+      partes.push(`\n## EVOLUÇÃO TEMPORAL COMPARÁVEL\n${comparacao.resumo}\n${[
+        formatarMetrica("Curtidas", comparacao.metricas.curtidasTotal),
+        formatarMetrica("Comentários", comparacao.metricas.comentariosTotal),
+        formatarMetrica("Salvamentos", comparacao.metricas.salvamentosTotal),
+        formatarMetrica("Compartilhamentos", comparacao.metricas.compartilhamentosTotal),
+        formatarMetrica("Visualizações", comparacao.metricas.visualizacoesTotal),
+      ].join("\\n")}\nPadrões persistentes: ${comparacao.padroes.persistentes.length > 0 ? comparacao.padroes.persistentes.join("; ") : "nenhum identificado"}\nPadrões novos: ${comparacao.padroes.novos.length > 0 ? comparacao.padroes.novos.join("; ") : "nenhum identificado"}\nPadrões ausentes nesta análise: ${comparacao.padroes.ausentes.length > 0 ? comparacao.padroes.ausentes.join("; ") : "nenhum identificado"}\nCompare somente períodos e amostras equivalentes quando possível; não atribua causalidade à variação sem experimento ou evidência adicional.`)
+    }
     const linhas = historicoAnalisesIa.map((analise, indice) => {
       const qualidade = typeof analise.qualidade.nivel === "string" ? `${analise.qualidade.nivel} (${analise.qualidade.percentual ?? "n/d"}%)` : "n/d"
       const metricas = analise.metricas
