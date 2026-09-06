@@ -3,6 +3,7 @@ import "server-only"
 import { generateObject, generateText } from "ai"
 import { z } from "zod"
 import { query } from "@/lib/db"
+import { limparFormatacaoChat } from "@/lib/texto-chat"
 
 export const MODELO_CHAT = "openai/gpt-5.4-mini"
 const MODELO_AVALIACAO = "openai/gpt-5.4-mini"
@@ -125,11 +126,12 @@ export async function avaliarECorrigirResposta(input: {
   respostaInicial: string
 }): Promise<ResultadoResposta> {
   const baseFactual = `${input.pergunta}\n${input.contexto}`
-  const verificacoes = verificarDeterministicamente(input.respostaInicial, baseFactual)
+  const respostaInicialLimpa = limparFormatacaoChat(input.respostaInicial)
+  const verificacoes = verificarDeterministicamente(respostaInicialLimpa, baseFactual)
   let avaliacaoInicial: AvaliacaoResposta
 
   try {
-    avaliacaoInicial = await avaliar(input.pergunta, input.contexto, input.respostaInicial, verificacoes)
+    avaliacaoInicial = await avaliar(input.pergunta, input.contexto, respostaInicialLimpa, verificacoes)
   } catch (error) {
     console.warn("[avaliacao-ia] avaliação indisponível; resposta conservadora aplicada", {
       empresaId: input.empresaId,
@@ -162,7 +164,7 @@ export async function avaliarECorrigirResposta(input: {
   if (aprovada(avaliacaoInicial, verificacoes)) {
     const resultado: ResultadoResposta = {
       respostaInicial: input.respostaInicial,
-      respostaFinal: input.respostaInicial,
+      respostaFinal: respostaInicialLimpa,
       avaliacaoInicial,
       avaliacaoFinal: null,
       verificacoes,
@@ -178,7 +180,7 @@ export async function avaliarECorrigirResposta(input: {
   try {
     const revisao = await generateText({
       model: MODELO_CHAT,
-      system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija todos os problemas apontados. Preserve o que for útil, remova números sem apoio e causalidade não demonstrada. Quando aplicável, separe explicitamente Fato, Interpretação e Hipótese. Se faltarem dados, declare a limitação. Não mencione esta auditoria nem o processo de correção.`,
+      system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija todos os problemas apontados. Preserve o que for útil, remova números sem apoio e causalidade não demonstrada. Quando aplicável, separe explicitamente Fato, Interpretação e Hipótese. Se faltarem dados, declare a limitação. Entregue somente texto simples em parágrafos curtos, sem Markdown, hashtags, asteriscos, cerquilhas, tabelas ou marcadores com símbolos. Se precisar enumerar, use números seguidos de ponto. Não mencione esta auditoria nem o processo de correção.`,
       prompt: JSON.stringify({
         pergunta: input.pergunta,
         contexto: input.contexto,
@@ -187,7 +189,7 @@ export async function avaliarECorrigirResposta(input: {
         instrucaoCorrecao: avaliacaoInicial.instrucaoCorrecao,
       }),
     })
-    respostaCorrigida = revisao.text
+    respostaCorrigida = limparFormatacaoChat(revisao.text)
   } catch (error) {
     console.warn("[avaliacao-ia] revisão indisponível; resposta conservadora aplicada", {
       empresaId: input.empresaId,

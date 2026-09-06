@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { carregarChatClienteAction, limparChatAction } from "@/app/(crm)/marketing/chat-actions"
 import type { ResumoContexto } from "@/lib/contexto-cliente"
+import { limparFormatacaoChat } from "@/lib/texto-chat"
 
 export type ClienteOpcao = {
   id: string
@@ -298,10 +299,11 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
 }
 
 function textoDe(m: UIMessage): string {
-  return (m.parts ?? [])
+  const texto = (m.parts ?? [])
     .filter((p): p is { type: "text"; text: string } => p.type === "text")
     .map((p) => p.text)
     .join("")
+  return m.role === "assistant" ? limparFormatacaoChat(texto) : texto
 }
 
 function Bolha({ papel, children }: { papel: string; children: React.ReactNode }) {

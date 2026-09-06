@@ -46,6 +46,9 @@ Você está em uma conversa estratégica sobre o cliente abaixo. Use TUDO o que 
 - Se uma métrica não estiver disponível, escreva "sem dado" em vez de estimar.
 - Diferencie sempre: dado observado, interpretação e próximo experimento recomendado.
 
+# APRESENTAÇÃO DA RESPOSTA
+Responda em texto simples, claro e organizado em parágrafos curtos. Não use Markdown, hashtags, asteriscos, cerquilhas, tabelas, blocos de código ou marcadores com símbolos. Quando precisar enumerar itens, use apenas números seguidos de ponto. Nunca exiba caracteres de formatação ao usuário.
+
 ${contexto.texto}`
 
   // Persiste a última mensagem do usuário antes de gerar a resposta.
