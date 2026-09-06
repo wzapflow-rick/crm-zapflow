@@ -93,52 +93,56 @@ function vetorComoParametro(vetor: number[]): string {
   return `[${vetor.join(",")}]`
 }
 
-export async function buscarEvidenciasSemanticas(input: {
+type EntradaIndexacao = {
   empresaId: string
-  consulta: string
   midias: MidiaInstagram[]
   conteudos: ConteudoParaEmbedding[]
-}): Promise<EvidenciaRow[]> {
+}
+
+export async function indexarAcervoSemantico(input: EntradaIndexacao): Promise<{ indexados: number; ignorados: number }> {
+  const documentos: DocumentoComHash[] = criarDocumentosSemanticos(input.midias, input.conteudos)
+    .map((documento) => ({ ...documento, hash: hashDoTexto(documento.texto) }))
+  if (documentos.length === 0) return { indexados: 0, ignorados: 0 }
+
+  const existentes = await query<EmbeddingRow>(
+    `select origem, origem_id, conteudo_hash
+       from public.cliente_conteudo_embedding
+      where empresa_id = $1`,
+    [input.empresaId],
+  )
+  const hashesAtuais = new Map(existentes.map((item) => [`${item.origem}:${item.origem_id}`, item.conteudo_hash]))
+  const pendentes = documentos.filter((documento) => hashesAtuais.get(`${documento.origem}:${documento.origemId}`) !== documento.hash)
+  if (pendentes.length === 0) return { indexados: 0, ignorados: documentos.length }
+
+  const { embeddings } = await embedMany({
+    model: gateway.embeddingModel(MODELO_EMBEDDING),
+    values: pendentes.map((documento) => documento.texto),
+    maxParallelCalls: 2,
+    maxRetries: 1,
+  })
+  for (const [indice, documento] of pendentes.entries()) {
+    await query(
+      `insert into public.cliente_conteudo_embedding
+         (empresa_id, origem, origem_id, conteudo_hash, texto, metadata, embedding, atualizado_em)
+       values ($1, $2, $3, $4, $5, $6::jsonb, $7::vector, now())
+       on conflict (empresa_id, origem, origem_id) do update set
+         conteudo_hash = excluded.conteudo_hash,
+         texto = excluded.texto,
+         metadata = excluded.metadata,
+         embedding = excluded.embedding,
+         atualizado_em = now()`,
+      [input.empresaId, documento.origem, documento.origemId, documento.hash, documento.texto, JSON.stringify(documento.metadata), vetorComoParametro(embeddings[indice])],
+    )
+  }
+  return { indexados: pendentes.length, ignorados: documentos.length - pendentes.length }
+}
+
+export async function buscarEvidenciasSemanticas(input: EntradaIndexacao & { consulta: string }): Promise<EvidenciaRow[]> {
   const consulta = limparTexto(input.consulta, 1200)
   if (!consulta) return []
 
   try {
-    const documentos: DocumentoComHash[] = criarDocumentosSemanticos(input.midias, input.conteudos)
-      .map((documento) => ({ ...documento, hash: hashDoTexto(documento.texto) }))
-    if (documentos.length === 0) return []
-
-    const existentes = await query<EmbeddingRow>(
-      `select origem, origem_id, conteudo_hash
-         from public.cliente_conteudo_embedding
-        where empresa_id = $1`,
-      [input.empresaId],
-    )
-    const hashesAtuais = new Map(existentes.map((item) => [`${item.origem}:${item.origem_id}`, item.conteudo_hash]))
-    const pendentes = documentos.filter((documento) => hashesAtuais.get(`${documento.origem}:${documento.origemId}`) !== documento.hash)
-
-    if (pendentes.length > 0) {
-      const { embeddings } = await embedMany({
-        model: gateway.embeddingModel(MODELO_EMBEDDING),
-        values: pendentes.map((documento) => documento.texto),
-        maxParallelCalls: 2,
-        maxRetries: 1,
-      })
-      for (const [indice, documento] of pendentes.entries()) {
-        await query(
-          `insert into public.cliente_conteudo_embedding
-             (empresa_id, origem, origem_id, conteudo_hash, texto, metadata, embedding, atualizado_em)
-           values ($1, $2, $3, $4, $5, $6::jsonb, $7::vector, now())
-           on conflict (empresa_id, origem, origem_id) do update set
-             conteudo_hash = excluded.conteudo_hash,
-             texto = excluded.texto,
-             metadata = excluded.metadata,
-             embedding = excluded.embedding,
-             atualizado_em = now()`,
-          [input.empresaId, documento.origem, documento.origemId, documento.hash, documento.texto, JSON.stringify(documento.metadata), vetorComoParametro(embeddings[indice])],
-        )
-      }
-    }
-
+    await indexarAcervoSemantico(input)
     const [consultaEmbedding] = (await embedMany({
       model: gateway.embeddingModel(MODELO_EMBEDDING),
       values: [consulta],

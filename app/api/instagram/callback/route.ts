@@ -8,7 +8,7 @@ import {
   verificarState,
 } from "@/lib/instagram-api"
 import { marcarSyncInstagram, salvarConexaoInstagram, salvarMidiasInstagram } from "@/lib/instagram-db"
-import { atualizarInteligenciaCliente } from "@/lib/inteligencia-cliente"
+import { atualizarInteligenciaConfiavel } from "@/lib/atualizacao-inteligencia"
 
 // Callback do OAuth: troca o código por token, busca perfil + mídias e salva.
 export async function GET(req: NextRequest) {
@@ -63,9 +63,8 @@ export async function GET(req: NextRequest) {
         segue: perfil.segue,
         midiaCount: perfil.midiaCount,
       })
-      await atualizarInteligenciaCliente(empresaId).catch((erro) => {
-        console.error("[inteligencia] falha após OAuth Instagram:", erro instanceof Error ? erro.message : erro)
-      })
+      const resultado = await atualizarInteligenciaConfiavel(empresaId)
+      if (!resultado.ok) console.warn("[inteligencia] OAuth concluído sem atualização analítica:", { empresaId, erro: resultado.erro })
     } catch {
       // ignora: a conexão foi criada e o usuário pode sincronizar manualmente depois.
     }

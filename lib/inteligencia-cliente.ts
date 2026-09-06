@@ -235,19 +235,7 @@ export async function atualizarInteligenciaCliente(empresaId: string): Promise<v
     const payload = montarEvidencias(conteudos, resumo)
 
     if (midias.length === 0 && conteudos.length === 0) {
-      await salvarAnaliseIa({
-        empresaId: id,
-        analisadoEm: resumo.analisadoEm,
-        periodoInicio: null,
-        periodoFim: null,
-        postsInstagram: 0,
-        conteudosSimple: 0,
-        resumo: resumo as unknown as Record<string, unknown>,
-        metricas: resumo.metricas as unknown as Record<string, unknown>,
-        qualidade: resumo.qualidade as unknown as Record<string, unknown>,
-        padroes: [],
-      }).catch(() => {})
-      await substituirPadroes(id, [])
+      console.info("[inteligencia] nenhuma evidência nova; última análise válida preservada", { empresaId: id })
       return
     }
 

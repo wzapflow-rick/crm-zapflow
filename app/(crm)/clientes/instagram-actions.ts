@@ -18,7 +18,7 @@ import {
   salvarConexaoInstagram,
   salvarMidiasInstagram,
 } from "@/lib/instagram-db"
-import { atualizarInteligenciaCliente } from "@/lib/inteligencia-cliente"
+import { atualizarInteligenciaConfiavel } from "@/lib/atualizacao-inteligencia"
 
 export type EstadoInstagram = { ok: boolean; erro?: string; mensagem?: string }
 
@@ -73,9 +73,8 @@ export async function sincronizarInstagramAction(empresaId: string): Promise<Est
       segue: perfil.segue,
       midiaCount: perfil.midiaCount,
     })
-    await atualizarInteligenciaCliente(id).catch((erro) => {
-      console.error("[inteligencia] falha após sync demo:", erro instanceof Error ? erro.message : erro)
-    })
+    const resultado = await atualizarInteligenciaConfiavel(id)
+    if (!resultado.ok) console.warn("[inteligencia] sync demo concluído sem atualização analítica:", { empresaId: id, erro: resultado.erro })
   } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro desconhecido."
       return { ok: false, erro: `Falha ao atualizar demonstração: ${msg}` }
@@ -126,9 +125,8 @@ export async function sincronizarInstagramAction(empresaId: string): Promise<Est
       segue: perfil.segue,
       midiaCount: perfil.midiaCount,
     })
-    await atualizarInteligenciaCliente(id).catch((erro) => {
-      console.error("[inteligencia] falha após sync Instagram:", erro instanceof Error ? erro.message : erro)
-    })
+    const resultado = await atualizarInteligenciaConfiavel(id)
+    if (!resultado.ok) console.warn("[inteligencia] sync Instagram concluído sem atualização analítica:", { empresaId: id, erro: resultado.erro })
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Erro desconhecido."
     await registrarErroInstagram(id, msg).catch(() => {})
