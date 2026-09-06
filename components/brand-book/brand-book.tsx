@@ -17,6 +17,8 @@ export function BrandBook() {
         </p>
       </section>
 
+      <FaixaContinua />
+
       {/* Manifesto */}
       <Secao tom="escuro">
         <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
@@ -191,6 +193,43 @@ export function BrandBook() {
         </span>
       </section>
     </main>
+  )
+}
+
+const faixaMensagens = [
+  "Metais que permanecem",
+  "Acabamentos com intenção",
+  "Design para o cotidiano",
+  "Especificação sem ruído",
+]
+
+function FaixaContinua() {
+  const grupo = faixaMensagens.map((mensagem) => (
+    <span key={mensagem} className="flex shrink-0 items-center gap-8">
+      <span>{mensagem}</span>
+      <span aria-hidden="true" className="text-primary/70">
+        •
+      </span>
+    </span>
+  ))
+
+  return (
+    <section
+      aria-label="Princípios da marca"
+      className="overflow-hidden border-y border-border bg-sidebar py-5 text-sidebar-foreground"
+    >
+      <div className="faixa-continuous-track flex w-max">
+        <div className="flex shrink-0 items-center gap-8 pr-8 font-serif text-xl italic leading-none tracking-tight text-primary-foreground/80 md:text-2xl">
+          {grupo}
+        </div>
+        <div
+          aria-hidden="true"
+          className="flex shrink-0 items-center gap-8 pr-8 font-serif text-xl italic leading-none tracking-tight text-primary-foreground/80 md:text-2xl"
+        >
+          {grupo}
+        </div>
+      </div>
+    </section>
   )
 }
 
