@@ -6,6 +6,7 @@ import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { PERSONA } from "@/lib/persona"
 import { inserirPerformance, excluirPerformance } from "@/lib/performance-db"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 // Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
 const MODELO = "gpt-4o"
@@ -123,6 +124,7 @@ export async function salvarPerformanceAction(
     }
   }
 
+  agendarAtualizacaoInteligencia(empresaId)
   revalidatePath(`/clientes/${empresaId}`)
   return { ok: true }
 }
@@ -140,6 +142,7 @@ export async function excluirPerformanceAction(
     console.error("[v0] Erro ao excluir performance:", e)
     return { ok: false, erro: "Não foi possível excluir o conteúdo." }
   }
+  agendarAtualizacaoInteligencia(empresaId)
   revalidatePath(`/clientes/${empresaId}`)
   return { ok: true }
 }

@@ -8,6 +8,7 @@ import { PERSONA } from "@/lib/persona"
 import { criarConteudos, adicionarEventos, adicionarItensEstrategia } from "@/lib/clientes-db"
 import { criarTarefa } from "@/lib/tarefas-db"
 import { criarExperimento } from "@/lib/experimentos-db"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 const MODELO = "gpt-4o"
 
@@ -200,6 +201,11 @@ export async function aplicarAcaoIA(
     console.log("[v0] Erro ao aplicar ação da IA:", msg)
     return { ok: false, erro: "Não foi possível salvar. Tente novamente." }
   } finally {
+    // Ações que alteram o acervo do cliente (conteúdos, estratégia, experimentos)
+    // disparam a reanálise automática da inteligência e dos embeddings.
+    if (tipo === "conteudos" || tipo === "estrategia" || tipo === "experimento") {
+      agendarAtualizacaoInteligencia(empresaId)
+    }
     revalidatePath("/marketing")
   }
 }

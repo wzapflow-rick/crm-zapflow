@@ -10,6 +10,7 @@ import {
   excluirExperimento,
   type StatusExperimento,
 } from "@/lib/experimentos-db"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 const MODELO = "gpt-4o"
 
@@ -69,6 +70,7 @@ RESULTADO OBSERVADO: ${resultado}`,
     return { ok: false, erro: "Não foi possível salvar o experimento." }
   }
 
+  agendarAtualizacaoInteligencia(empresaId)
   revalidatePath(`/clientes/${empresaId}`)
   return { ok: true }
 }
@@ -76,6 +78,7 @@ RESULTADO OBSERVADO: ${resultado}`,
 export async function excluirExperimentoAction(id: string, empresaId: string): Promise<void> {
   try {
     await excluirExperimento(id, empresaId)
+    agendarAtualizacaoInteligencia(empresaId)
     revalidatePath(`/clientes/${empresaId}`)
   } catch (e) {
     console.log("[v0] Erro ao excluir experimento:", e instanceof Error ? e.message : e)

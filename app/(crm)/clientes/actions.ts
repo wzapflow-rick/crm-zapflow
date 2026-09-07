@@ -26,6 +26,7 @@ import {
   type ResultadoInput,
 } from "@/lib/clientes-db"
 import type { StatusCliente } from "@/lib/simple-data"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -272,6 +273,7 @@ export async function salvarConteudosAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  agendarAtualizacaoInteligencia(id)
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
 }
@@ -311,6 +313,7 @@ export async function salvarRoteiroConteudoAction(
     return { ok: false, erro: `Não foi possível salvar o roteiro: ${msg}` }
   }
 
+  agendarAtualizacaoInteligencia(clienteId)
   revalidatePath(`/clientes/${clienteId}`)
   return { ok: true }
 }

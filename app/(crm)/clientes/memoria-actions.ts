@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { salvarSecaoMemoria } from "@/lib/memoria-db"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 export type EstadoMemoria = { ok: boolean; erro?: string }
 
@@ -21,6 +22,7 @@ export async function salvarMemoriaAction(_prev: EstadoMemoria, formData: FormDa
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  agendarAtualizacaoInteligencia(id)
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
 }

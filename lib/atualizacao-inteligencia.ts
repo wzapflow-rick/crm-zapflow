@@ -2,6 +2,10 @@ import "server-only"
 
 import { getConteudos } from "@/lib/clientes-db"
 import { getMidiasInstagram } from "@/lib/instagram-db"
+import { getReunioes } from "@/lib/reunioes-db"
+import { getExperimentos } from "@/lib/experimentos-db"
+import { getPerformance } from "@/lib/performance-db"
+import { getMemoria } from "@/lib/memoria-db"
 import { atualizarInteligenciaCliente } from "@/lib/inteligencia-cliente"
 import { indexarAcervoSemantico } from "@/lib/busca-semantica"
 
@@ -56,8 +60,21 @@ export async function atualizarInteligenciaConfiavel(empresaId: string): Promise
     }
 
     const embeddings = await tentar("embeddings", id, async () => {
-      const [midias, conteudos] = await Promise.all([getMidiasInstagram(id), getConteudos(id)])
-      return indexarAcervoSemantico({ empresaId: id, midias, conteudos })
+      const [midias, conteudos, reunioes, experimentos, performance, memoriaMapa] = await Promise.all([
+        getMidiasInstagram(id),
+        getConteudos(id),
+        getReunioes(id),
+        getExperimentos(id),
+        getPerformance(id),
+        getMemoria(id),
+      ])
+      const memoria = Object.entries(memoriaMapa).map(([secao, conteudo]) => ({ secao, conteudo }))
+      // Reindexa o acervo completo do cliente (Instagram, conteúdos, reuniões,
+      // experimentos, performance e memória) e poda embeddings internos obsoletos.
+      return indexarAcervoSemantico(
+        { empresaId: id, midias, conteudos, reunioes, experimentos, performance, memoria },
+        { podarObsoletos: true },
+      )
     })
 
     return {
@@ -75,4 +92,52 @@ export async function atualizarInteligenciaConfiavel(empresaId: string): Promise
   } finally {
     if (execucoes.get(id) === execucao) execucoes.delete(id)
   }
+}
+
+// Agendamento em segundo plano: mudanças em roteiros, performance, experimentos,
+// reuniões e memória disparam a atualização sem bloquear a resposta da action.
+// O debounce por cliente colapsa edições em rajada em uma única reanálise.
+const DEBOUNCE_MS = 4000
+
+type AgendamentoInteligencia = { timer: ReturnType<typeof setTimeout> | null; rodando: boolean; repetir: boolean }
+const agendamentos = new Map<string, AgendamentoInteligencia>()
+
+async function dispararAgendamento(id: string): Promise<void> {
+  const estado = agendamentos.get(id)
+  if (!estado) return
+  if (estado.rodando) {
+    // Já há uma execução em andamento; marca para repetir e capturar as mudanças mais recentes.
+    estado.repetir = true
+    return
+  }
+  estado.rodando = true
+  try {
+    const resultado = await atualizarInteligenciaConfiavel(id)
+    if (!resultado.ok) {
+      console.warn("[inteligencia] atualização automática não concluída", { empresaId: id, erro: resultado.erro })
+    }
+  } catch (error) {
+    console.warn("[inteligencia] atualização automática falhou", { empresaId: id, erro: mensagemErro(error) })
+  } finally {
+    const atual = agendamentos.get(id)
+    if (atual) {
+      atual.rodando = false
+      if (atual.repetir) {
+        atual.repetir = false
+        agendarAtualizacaoInteligencia(id)
+      }
+    }
+  }
+}
+
+export function agendarAtualizacaoInteligencia(empresaId: string): void {
+  const id = empresaId.trim()
+  if (!id) return
+  const estado = agendamentos.get(id) ?? { timer: null, rodando: false, repetir: false }
+  if (estado.timer) clearTimeout(estado.timer)
+  estado.timer = setTimeout(() => {
+    estado.timer = null
+    void dispararAgendamento(id)
+  }, DEBOUNCE_MS)
+  agendamentos.set(id, estado)
 }
