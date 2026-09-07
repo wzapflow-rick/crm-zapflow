@@ -68,6 +68,9 @@ const ReuniaoDialog = dynamic(() => import("@/components/clientes/reuniao-dialog
 const PerformanceDialog = dynamic(() => import("@/components/clientes/performance-dialog").then((m) => m.PerformanceDialog))
 const ExperimentoDialog = dynamic(() => import("@/components/clientes/experimento-dialog").then((m) => m.ExperimentoDialog))
 const PadroesPanel = dynamic(() => import("@/components/clientes/padroes-panel").then((m) => m.PadroesPanel))
+const EstrategiaMensalPanel = dynamic(() =>
+  import("@/components/clientes/estrategia-mensal-panel").then((m) => m.EstrategiaMensalPanel),
+)
 const InstagramPanel = dynamic(() => import("@/components/clientes/instagram-panel").then((m) => m.InstagramPanel))
 import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
@@ -79,6 +82,7 @@ import type { ConteudoPerformance } from "@/lib/performance-db"
 import type { Experimento, StatusExperimento } from "@/lib/experimentos-db"
 import type { Padrao } from "@/lib/padroes-db"
 import type { EnvioCliente } from "@/lib/envios-db"
+import type { EstrategiaMensal } from "@/lib/estrategia-mensal-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -131,6 +135,7 @@ export function ClienteDetalhe({
   padroes,
   ultimaAnalisePadroes,
   envios,
+  estrategiasMensais,
   instagramConexao,
   instagramMidias,
   instagramConfigurado,
@@ -152,6 +157,7 @@ export function ClienteDetalhe({
   padroes: Padrao[]
   ultimaAnalisePadroes: string | null
   envios: EnvioCliente[]
+  estrategiasMensais: EstrategiaMensal[]
   instagramConexao: ConexaoInstagram | null
   instagramMidias: MidiaInstagram[]
   instagramConfigurado: boolean
@@ -472,7 +478,17 @@ export function ClienteDetalhe({
 
           {/* Estratégia */}
           <TabsContent value="estrategia" className="mt-5">
-            <div className="mb-3 flex justify-end">
+            {/* Estratégia mensal versionada: plano do mês + comparação planejado x executado */}
+            <section className="mb-8">
+              <div className="mb-3 flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Estratégia mensal</h3>
+              </div>
+              <EstrategiaMensalPanel clienteId={cliente.id} estrategias={estrategiasMensais} />
+            </section>
+
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Estratégia geral</h3>
               <EstrategiaDialog
                 clienteId={cliente.id}
                 estrategia={estrategia}
