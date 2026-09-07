@@ -8,6 +8,7 @@ export type ChatMensagem = {
   papel: "user" | "assistant"
   texto: string
   criadoEm: string // ISO
+  feedback?: import("@/lib/feedback-ia-db").TipoFeedback | null
 }
 
 type ChatRow = {

@@ -11,6 +11,8 @@ import { carregarChatClienteAction, limparChatAction } from "@/app/(crm)/marketi
 import type { ResumoContexto } from "@/lib/contexto-cliente"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
 import { AcoesResposta } from "@/components/marketing/acoes-resposta"
+import { FeedbackResposta } from "@/components/marketing/feedback-resposta"
+import type { TipoFeedback } from "@/lib/feedback-ia-db"
 
 export type ClienteOpcao = {
   id: string
@@ -34,6 +36,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
   const [resumo, setResumo] = useState<ResumoContexto | null>(null)
   const [carregandoCtx, setCarregandoCtx] = useState(false)
   const [input, setInput] = useState("")
+  const [feedbackInicial, setFeedbackInicial] = useState<Record<string, TipoFeedback | null>>({})
   const clienteIdRef = useRef(clienteId)
   clienteIdRef.current = clienteId
 
@@ -54,6 +57,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
     if (!clienteId) {
       setResumo(null)
       setMessages([])
+      setFeedbackInicial({})
       return
     }
     let ativo = true
@@ -61,6 +65,11 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
     carregarChatClienteAction(clienteId).then((dados) => {
       if (!ativo) return
       setResumo(dados.resumo)
+      const feedbacks: Record<string, TipoFeedback | null> = {}
+      for (const m of dados.mensagens) {
+        if (m.papel === "assistant") feedbacks[m.id] = m.feedback ?? null
+      }
+      setFeedbackInicial(feedbacks)
       setMessages(
         dados.mensagens.map(
           (m): UIMessage => ({
@@ -183,12 +192,31 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
               {messages.map((m, indice) => {
                 const conteudo = textoDe(m)
                 const ultima = indice === messages.length - 1
-                const mostrarAcoes =
+                const mostrarExtras =
                   m.role === "assistant" && conteudo.trim().length > 0 && !(ultima && ocupado)
+                let perguntaAnterior = ""
+                if (mostrarExtras) {
+                  for (let i = indice - 1; i >= 0; i--) {
+                    if (messages[i].role === "user") {
+                      perguntaAnterior = textoDe(messages[i])
+                      break
+                    }
+                  }
+                }
                 return (
-                  <div key={m.id} className="grid gap-1">
+                  <div key={m.id} className="grid gap-1.5">
                     <Bolha papel={m.role}>{conteudo}</Bolha>
-                    {mostrarAcoes && <AcoesResposta texto={conteudo} empresaId={clienteId} />}
+                    {mostrarExtras && (
+                      <>
+                        <AcoesResposta texto={conteudo} empresaId={clienteId} />
+                        <FeedbackResposta
+                          empresaId={clienteId}
+                          resposta={conteudo}
+                          pergunta={perguntaAnterior}
+                          valorInicial={feedbackInicial[m.id] ?? null}
+                        />
+                      </>
+                    )}
                   </div>
                 )
               })}
