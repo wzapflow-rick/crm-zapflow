@@ -12,16 +12,31 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Link2, Lock, Plus, Trash2, ExternalLink } from "lucide-react"
+import { Link2, Lock, Plus, Trash2, ExternalLink, Sparkles, Copy, Check } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { salvarRoteiroConteudoAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
+import { gerarRoteiroConteudoAction, type RoteiroGerado } from "@/app/(crm)/clientes/gerar-roteiro-actions"
 import type { LinkConteudo } from "@/lib/simple-data"
 
 const estadoInicial: EstadoForm = { ok: false }
+
+// Monta o texto final do roteiro a partir da estrutura gerada pela IA
+// (gancho + cenas numeradas + CTA), pronto para editar no textarea.
+function montarTextoRoteiro(r: RoteiroGerado): string {
+  const linhas: string[] = []
+  linhas.push(`GANCHO: ${r.gancho}`)
+  linhas.push("")
+  r.cenas.forEach((c, i) => linhas.push(`${i + 1}. ${c.descricao}`))
+  if (r.cta) {
+    linhas.push("")
+    linhas.push(`CTA: ${r.cta}`)
+  }
+  return linhas.join("\n")
+}
 
 function BotaoSalvar() {
   const { pending } = useFormStatus()
@@ -64,6 +79,44 @@ export function RoteiroConteudoDialog({
   const [estado, formAction] = useActionState(salvarRoteiroConteudoAction, estadoInicial)
   const router = useRouter()
 
+  // Geração de roteiro com IA (gancho, cenas, CTA, legenda, direcionamento e variações).
+  const [gerando, setGerando] = useState(false)
+  const [erroIa, setErroIa] = useState("")
+  const [instrucao, setInstrucao] = useState("")
+  const [variacoes, setVariacoes] = useState<string[]>([])
+  const [ganchoCopiado, setGanchoCopiado] = useState<number | null>(null)
+
+  const gerarComIa = async () => {
+    setGerando(true)
+    setErroIa("")
+    try {
+      const resultado = await gerarRoteiroConteudoAction({ clienteId, titulo, formato, instrucao })
+      if (!resultado.ok) {
+        setErroIa(resultado.erro)
+        return
+      }
+      const r = resultado.roteiro
+      setValor(montarTextoRoteiro(r))
+      setValorLegenda(r.legenda)
+      setValorDirecionamento(r.direcionamento)
+      setVariacoes(r.variacoesGancho)
+    } catch {
+      setErroIa("Não foi possível gerar o roteiro agora. Tente novamente.")
+    } finally {
+      setGerando(false)
+    }
+  }
+
+  const copiarGancho = async (texto: string, i: number) => {
+    try {
+      await navigator.clipboard.writeText(texto)
+      setGanchoCopiado(i)
+      setTimeout(() => setGanchoCopiado(null), 1500)
+    } catch {
+      // Clipboard indisponível: ignora silenciosamente.
+    }
+  }
+
   // Recarrega roteiro, legenda, direcionamento, links e referência sempre que o diálogo abre.
   useEffect(() => {
     if (aberto) {
@@ -72,6 +125,9 @@ export function RoteiroConteudoDialog({
       setValorDirecionamento(direcionamento)
       setValorLinks(links)
       setValorReferencia(referencia)
+      setErroIa("")
+      setVariacoes([])
+      setInstrucao("")
     }
   }, [aberto, roteiro, legenda, direcionamento, links, referencia])
 
@@ -118,6 +174,60 @@ export function RoteiroConteudoDialog({
           <input type="hidden" name="conteudoId" value={conteudoId} />
           <input type="hidden" name="links" value={linksJson} />
           <input type="hidden" name="referencia" value={valorReferencia} />
+
+          <div className="grid gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <Label htmlFor="instrucao-ia" className="text-primary">
+                Gerar roteiro com IA
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Cria gancho, cenas, CTA, legenda e direcionamento com base no contexto do cliente. Você revisa antes de salvar.
+            </p>
+            <div className="flex items-start gap-2">
+              <Textarea
+                id="instrucao-ia"
+                value={instrucao}
+                onChange={(e) => setInstrucao(e.target.value)}
+                rows={2}
+                placeholder="Instruções opcionais (ângulo, oferta, objetivo específico deste conteúdo)..."
+                className="field-sizing-fixed resize-y bg-background"
+              />
+              <Button type="button" onClick={gerarComIa} disabled={gerando} className="shrink-0 gap-1.5">
+                <Sparkles className="h-4 w-4" />
+                {gerando ? "Gerando..." : "Gerar"}
+              </Button>
+            </div>
+            {erroIa && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{erroIa}</p>
+            )}
+            {variacoes.length > 0 && (
+              <div className="grid gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Variações de gancho para testar (clique para copiar):
+                </p>
+                <ul className="grid gap-1.5">
+                  {variacoes.map((v, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onClick={() => copiarGancho(v, i)}
+                        className="flex w-full items-start gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/50 hover:bg-primary/5"
+                      >
+                        {ganchoCopiado === i ? (
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        ) : (
+                          <Copy className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="text-pretty">{v}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
           <div className="grid gap-1.5">
             <Label htmlFor="roteiro">Roteiro</Label>
