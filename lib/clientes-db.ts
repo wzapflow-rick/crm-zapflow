@@ -480,6 +480,24 @@ export async function salvarEstrategia(empresaId: string, input: Estrategia): Pr
   )
 }
 
+// Acrescenta itens à estratégia atual e/ou aos insights do cliente sem
+// sobrescrever o que já existe (usado pelas ações da IA no chat estratégico).
+export async function adicionarItensEstrategia(
+  empresaId: string,
+  itens: { estrategiaAtual?: string[]; insights?: string[] },
+): Promise<number> {
+  const novaEstrategia = (itens.estrategiaAtual ?? []).map((s) => s.trim()).filter(Boolean)
+  const novosInsights = (itens.insights ?? []).map((s) => s.trim()).filter(Boolean)
+  if (novaEstrategia.length === 0 && novosInsights.length === 0) return 0
+  const atual = await getEstrategia(empresaId)
+  await salvarEstrategia(empresaId, {
+    estrategiaAtual: [...atual.estrategiaAtual, ...novaEstrategia],
+    insights: [...atual.insights, ...novosInsights],
+    concorrentes: atual.concorrentes,
+  })
+  return novaEstrategia.length + novosInsights.length
+}
+
 // ── Metas (aba Visão geral) ───────────────────────────────────────────────
 
 type MetaRow = {
@@ -635,6 +653,21 @@ export async function salvarEventos(empresaId: string, eventos: EventoInput[]): 
   }
 }
 
+// Acrescenta compromissos ao calendário do cliente sem tocar nos existentes
+// (usado pelas ações da IA no chat estratégico).
+export async function adicionarEventos(empresaId: string, eventos: EventoInput[]): Promise<number> {
+  const validos = eventos.filter((e) => e.titulo?.trim())
+  for (const e of validos) {
+    const tipo = TIPOS_EVENTO.includes(e.tipo as EventoCliente["tipo"]) ? e.tipo : "gravacao"
+    await query(
+      `insert into public.agenda_compromissos (empresa_id, titulo, tipo, data, hora)
+       values ($1, $2, $3, $4, $5)`,
+      [empresaId, e.titulo.trim(), tipo, e.data || null, e.hora?.trim() || null],
+    )
+  }
+  return validos.length
+}
+
 // ── Conteúdos (aba Conteúdo) ──────────────────────────────────────────────
 
 type ConteudoRow = {
@@ -752,6 +785,51 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
   } finally {
     client.release()
   }
+}
+
+// Acrescenta novos conteúdos ao pipeline sem apagar os existentes (usado pelas
+// ações da IA no chat estratégico). Continua a numeração de posição atual.
+export async function criarConteudos(empresaId: string, conteudos: ConteudoInput[]): Promise<number> {
+  const validos = conteudos.filter((c) => c.titulo?.trim())
+  if (validos.length === 0) return 0
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    const posRes = await client.query<{ max: number | null }>(
+      `select max(posicao) as max from public.conteudos where empresa_id = $1`,
+      [empresaId],
+    )
+    let posicao = (posRes.rows[0]?.max ?? -1) + 1
+    for (const c of validos) {
+      const formato = FORMATOS_CONTEUDO.includes(c.formato as ConteudoItem["formato"]) ? c.formato : "Reels"
+      const status = STATUS_CONTEUDO.includes(c.status as StatusConteudo) ? c.status : "ideia"
+      await client.query(
+        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro, legenda, direcionamento, links, referencia)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)`,
+        [
+          empresaId,
+          c.titulo.trim(),
+          formato,
+          status,
+          c.data || null,
+          posicao++,
+          c.roteiro?.trim() || null,
+          c.legenda?.trim() || null,
+          c.direcionamento?.trim() || null,
+          JSON.stringify(sanitizarLinks(c.links)),
+          c.referencia?.trim() || null,
+        ],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+  return validos.length
 }
 
 // Atualiza o roteiro, a sugestão de legenda, o direcionamento interno, os links

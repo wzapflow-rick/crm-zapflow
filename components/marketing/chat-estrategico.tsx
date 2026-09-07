@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { carregarChatClienteAction, limparChatAction } from "@/app/(crm)/marketing/chat-actions"
 import type { ResumoContexto } from "@/lib/contexto-cliente"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
+import { AcoesResposta } from "@/components/marketing/acoes-resposta"
 
 export type ClienteOpcao = {
   id: string
@@ -179,11 +180,18 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
                 </div>
               )}
 
-              {messages.map((m) => (
-                <Bolha key={m.id} papel={m.role}>
-                  {textoDe(m)}
-                </Bolha>
-              ))}
+              {messages.map((m, indice) => {
+                const conteudo = textoDe(m)
+                const ultima = indice === messages.length - 1
+                const mostrarAcoes =
+                  m.role === "assistant" && conteudo.trim().length > 0 && !(ultima && ocupado)
+                return (
+                  <div key={m.id} className="grid gap-1">
+                    <Bolha papel={m.role}>{conteudo}</Bolha>
+                    {mostrarAcoes && <AcoesResposta texto={conteudo} empresaId={clienteId} />}
+                  </div>
+                )
+              })}
 
               {status === "submitted" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
