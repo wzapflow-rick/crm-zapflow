@@ -11,6 +11,7 @@ import { carregarChatClienteAction, limparChatAction } from "@/app/(crm)/marketi
 import type { ResumoContexto } from "@/lib/contexto-cliente"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
 import { AcoesResposta } from "@/components/marketing/acoes-resposta"
+import { AtalhoRoteiro, mencionaRoteiro } from "@/components/marketing/atalho-roteiro"
 import { FeedbackResposta } from "@/components/marketing/feedback-resposta"
 import type { TipoFeedback } from "@/lib/feedback-ia-db"
 
@@ -209,6 +210,9 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
                     {mostrarExtras && (
                       <>
                         <AcoesResposta texto={conteudo} empresaId={clienteId} />
+                        {(mencionaRoteiro(conteudo) || mencionaRoteiro(perguntaAnterior)) && (
+                          <AtalhoRoteiro texto={conteudo} pergunta={perguntaAnterior} empresaId={clienteId} />
+                        )}
                         <FeedbackResposta
                           empresaId={clienteId}
                           resposta={conteudo}

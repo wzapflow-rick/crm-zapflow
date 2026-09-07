@@ -3,9 +3,12 @@
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
+import { revalidatePath } from "next/cache"
 import { PERSONA } from "@/lib/persona"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
+import { criarConteudos } from "@/lib/clientes-db"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 const MODELO = "gpt-4o"
 
@@ -49,6 +52,48 @@ const schema = z.object({
     .max(5)
     .describe("Variações alternativas do gancho para testar (ângulos diferentes: curiosidade, promessa, contraste...)."),
 })
+
+// Monta o texto final do roteiro (gancho + cenas numeradas + CTA) para gravar
+// no campo "roteiro" do conteúdo. Mesmo formato usado no editor do pipeline.
+function montarTextoRoteiro(r: RoteiroGerado): string {
+  const linhas: string[] = [`GANCHO: ${r.gancho}`, ""]
+  r.cenas.forEach((c, i) => linhas.push(`${i + 1}. ${c.descricao}`))
+  if (r.cta) linhas.push("", `CTA: ${r.cta}`)
+  return linhas.join("\n")
+}
+
+// Atalho do chat estratégico: grava o roteiro estruturado como um novo conteúdo
+// no pipeline do cliente (status "ideia"), pronto para editar depois.
+export async function salvarRoteiroGeradoAction(input: {
+  clienteId: string
+  titulo: string
+  formato: string
+  roteiro: RoteiroGerado
+}): Promise<{ ok: boolean; erro?: string }> {
+  const clienteId = input.clienteId.trim()
+  const titulo = input.titulo.trim()
+  if (!clienteId) return { ok: false, erro: "Cliente não identificado." }
+  if (!titulo) return { ok: false, erro: "Informe um título para salvar o conteúdo." }
+  try {
+    await criarConteudos(clienteId, [
+      {
+        titulo,
+        formato: input.formato || "Reels",
+        status: "ideia",
+        roteiro: montarTextoRoteiro(input.roteiro),
+        legenda: input.roteiro.legenda,
+        direcionamento: input.roteiro.direcionamento,
+      },
+    ])
+  } catch (e) {
+    console.log("[v0] Erro ao salvar roteiro gerado:", e instanceof Error ? e.message : e)
+    return { ok: false, erro: "Não foi possível salvar no pipeline. Tente novamente." }
+  }
+  agendarAtualizacaoInteligencia(clienteId)
+  revalidatePath("/marketing")
+  revalidatePath(`/clientes/${clienteId}`)
+  return { ok: true }
+}
 
 export async function gerarRoteiroConteudoAction(input: {
   clienteId: string
