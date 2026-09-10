@@ -69,6 +69,7 @@ import { CriarConteudoDialog, EditarConteudoDialog } from "@/components/clientes
 import { ChatEquipe } from "@/components/clientes/chat-equipe"
 import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { HistoricoDialog } from "@/components/clientes/historico-dialog"
+import { GerarEvolucaoButton } from "@/components/clientes/gerar-evolucao-button"
 import { MemoriaSecao } from "@/components/clientes/memoria-secao"
 import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
 import { VincularInstagramDialog, ImportarInstagramDialog } from "@/components/clientes/instagram-metricas-dialog"
@@ -686,17 +687,20 @@ export function ClienteDetalhe({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Sparkles className="h-4 w-4 text-primary" />
-                Linha do tempo do cliente, organizada pela IA. Visível só para a equipe.
+                Linha do tempo do cliente, analisada pela IA a partir de todos os dados. Visível só para a equipe.
               </div>
-              <HistoricoDialog
-                clienteId={cliente.id}
-                trigger={
-                  <Button size="sm" className="gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Novo registro
-                  </Button>
-                }
-              />
+              <div className="flex flex-wrap items-start justify-end gap-2">
+                <GerarEvolucaoButton clienteId={cliente.id} />
+                <HistoricoDialog
+                  clienteId={cliente.id}
+                  trigger={
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Registro manual
+                    </Button>
+                  }
+                />
+              </div>
             </div>
 
             {historico.length > 0 ? (
@@ -754,7 +758,7 @@ export function ClienteDetalhe({
               </ol>
             ) : (
               <Card titulo="Linha do tempo">
-                <Vazio texto='Nenhum registro ainda. Clique em "Novo registro" e escreva como foi o período — a IA organiza.' />
+                <Vazio texto='Nenhum registro ainda. Clique em "Gerar análise automática" e a IA analisa todos os dados do cliente (Instagram, posts, estratégia, resultados) sozinha.' />
               </Card>
             )}
           </TabsContent>

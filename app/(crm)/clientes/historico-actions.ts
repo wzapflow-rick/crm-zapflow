@@ -6,6 +6,7 @@ import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { PERSONA } from "@/lib/persona"
 import { criarRegistroHistorico, excluirRegistroHistorico } from "@/lib/historico-db"
+import { montarContextoCliente } from "@/lib/contexto-cliente"
 
 // Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
 const MODELO = "gpt-4o"
@@ -83,6 +84,98 @@ export async function salvarRegistroHistoricoAction(
       ok: false,
       erro:
         "Não foi possível salvar. Verifique se a tabela cliente_historico existe no banco (rode o SQL informado).",
+    }
+  }
+
+  revalidatePath(`/clientes/${empresaId}`)
+  return { ok: true }
+}
+
+// Gera um registro de evolução AUTOMATICAMENTE, sem digitação: puxa TODO o
+// contexto do cliente (Instagram real, performance dos posts, estratégia,
+// resultados, conteúdos, experimentos, padrões, reuniões, memória, operações e
+// análises versionadas) via montarContextoCliente e pede à IA uma análise
+// estratégica estruturada do período.
+export async function gerarEvolucaoAutomaticaAction(
+  _prev: EstadoHistorico,
+  formData: FormData,
+): Promise<EstadoHistorico> {
+  const empresaId = String(formData.get("empresaId") ?? "").trim()
+  if (!empresaId) return { ok: false, erro: "Cliente não identificado." }
+
+  let contexto: Awaited<ReturnType<typeof montarContextoCliente>>
+  try {
+    contexto = await montarContextoCliente(empresaId)
+  } catch (e) {
+    console.error("[v0] Erro ao montar contexto para evolução:", e)
+    return { ok: false, erro: "Não foi possível reunir os dados do cliente para a análise." }
+  }
+  if (!contexto) return { ok: false, erro: "Cliente não encontrado." }
+
+  // Sem dados suficientes não há o que analisar de verdade.
+  const totalSinais = contexto.resumo.blocos.reduce((soma, b) => soma + b.itens, 0)
+  if (totalSinais === 0) {
+    return {
+      ok: false,
+      erro:
+        "Ainda não há dados suficientes deste cliente (Instagram, conteúdos, resultados, etc.) para gerar uma análise automática.",
+    }
+  }
+
+  const agora = new Date()
+  const periodoPadrao = agora.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+
+  let estruturado: z.infer<typeof schemaRegistro>
+  try {
+    const { experimental_output } = await generateText({
+      model: openai(MODELO),
+      experimental_output: Output.object({ schema: schemaRegistro }),
+      system: PERSONA,
+      prompt:
+        `Você é o estrategista da SIMPLE. Gere um registro de EVOLUÇÃO deste cliente analisando ` +
+        `TODOS os dados reais disponíveis abaixo: desempenho do Instagram, performance de cada post, ` +
+        `estratégia, metas/KPIs, resultados, conteúdos publicados, experimentos, padrões aprendidos, ` +
+        `reuniões, operações e análises anteriores.\n\n` +
+        `Regras:\n` +
+        `- Use SOMENTE números presentes nos dados; nunca invente métricas.\n` +
+        `- Em "metricas", traga os indicadores mais relevantes do período (ex.: seguidores, alcance, ` +
+        `views, engajamento, melhores formatos) como rótulo + valor.\n` +
+        `- Em "resolvidos", o que evoluiu/melhorou comparado ao passado (use as análises anteriores e o histórico).\n` +
+        `- Em "novosProblemas", gargalos e pontos fracos atuais evidenciados pelos dados.\n` +
+        `- Em "proximosPassos", recomendações concretas e acionáveis baseadas no que os dados mostram que funciona.\n` +
+        `- Em "analise", escreva de 3 a 5 frases conectando o que aconteceu, por que, e o caminho.\n` +
+        `- Para "referencia", use "${periodoPadrao}" a menos que os dados indiquem um período mais preciso.\n\n` +
+        `=== DADOS COMPLETOS DO CLIENTE ===\n${contexto.texto}`,
+    })
+    estruturado = experimental_output
+  } catch (e) {
+    console.error("[v0] Erro ao gerar evolução automática:", e)
+    const msg = e instanceof Error ? e.message : "Falha ao processar com a IA."
+    return {
+      ok: false,
+      erro:
+        msg.includes("model") || msg.includes("does not exist") || msg.includes("access")
+          ? `O modelo "${MODELO}" não está disponível na sua conta OpenAI. Ajuste a constante MODELO em app/(crm)/clientes/historico-actions.ts.`
+          : `Não foi possível gerar a análise agora. Detalhe: ${msg}`,
+    }
+  }
+
+  try {
+    await criarRegistroHistorico({
+      empresaId,
+      referencia: estruturado.referencia || periodoPadrao,
+      metricas: estruturado.metricas ?? [],
+      resolvidos: estruturado.resolvidos ?? [],
+      novosProblemas: estruturado.novosProblemas ?? [],
+      proximosPassos: estruturado.proximosPassos ?? [],
+      analise: estruturado.analise ?? "",
+      notasOriginais: `Análise gerada automaticamente pela IA em ${agora.toLocaleString("pt-BR")} a partir de todos os dados do cliente.`,
+    })
+  } catch (e) {
+    console.error("[v0] Erro ao salvar evolução automática:", e)
+    return {
+      ok: false,
+      erro: "Não foi possível salvar a análise. Verifique se a tabela cliente_historico existe no banco.",
     }
   }
 
