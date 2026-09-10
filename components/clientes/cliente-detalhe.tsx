@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import dynamic from "next/dynamic"
 import { useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
@@ -58,33 +57,25 @@ import { AvisarPendenciasButton } from "@/components/clientes/avisar-pendencias-
 import { MesesSelector } from "@/components/simple/meses-selector"
 import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
 
-const VisaoGeralDialog = dynamic(() => import("@/components/clientes/visao-geral-dialog").then((m) => m.VisaoGeralDialog))
-const CalendarioDialog = dynamic(() => import("@/components/clientes/calendario-dialog").then((m) => m.CalendarioDialog))
-const RoteiroConteudoDialog = dynamic(() => import("@/components/clientes/roteiro-conteudo-dialog").then((m) => m.RoteiroConteudoDialog))
-const EstrategiaDialog = dynamic(() => import("@/components/clientes/estrategia-dialog").then((m) => m.EstrategiaDialog))
-const CriarConteudoDialog = dynamic(() =>
-  import("@/components/clientes/conteudo-item-dialog").then((m) => m.CriarConteudoDialog),
-)
-const EditarConteudoDialog = dynamic(() =>
-  import("@/components/clientes/conteudo-item-dialog").then((m) => m.EditarConteudoDialog),
-)
-const ChatEquipe = dynamic(() => import("@/components/clientes/chat-equipe").then((m) => m.ChatEquipe))
-const ResultadosDialog = dynamic(() => import("@/components/clientes/resultados-dialog").then((m) => m.ResultadosDialog))
-const HistoricoDialog = dynamic(() => import("@/components/clientes/historico-dialog").then((m) => m.HistoricoDialog))
-const MemoriaSecao = dynamic(() => import("@/components/clientes/memoria-secao").then((m) => m.MemoriaSecao))
-const ReuniaoDialog = dynamic(() => import("@/components/clientes/reuniao-dialog").then((m) => m.ReuniaoDialog))
-const VincularInstagramDialog = dynamic(() =>
-  import("@/components/clientes/instagram-metricas-dialog").then((m) => m.VincularInstagramDialog),
-)
-const ImportarInstagramDialog = dynamic(() =>
-  import("@/components/clientes/instagram-metricas-dialog").then((m) => m.ImportarInstagramDialog),
-)
-const ExperimentoDialog = dynamic(() => import("@/components/clientes/experimento-dialog").then((m) => m.ExperimentoDialog))
-const PadroesPanel = dynamic(() => import("@/components/clientes/padroes-panel").then((m) => m.PadroesPanel))
-const EstrategiaMensalPanel = dynamic(() =>
-  import("@/components/clientes/estrategia-mensal-panel").then((m) => m.EstrategiaMensalPanel),
-)
-const InstagramPanel = dynamic(() => import("@/components/clientes/instagram-panel").then((m) => m.InstagramPanel))
+// Estes componentes eram carregados via next/dynamic, mas como cada aba (Base UI
+// Tabs) desmonta o painel inativo, trocar de aba montava um componente ainda não
+// baixado e ele "suspendia" durante a transição — deixando a aba em branco até um
+// segundo clique. Imports estáticos eliminam o suspense na troca de aba.
+import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
+import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
+import { RoteiroConteudoDialog } from "@/components/clientes/roteiro-conteudo-dialog"
+import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
+import { CriarConteudoDialog, EditarConteudoDialog } from "@/components/clientes/conteudo-item-dialog"
+import { ChatEquipe } from "@/components/clientes/chat-equipe"
+import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
+import { HistoricoDialog } from "@/components/clientes/historico-dialog"
+import { MemoriaSecao } from "@/components/clientes/memoria-secao"
+import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
+import { VincularInstagramDialog, ImportarInstagramDialog } from "@/components/clientes/instagram-metricas-dialog"
+import { ExperimentoDialog } from "@/components/clientes/experimento-dialog"
+import { PadroesPanel } from "@/components/clientes/padroes-panel"
+import { EstrategiaMensalPanel } from "@/components/clientes/estrategia-mensal-panel"
+import { InstagramPanel } from "@/components/clientes/instagram-panel"
 import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
