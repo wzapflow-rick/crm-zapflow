@@ -73,7 +73,12 @@ const ResultadosDialog = dynamic(() => import("@/components/clientes/resultados-
 const HistoricoDialog = dynamic(() => import("@/components/clientes/historico-dialog").then((m) => m.HistoricoDialog))
 const MemoriaSecao = dynamic(() => import("@/components/clientes/memoria-secao").then((m) => m.MemoriaSecao))
 const ReuniaoDialog = dynamic(() => import("@/components/clientes/reuniao-dialog").then((m) => m.ReuniaoDialog))
-const PerformanceDialog = dynamic(() => import("@/components/clientes/performance-dialog").then((m) => m.PerformanceDialog))
+const VincularInstagramDialog = dynamic(() =>
+  import("@/components/clientes/instagram-metricas-dialog").then((m) => m.VincularInstagramDialog),
+)
+const ImportarInstagramDialog = dynamic(() =>
+  import("@/components/clientes/instagram-metricas-dialog").then((m) => m.ImportarInstagramDialog),
+)
 const ExperimentoDialog = dynamic(() => import("@/components/clientes/experimento-dialog").then((m) => m.ExperimentoDialog))
 const PadroesPanel = dynamic(() => import("@/components/clientes/padroes-panel").then((m) => m.PadroesPanel))
 const EstrategiaMensalPanel = dynamic(() =>
@@ -486,13 +491,20 @@ export function ClienteDetalhe({
                         </p>
                       </div>
                       {c.status === "publicado" && (
-                        <PerformanceDialog
+                        <VincularInstagramDialog
                           clienteId={cliente.id}
-                          defaults={{ titulo: c.titulo, formato: c.formato, roteiro: c.roteiro ?? "" }}
+                          conteudo={{
+                            id: c.id,
+                            titulo: c.titulo,
+                            formato: c.formato,
+                            dataISO: c.dataISO,
+                            roteiro: c.roteiro,
+                            legenda: c.legenda,
+                          }}
                           trigger={
                             <Button variant="outline" size="sm" className="h-7 shrink-0 gap-1 text-xs">
                               <BarChart3 className="h-3.5 w-3.5" />
-                              Adicionar métricas
+                              Puxar do Instagram
                             </Button>
                           }
                         />
@@ -828,14 +840,14 @@ export function ClienteDetalhe({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <BarChart3 className="h-4 w-4 text-primary" />
-                Conteúdos publicados com métricas. A IA gera aprendizados e usa tudo nas recomendações.
+                Métricas puxadas direto do Instagram. A IA gera aprendizados e usa tudo nas recomendações.
               </div>
-              <PerformanceDialog
+              <ImportarInstagramDialog
                 clienteId={cliente.id}
                 trigger={
                   <Button size="sm" className="gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Novo conteúdo
+                    <Instagram className="h-3.5 w-3.5" />
+                    Importar do Instagram
                   </Button>
                 }
               />
@@ -1000,7 +1012,7 @@ export function ClienteDetalhe({
               </div>
             ) : (
               <Card titulo="Banco de experimentos">
-                <Vazio texto='Nenhum experimento ainda. Clique em "Novo experimento", descreva a hipótese e o resultado — a IA conclui e classifica.' />
+                <Vazio texto='Nenhum experimento ainda. Clique em "Novo experimento", descreva a hipótese e o resultado �� a IA conclui e classifica.' />
               </Card>
             )}
           </TabsContent>
