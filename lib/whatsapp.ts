@@ -202,6 +202,23 @@ async function conectarEObterQr(base: string, apiKey: string, instancia: string)
 // Tipo de destino: grupo (@g.us) ou contato individual/privado (@s.whatsapp.net).
 export type TipoDestino = "grupo" | "contato"
 
+// Normaliza um telefone brasileiro para o formato internacional só com dígitos
+// (ex.: "5511999999999"). Aceita qualquer entrada do usuário: "+55 11 99999-9999",
+// "+5511999999999", "11999999999", "(11) 5205-0272" etc.
+// Regra: se o número já tem código do país (55 + 10/11 dígitos), mantém; se veio
+// só com DDD + número (10 ou 11 dígitos), acrescenta o "55" na frente.
+export function normalizarTelefoneBR(telefone: string): string {
+  const digitos = (telefone ?? "").replace(/\D/g, "")
+  if (!digitos) return ""
+  // DDD + número, sem código do país → prefixa 55 (Brasil).
+  //   10 dígitos = fixo (DD + 8), 11 dígitos = celular (DD + 9).
+  if (digitos.length === 10 || digitos.length === 11) {
+    return `55${digitos}`
+  }
+  // Já tem código do país (12 = fixo, 13 = celular) ou é internacional → mantém.
+  return digitos
+}
+
 // Monta o JID correto conforme o tipo de destino.
 // - Grupo:   "12036...@g.us"
 // - Contato: "5511999999999@s.whatsapp.net" (número no formato internacional, só dígitos)
@@ -211,8 +228,7 @@ function normalizarDestino(destino: string, tipo: TipoDestino): string {
   if (!limpo) return ""
   if (limpo.includes("@")) return limpo
   if (tipo === "contato") {
-    // Remove qualquer caractere que não seja dígito (espaços, +, (), -).
-    const digitos = limpo.replace(/\D/g, "")
+    const digitos = normalizarTelefoneBR(limpo)
     return digitos ? `${digitos}@s.whatsapp.net` : ""
   }
   return `${limpo}@g.us`
