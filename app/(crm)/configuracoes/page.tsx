@@ -1,6 +1,7 @@
 import { Topbar } from "@/components/simple/topbar"
 import { Equipe } from "@/components/configuracoes/equipe"
 import { WhatsAppDiagnostico } from "@/components/configuracoes/whatsapp-diagnostico"
+import { AvisoPendenciasCard } from "@/components/configuracoes/aviso-pendencias-card"
 import { getMembros, type Membro } from "@/lib/membros-db"
 
 export const dynamic = "force-dynamic"
@@ -21,6 +22,7 @@ export default async function ConfiguracoesPage() {
       <Topbar titulo="Configurações" />
       <Equipe membros={membros}>
         <WhatsAppDiagnostico />
+        <AvisoPendenciasCard />
       </Equipe>
     </>
   )

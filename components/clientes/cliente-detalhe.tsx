@@ -54,6 +54,7 @@ import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-butt
 import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
 import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
 import { EnvioEditavel } from "@/components/clientes/envio-editavel"
+import { AvisarPendenciasButton } from "@/components/clientes/avisar-pendencias-button"
 import { MesesSelector } from "@/components/simple/meses-selector"
 import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
 
@@ -193,6 +194,14 @@ export function ClienteDetalhe({
     () => conteudos.filter((c) => competenciaDeISO(c.dataISO) === mesConteudoAtivo),
     [conteudos, mesConteudoAtivo],
   )
+
+  // Conteúdos aguardando aprovação do cliente (status "aprovacao") — habilita o
+  // aviso manual por WhatsApp na aba Conteúdo.
+  const pendentesAprovacao = useMemo(
+    () => conteudos.filter((c) => c.status === "aprovacao").length,
+    [conteudos],
+  )
+  const temTelefone = Boolean((cliente.telefone ?? "").replace(/\D/g, ""))
 
   // Feedback do retorno do OAuth do Instagram (?ig_ok=1 / ?ig_erro=...).
   const igErro = searchParams.get("ig_erro") || undefined
@@ -423,7 +432,12 @@ export function ClienteDetalhe({
 
           {/* Conteúdo */}
           <TabsContent value="conteudo" className="mt-5">
-            <div className="mb-3 flex justify-end">
+            <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+              <AvisarPendenciasButton
+                clienteId={cliente.id}
+                pendentes={pendentesAprovacao}
+                temTelefone={temTelefone}
+              />
               <CriarConteudoDialog
                 clienteId={cliente.id}
                 trigger={
