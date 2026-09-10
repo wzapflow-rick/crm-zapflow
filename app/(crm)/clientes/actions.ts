@@ -6,9 +6,12 @@ import {
   adicionarMensagemEquipe,
   atualizarBanner,
   atualizarCliente,
+  atualizarDadosConteudo,
   atualizarRoteiroConteudo,
   criarCliente,
+  criarConteudos,
   excluirCliente,
+  excluirConteudo,
   salvarArquivos,
   salvarConteudos,
   salvarEstrategia,
@@ -273,6 +276,88 @@ export async function salvarConteudosAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  agendarAtualizacaoInteligencia(id)
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Cria um único conteúdo novo no pipeline (acrescenta sem apagar os existentes).
+export async function criarConteudoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+  const titulo = String(formData.get("titulo") ?? "").trim()
+  if (!titulo) {
+    return { ok: false, erro: "Informe um título para o conteúdo." }
+  }
+  const conteudo: ConteudoInput = {
+    titulo,
+    formato: String(formData.get("formato") ?? "Reels"),
+    status: String(formData.get("status") ?? "ideia"),
+    data: String(formData.get("data") ?? "") || undefined,
+  }
+
+  try {
+    await criarConteudos(id, [conteudo])
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível criar o conteúdo: ${msg}` }
+  }
+
+  agendarAtualizacaoInteligencia(id)
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Edita os dados básicos (título, formato, status, data) de um único conteúdo.
+export async function atualizarDadosConteudoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const clienteId = String(formData.get("clienteId") ?? "").trim()
+  const conteudoId = String(formData.get("conteudoId") ?? "").trim()
+  if (!clienteId || !conteudoId) {
+    return { ok: false, erro: "Conteúdo não identificado." }
+  }
+  const titulo = String(formData.get("titulo") ?? "").trim()
+  if (!titulo) {
+    return { ok: false, erro: "Informe um título para o conteúdo." }
+  }
+
+  try {
+    await atualizarDadosConteudo(clienteId, conteudoId, {
+      titulo,
+      formato: String(formData.get("formato") ?? "Reels"),
+      status: String(formData.get("status") ?? "ideia"),
+      data: String(formData.get("data") ?? "") || undefined,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar o conteúdo: ${msg}` }
+  }
+
+  agendarAtualizacaoInteligencia(clienteId)
+  revalidatePath(`/clientes/${clienteId}`)
+  return { ok: true }
+}
+
+// Exclui um único conteúdo do pipeline.
+export async function excluirConteudoAction(clienteId: string, conteudoId: string): Promise<EstadoForm> {
+  const id = clienteId.trim()
+  const cId = conteudoId.trim()
+  if (!id || !cId) {
+    return { ok: false, erro: "Conteúdo não identificado." }
+  }
+  try {
+    await excluirConteudo(id, cId)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
+    return { ok: false, erro: `Não foi possível excluir o conteúdo: ${msg}` }
+  }
   agendarAtualizacaoInteligencia(id)
   revalidatePath(`/clientes/${id}`)
   return { ok: true }

@@ -862,6 +862,31 @@ export async function atualizarRoteiroConteudo(
   )
 }
 
+// Atualiza os dados básicos de um único conteúdo do pipeline (título, formato,
+// status e data) sem tocar em roteiro/legenda/links. Usado pelo botão "Editar"
+// ao lado de cada item.
+export async function atualizarDadosConteudo(
+  empresaId: string,
+  conteudoId: string,
+  dados: { titulo: string; formato: string; status: string; data?: string },
+): Promise<void> {
+  const titulo = dados.titulo.trim()
+  if (!titulo) return
+  const formato = FORMATOS_CONTEUDO.includes(dados.formato as ConteudoItem["formato"]) ? dados.formato : "Reels"
+  const status = STATUS_CONTEUDO.includes(dados.status as StatusConteudo) ? dados.status : "ideia"
+  await query(
+    `update public.conteudos
+       set titulo = $1, formato = $2, status = $3, data = $4
+     where id = $5 and empresa_id = $6`,
+    [titulo, formato, status, dados.data || null, conteudoId, empresaId],
+  )
+}
+
+// Exclui um único conteúdo do pipeline.
+export async function excluirConteudo(empresaId: string, conteudoId: string): Promise<void> {
+  await query(`delete from public.conteudos where id = $1 and empresa_id = $2`, [conteudoId, empresaId])
+}
+
 // Atualiza apenas o status de um conteúdo do pipeline. Usado quando o cliente
 // aprova uma peça pelo portal (status → "aprovado").
 export async function atualizarStatusConteudo(
@@ -877,7 +902,7 @@ export async function atualizarStatusConteudo(
   ])
 }
 
-// ── Arquivos (aba Arquivos · por link) ────────────────────────────────────
+// ── Arquivos (aba Arquivos · por link) ─────────────────────���──────────────
 
 type ArquivoRow = {
   id: string

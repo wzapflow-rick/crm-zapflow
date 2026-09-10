@@ -21,6 +21,7 @@ import {
   Network,
   Pencil,
   Phone,
+  Plus,
   Sparkles,
   Target,
   TrendingUp,
@@ -58,9 +59,14 @@ import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
 
 const VisaoGeralDialog = dynamic(() => import("@/components/clientes/visao-geral-dialog").then((m) => m.VisaoGeralDialog))
 const CalendarioDialog = dynamic(() => import("@/components/clientes/calendario-dialog").then((m) => m.CalendarioDialog))
-const ConteudoDialog = dynamic(() => import("@/components/clientes/conteudo-dialog").then((m) => m.ConteudoDialog))
 const RoteiroConteudoDialog = dynamic(() => import("@/components/clientes/roteiro-conteudo-dialog").then((m) => m.RoteiroConteudoDialog))
 const EstrategiaDialog = dynamic(() => import("@/components/clientes/estrategia-dialog").then((m) => m.EstrategiaDialog))
+const CriarConteudoDialog = dynamic(() =>
+  import("@/components/clientes/conteudo-item-dialog").then((m) => m.CriarConteudoDialog),
+)
+const EditarConteudoDialog = dynamic(() =>
+  import("@/components/clientes/conteudo-item-dialog").then((m) => m.EditarConteudoDialog),
+)
 const ChatEquipe = dynamic(() => import("@/components/clientes/chat-equipe").then((m) => m.ChatEquipe))
 const ResultadosDialog = dynamic(() => import("@/components/clientes/resultados-dialog").then((m) => m.ResultadosDialog))
 const HistoricoDialog = dynamic(() => import("@/components/clientes/historico-dialog").then((m) => m.HistoricoDialog))
@@ -418,13 +424,12 @@ export function ClienteDetalhe({
           {/* Conteúdo */}
           <TabsContent value="conteudo" className="mt-5">
             <div className="mb-3 flex justify-end">
-              <ConteudoDialog
+              <CriarConteudoDialog
                 clienteId={cliente.id}
-                conteudos={conteudos}
                 trigger={
                   <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar conteúdo
+                    <Plus className="h-3.5 w-3.5" />
+                    Criar conteúdo
                   </Button>
                 }
               />
@@ -481,6 +486,20 @@ export function ClienteDetalhe({
                       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", conteudoInfo[c.status].classe)}>
                         {conteudoInfo[c.status].label}
                       </span>
+                      <EditarConteudoDialog
+                        clienteId={cliente.id}
+                        conteudo={c}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-primary"
+                            aria-label={`Editar ${c.titulo}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        }
+                      />
                     </li>
                   ))}
                 </ul>
