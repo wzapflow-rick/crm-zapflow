@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react"
+import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
-  Download,
   ExternalLink,
   FileText,
   FolderOpen,
@@ -51,6 +50,10 @@ import {
   aprovarConteudoPortalAction,
   type EstadoPortal,
 } from "@/app/portal/[token]/actions"
+import { MesesSelector } from "@/components/simple/meses-selector"
+import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
+import { EstrategiaMensalPortal } from "@/components/portal/estrategia-mensal-portal"
+import type { EstrategiaMensal } from "@/lib/estrategia-mensal-db"
 
 // Chave SWR compartilhada entre a lista de mensagens e o formulário de envio do portal.
 const chaveMensagensPortal = (token: string) => ["mensagens-portal", token] as const
@@ -144,6 +147,7 @@ export function PortalCliente({
   mensagens,
   resultados,
   envios,
+  estrategiasMensais,
 }: {
   token: string
   cliente: Cliente
@@ -156,6 +160,7 @@ export function PortalCliente({
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   envios: EnvioCliente[]
+  estrategiasMensais: EstrategiaMensal[]
 }) {
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
   const primeiroNome = cliente.nome.trim().split(/\s+/)[0]
@@ -176,6 +181,18 @@ export function PortalCliente({
     },
   )
   const listaMensagens = mensagensLive ?? mensagens
+
+  // Conteúdo separado por mês: pílulas de competência + filtro do mês selecionado.
+  const mesesConteudo = useMemo(
+    () => mesesOrdenados(conteudos.map((c) => competenciaDeISO(c.dataISO))),
+    [conteudos],
+  )
+  const [mesConteudoSel, setMesConteudoSel] = useState("")
+  const mesConteudoAtivo = mesConteudoSel || mesesConteudo[0] || ""
+  const conteudosDoMes = useMemo(
+    () => conteudos.filter((c) => competenciaDeISO(c.dataISO) === mesConteudoAtivo),
+    [conteudos, mesConteudoAtivo],
+  )
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -349,10 +366,11 @@ export function PortalCliente({
               value="conteudo"
               className="mt-6 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
+              <MesesSelector meses={mesesConteudo} ativo={mesConteudoAtivo} onSelecionar={setMesConteudoSel} />
               <Card titulo="Conteúdo em produção" subtitulo="Acompanhe cada peça saindo do papel.">
-                {conteudos.length > 0 ? (
+                {conteudosDoMes.length > 0 ? (
                   <ul className="divide-y divide-border">
-                    {conteudos.map((c) => (
+                    {conteudosDoMes.map((c) => (
                       <ConteudoPortalItem key={c.id} conteudo={c} token={token} />
                     ))}
                   </ul>
@@ -469,39 +487,6 @@ export function PortalCliente({
                   </ul>
                 )}
               </Card>
-
-              <Card titulo="Materiais e arquivos" subtitulo="Tudo o que a SIMPLE preparou para você.">
-                {arquivos.length > 0 ? (
-                  <ul className="divide-y divide-border">
-                    {arquivos.map((a) => (
-                      <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                          <FolderOpen className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                          <p className="text-xs text-muted-foreground">{a.tipo}</p>
-                        </div>
-                        {a.url ? (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Baixar / Abrir
-                          </a>
-                        ) : (
-                          <span className="shrink-0 text-xs text-muted-foreground">Em breve</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <Vazio texto="Nenhum material disponível ainda." />
-                )}
-              </Card>
             </TabsContent>
 
             {/* Estratégia */}
@@ -509,6 +494,15 @@ export function PortalCliente({
               value="estrategia"
               className="mt-6 space-y-4 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
+              {estrategiasMensais.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">Estratégia mensal</h3>
+                  </div>
+                  <EstrategiaMensalPortal estrategias={estrategiasMensais} />
+                </div>
+              )}
               {cliente.resumoEstrategico?.trim() && (
                 <Card
                   titulo="Resumo estratégico"

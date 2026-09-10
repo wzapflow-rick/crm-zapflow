@@ -13,6 +13,7 @@ import {
 } from "@/lib/clientes-db"
 import { getMembros } from "@/lib/membros-db"
 import { getEnvios, type EnvioCliente } from "@/lib/envios-db"
+import { getEstrategiasMensais, type EstrategiaMensal } from "@/lib/estrategia-mensal-db"
 
 export const dynamic = "force-dynamic"
 
@@ -53,6 +54,13 @@ export default async function PortalPage({
     envios = []
   }
 
+  let estrategiasMensais: EstrategiaMensal[] = []
+  try {
+    estrategiasMensais = await getEstrategiasMensais(cliente.id)
+  } catch {
+    estrategiasMensais = []
+  }
+
   // Segurança: o direcionamento é interno da equipe e nunca deve ser
   // enviado ao portal do cliente. Removemos o campo antes de renderizar.
   const conteudosPortal = conteudos.map(({ direcionamento: _direcionamento, ...resto }) => resto)
@@ -70,6 +78,7 @@ export default async function PortalPage({
       mensagens={mensagens}
       resultados={resultados}
       envios={envios}
+      estrategiasMensais={estrategiasMensais}
     />
   )
 }

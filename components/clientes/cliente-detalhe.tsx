@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { useSearchParams } from "next/navigation"
@@ -10,8 +11,6 @@ import {
   BarChart3,
   Brain,
   CalendarDays,
-  Download,
-  ExternalLink,
   FileText,
   FlaskConical,
   FolderOpen,
@@ -53,13 +52,15 @@ import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-bu
 import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
 import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
 import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
+import { EnvioEditavel } from "@/components/clientes/envio-editavel"
+import { MesesSelector } from "@/components/simple/meses-selector"
+import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
 
 const VisaoGeralDialog = dynamic(() => import("@/components/clientes/visao-geral-dialog").then((m) => m.VisaoGeralDialog))
 const CalendarioDialog = dynamic(() => import("@/components/clientes/calendario-dialog").then((m) => m.CalendarioDialog))
 const ConteudoDialog = dynamic(() => import("@/components/clientes/conteudo-dialog").then((m) => m.ConteudoDialog))
 const RoteiroConteudoDialog = dynamic(() => import("@/components/clientes/roteiro-conteudo-dialog").then((m) => m.RoteiroConteudoDialog))
 const EstrategiaDialog = dynamic(() => import("@/components/clientes/estrategia-dialog").then((m) => m.EstrategiaDialog))
-const ArquivosDialog = dynamic(() => import("@/components/clientes/arquivos-dialog").then((m) => m.ArquivosDialog))
 const ChatEquipe = dynamic(() => import("@/components/clientes/chat-equipe").then((m) => m.ChatEquipe))
 const ResultadosDialog = dynamic(() => import("@/components/clientes/resultados-dialog").then((m) => m.ResultadosDialog))
 const HistoricoDialog = dynamic(() => import("@/components/clientes/historico-dialog").then((m) => m.HistoricoDialog))
@@ -174,6 +175,18 @@ export function ClienteDetalhe({
   // Aba inicial: permite abrir direto numa aba via ?aba=... (ex.: notificações → comunicação).
   const searchParams = useSearchParams()
   const abaInicial = searchParams.get("aba") || "visao"
+
+  // Conteúdo separado por mês: pílulas de competência + filtro do mês selecionado.
+  const mesesConteudo = useMemo(
+    () => mesesOrdenados(conteudos.map((c) => competenciaDeISO(c.dataISO))),
+    [conteudos],
+  )
+  const [mesConteudoSel, setMesConteudoSel] = useState("")
+  const mesConteudoAtivo = mesConteudoSel || mesesConteudo[0] || ""
+  const conteudosDoMes = useMemo(
+    () => conteudos.filter((c) => competenciaDeISO(c.dataISO) === mesConteudoAtivo),
+    [conteudos, mesConteudoAtivo],
+  )
 
   // Feedback do retorno do OAuth do Instagram (?ig_ok=1 / ?ig_erro=...).
   const igErro = searchParams.get("ig_erro") || undefined
@@ -416,10 +429,11 @@ export function ClienteDetalhe({
                 }
               />
             </div>
+            <MesesSelector meses={mesesConteudo} ativo={mesConteudoAtivo} onSelecionar={setMesConteudoSel} />
             <Card titulo="Pipeline de conteúdo">
-              {conteudos.length > 0 ? (
+              {conteudosDoMes.length > 0 ? (
                 <ul className="divide-y divide-border">
-                  {conteudos.map((c) => (
+                  {conteudosDoMes.map((c) => (
                     <li key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <div className="min-w-0 flex-1">
                         <RoteiroConteudoDialog
@@ -551,97 +565,21 @@ export function ClienteDetalhe({
           {/* Materiais — materiais gerais da equipe + envios do cliente pelo portal */}
           <TabsContent value="arquivos" className="mt-5">
             <p className="mb-3 text-sm text-muted-foreground">
-              Os links de cada conteúdo (drive e referência) agora ficam dentro do próprio conteúdo, na aba
-              Conteúdo. Aqui ficam os materiais gerais da equipe e o que o cliente captou e enviou pelo portal.
+              Aqui ficam os vídeos e fotos que o cliente captou e enviou pelo portal. Os links de cada conteúdo
+              (drive e referência) ficam dentro do próprio conteúdo, na aba Conteúdo.
             </p>
 
-            {/* Materiais gerais da equipe (branding, drive, contratos...) — visíveis também no portal */}
-            <div className="mb-3 flex justify-end">
-              <ArquivosDialog
-                clienteId={cliente.id}
-                arquivos={arquivos}
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar materiais
-                  </Button>
-                }
-              />
-            </div>
-            <Card titulo="Materiais da equipe">
-              <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                <FolderOpen className="h-3.5 w-3.5 text-primary" />
-                Materiais gerais que a equipe preparou (branding, drive, contratos...). Também aparecem no portal.
-              </p>
-              {arquivos.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {arquivos.map((a) => (
-                    <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                        <FolderOpen className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {a.tipo}
-                          {a.data && a.data !== "—" ? ` · ${a.data}` : ""}
-                        </p>
-                      </div>
-                      {a.url ? (
-                        <a
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Baixar / Abrir
-                        </a>
-                      ) : (
-                        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Vazio texto="Nenhum material. Clique em Editar materiais para adicionar um link." />
-              )}
-            </Card>
-
-            {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) */}
-            <Card titulo="Enviados pelo cliente" className="mt-4">
+            {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) — editáveis pela equipe */}
+            <Card titulo="Enviados pelo cliente">
               <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
                 <LinkIcon className="h-3.5 w-3.5 text-primary" />
-                Links de vídeos e fotos que o cliente enviou pelo portal.
+                Links de vídeos e fotos que o cliente enviou pelo portal. Você pode renomear, substituir o link ou
+                excluir.
               </p>
               {envios.length > 0 ? (
                 <ul className="divide-y divide-border">
                   {envios.map((e) => (
-                    <li key={e.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <LinkIcon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{e.titulo}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {e.descricao ||
-                            new Date(e.criadoEm).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "long",
-                              year: "numeric",
-                            })}
-                        </p>
-                      </div>
-                      <a
-                        href={e.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Abrir
-                      </a>
-                    </li>
+                    <EnvioEditavel key={e.id} envio={e} clienteId={cliente.id} />
                   ))}
                 </ul>
               ) : (
