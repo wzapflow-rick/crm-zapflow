@@ -43,7 +43,7 @@ function linhasMetas(metas: { rotulo: string; atual: number; alvo: number; unida
 // Monta TODA a memória disponível do cliente no banco e devolve em dois formatos:
 // um resumo para a UI e um texto pronto para o system prompt.
 export async function montarContextoCliente(empresaId: string, consulta = ""): Promise<ContextoCliente | null> {
-  const cliente = await getClientePorId(empresaId)
+  const cliente = await getClientePorId(empresaId).catch(() => null)
   if (!cliente) return null
 
   const [metas, estrategia, conteudos, resultados, historico, memoria, reunioes] = await Promise.all([
@@ -65,7 +65,7 @@ export async function montarContextoCliente(empresaId: string, consulta = ""): P
       getOperacoes().catch(() => []),
       getConexaoInstagram(empresaId).catch(() => null),
       getMidiasInstagram(empresaId).catch(() => []),
-      getHistoricoAnalisesIa(empresaId, 5),
+      getHistoricoAnalisesIa(empresaId, 5).catch(() => []),
     ])
 
   const partes: string[] = []
