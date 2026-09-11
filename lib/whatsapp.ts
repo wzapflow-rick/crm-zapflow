@@ -202,20 +202,28 @@ async function conectarEObterQr(base: string, apiKey: string, instancia: string)
 // Tipo de destino: grupo (@g.us) ou contato individual/privado (@s.whatsapp.net).
 export type TipoDestino = "grupo" | "contato"
 
-// Normaliza um telefone brasileiro para o formato internacional só com dígitos
+// Normaliza um telefone para o formato internacional só com dígitos
 // (ex.: "5511999999999"). Aceita qualquer entrada do usuário: "+55 11 99999-9999",
-// "+5511999999999", "11999999999", "(11) 5205-0272" etc.
-// Regra: se o número já tem código do país (55 + 10/11 dígitos), mantém; se veio
-// só com DDD + número (10 ou 11 dígitos), acrescenta o "55" na frente.
+// "+5511999999999", "11999999999", "(11) 5205-0272", "+351 935 729 010" etc.
+// Regras:
+//   1. Se o número foi digitado com "+" (código do país explícito, ex.: +351 de
+//      Portugal), respeita o país como veio e NUNCA acrescenta o 55 do Brasil.
+//   2. Sem "+": tratamos como número brasileiro. DDD + número (10 ou 11 dígitos)
+//      recebe o "55" na frente; caso contrário, mantém como está.
 export function normalizarTelefoneBR(telefone: string): string {
-  const digitos = (telefone ?? "").replace(/\D/g, "")
+  const bruto = (telefone ?? "").trim()
+  const digitos = bruto.replace(/\D/g, "")
   if (!digitos) return ""
-  // DDD + número, sem código do país → prefixa 55 (Brasil).
+  // Número internacional explícito (ex.: "+351 935 729 010" → "351935729010").
+  if (bruto.startsWith("+")) {
+    return digitos
+  }
+  // BR sem código do país → prefixa 55.
   //   10 dígitos = fixo (DD + 8), 11 dígitos = celular (DD + 9).
   if (digitos.length === 10 || digitos.length === 11) {
     return `55${digitos}`
   }
-  // Já tem código do país (12 = fixo, 13 = celular) ou é internacional → mantém.
+  // Já tem código do país ou é outro formato → mantém.
   return digitos
 }
 
