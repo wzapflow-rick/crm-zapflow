@@ -1,6 +1,6 @@
 import "server-only"
 import { createHash } from "node:crypto"
-import { embedMany } from "ai"
+import { gerarEmbeddings } from "@/lib/embeddings"
 import { query } from "@/lib/db"
 import type { MidiaInstagram } from "@/lib/instagram-db"
 import type { Reuniao } from "@/lib/reunioes-db"
@@ -17,8 +17,6 @@ type ConteudoParaEmbedding = {
   direcionamento?: string
 }
 
-// Via AI Gateway (autenticado sem configuração no ambiente Vercel/v0).
-const MODELO_EMBEDDING = "openai/text-embedding-3-small"
 const LIMITE_DOCUMENTOS = 120
 const LIMITE_DOCUMENTOS_INTERNOS = 200
 const LIMITE_EVIDENCIAS = 8
@@ -244,12 +242,7 @@ export async function indexarAcervoSemantico(
   const pendentes = documentos.filter((documento) => hashesAtuais.get(`${documento.origem}:${documento.origemId}`) !== documento.hash)
   if (pendentes.length === 0) return { indexados: 0, ignorados: documentos.length, removidos }
 
-  const { embeddings } = await embedMany({
-    model: MODELO_EMBEDDING,
-    values: pendentes.map((documento) => documento.texto),
-    maxParallelCalls: 2,
-    maxRetries: 1,
-  })
+  const embeddings = await gerarEmbeddings(pendentes.map((documento) => documento.texto))
   for (const [indice, documento] of pendentes.entries()) {
     await query(
       `insert into public.cliente_conteudo_embedding
@@ -273,11 +266,8 @@ export async function buscarEvidenciasSemanticas(input: EntradaIndexacao & { con
 
   try {
     await indexarAcervoSemantico(input)
-    const [consultaEmbedding] = (await embedMany({
-      model: MODELO_EMBEDDING,
-      values: [consulta],
-      maxRetries: 1,
-    })).embeddings
+    const [consultaEmbedding] = await gerarEmbeddings([consulta])
+    if (!consultaEmbedding) return []
 
     return await query<EvidenciaRow>(
       `select origem, origem_id, texto, metadata,

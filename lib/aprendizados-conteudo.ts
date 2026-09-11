@@ -1,11 +1,11 @@
 import "server-only"
 
 import { generateText, Output } from "ai"
+import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { PERSONA } from "@/lib/persona"
 
-// Modelo via AI Gateway (autenticado sem configuração no ambiente Vercel/v0).
-const MODELO = "openai/gpt-4o"
+const MODELO = "gpt-4o"
 
 const schemaAprendizados = z.object({
   aprendizados: z
