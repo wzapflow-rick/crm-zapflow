@@ -1,12 +1,11 @@
 import "server-only"
 
 import { generateText, Output } from "ai"
-import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { PERSONA } from "@/lib/persona"
 
-// Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
-const MODELO = "gpt-4o"
+// Modelo via AI Gateway (autenticado sem configuração no ambiente Vercel/v0).
+const MODELO = "openai/gpt-4o"
 
 const schemaAprendizados = z.object({
   aprendizados: z
@@ -54,7 +53,7 @@ export async function gerarAprendizadosConteudo(dados: DadosAprendizado): Promis
       .join(" | ")
 
     const { experimental_output } = await generateText({
-      model: openai(MODELO),
+      model: MODELO,
       experimental_output: Output.object({ schema: schemaAprendizados }),
       system: PERSONA,
       prompt:
