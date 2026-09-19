@@ -226,7 +226,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
      ult_post_instagram as (
        select i.empresa_id as empresa_id, to_char(max(i.publicado_em), 'YYYY-MM-DD') as ultima_data
        from public.instagram_midia i
-       join active_empresas e on e.id = i.empresa_id
+       join active_empresas e on e.id::text = i.empresa_id::text
        where i.publicado_em is not null
        group by i.empresa_id
      ),
@@ -234,7 +234,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
        select m.empresa_id as empresa_id,
               min(coalesce(m.atual, 0)::numeric / nullif(m.alvo, 0)::numeric) as pior_ratio
        from public.metas m
-       join active_empresas e on e.id = m.empresa_id
+       join active_empresas e on e.id::text = m.empresa_id::text
        where m.alvo is not null and m.alvo::numeric > 0
        group by m.empresa_id
      ),
@@ -243,7 +243,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
               count(*) filter (where t.prazo < current_date) as atrasadas,
               count(*) filter (where t.prazo = current_date + 1) as vence_amanha
        from public.tarefas t
-       join active_empresas e on e.id = t.empresa_id
+       join active_empresas e on e.id::text = t.empresa_id::text
        where t.status <> 'concluido' and t.prazo is not null
        group by t.empresa_id
      ),
@@ -258,7 +258,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
               count(*) filter (where c.status in ('ideia', 'roteiro', 'gravacao', 'edicao')) as em_producao,
               count(*) as total_conteudos
        from public.conteudos c
-       join active_empresas e on e.id::text = c.empresa_id
+       join active_empresas e on e.id::text = c.empresa_id::text
        group by c.empresa_id
      )
      select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
