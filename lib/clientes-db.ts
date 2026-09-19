@@ -224,14 +224,14 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
        where status = 'ativo' and recorrente is distinct from false
      ),
      ult_post_instagram as (
-       select i.empresa_id as empresa_id, to_char(max(i.publicado_em), 'YYYY-MM-DD') as ultima_data
+       select i.empresa_id::text as empresa_id, to_char(max(i.publicado_em), 'YYYY-MM-DD') as ultima_data
        from public.instagram_midia i
        join active_empresas e on e.id::text = i.empresa_id::text
        where i.publicado_em is not null
        group by i.empresa_id
      ),
      meta_calc as (
-       select m.empresa_id as empresa_id,
+       select m.empresa_id::text as empresa_id,
               min(coalesce(m.atual, 0)::numeric / nullif(m.alvo, 0)::numeric) as pior_ratio
        from public.metas m
        join active_empresas e on e.id::text = m.empresa_id::text
@@ -239,7 +239,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
        group by m.empresa_id
      ),
      tarefa_calc as (
-       select t.empresa_id as empresa_id,
+       select t.empresa_id::text as empresa_id,
               count(*) filter (where t.prazo < current_date) as atrasadas,
               count(*) filter (where t.prazo = current_date + 1) as vence_amanha
        from public.tarefas t
@@ -248,7 +248,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
        group by t.empresa_id
      ),
      conteudo_calc as (
-       select c.empresa_id as empresa_id,
+       select c.empresa_id::text as empresa_id,
               count(*) filter (where c.status = 'aprovacao') as aguardando_aprovacao,
               count(*) filter (
                 where c.data is not null
@@ -1066,7 +1066,7 @@ export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]
   }
 }
 
-// ─�� Mensagens (aba Comunicação) ───────────────────��───────────────────────
+// ─�� Mensagens (aba Comunicação) ───────────────────��────────────────────��──
 
 type MensagemRow = {
   id: string
