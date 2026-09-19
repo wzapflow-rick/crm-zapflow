@@ -18,6 +18,14 @@ import {
 import { cn } from "@/lib/utils"
 import { carregarSugestoesAction } from "@/app/(crm)/sugestoes-actions"
 import type { AlertaCliente, PrioridadeAlerta } from "@/lib/clientes-db"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // Quantos alertas aparecem antes do "+ N outras pendências".
 const VISIVEIS = 6
@@ -56,12 +64,23 @@ const FILTROS: { id: Filtro; label: string }[] = [
   { id: "acompanhar", label: "Baixa" },
 ]
 
-function AlertaItem({ alerta }: { alerta: AlertaCliente }) {
+// Rótulo humano da origem do alerta, usado no card detalhado.
+const CATEGORIA_LABEL: Record<AlertaCliente["categoria"], string> = {
+  conteudo: "Conteúdo & Instagram",
+  aprovacao: "Aprovação de conteúdo",
+  renovacao: "Renovação de contrato",
+  meta: "Meta do mês",
+  tarefa: "Tarefas",
+  sugestao: "Sugestão proativa",
+}
+
+function AlertaItem({ alerta, onAbrir }: { alerta: AlertaCliente; onAbrir: () => void }) {
   const Icon = iconePorCategoria[alerta.categoria]
   return (
-    <Link
-      href={alerta.acaoUrl}
-      className="group flex items-center gap-3 rounded-lg border border-border/60 bg-background/40 p-3 transition-colors hover:border-primary/40 hover:bg-muted/50"
+    <button
+      type="button"
+      onClick={onAbrir}
+      className="group flex w-full items-center gap-3 rounded-lg border border-border/60 bg-background/40 p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/50"
     >
       <span
         className={cn(
@@ -86,10 +105,91 @@ function AlertaItem({ alerta }: { alerta: AlertaCliente }) {
         <p className="truncate text-xs text-muted-foreground">{alerta.texto}</p>
       </div>
       <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
-        <span className="hidden sm:inline">{alerta.acaoLabel}</span>
+        <span className="hidden sm:inline">Detalhes</span>
         <ArrowRight className="h-3 w-3" />
       </span>
-    </Link>
+    </button>
+  )
+}
+
+function AlertaDetalheDialog({
+  alerta,
+  onOpenChange,
+}: {
+  alerta: AlertaCliente | null
+  onOpenChange: (aberto: boolean) => void
+}) {
+  const Icon = alerta ? iconePorCategoria[alerta.categoria] : Lightbulb
+  return (
+    <Dialog open={alerta !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        {alerta && (
+          <>
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+                    estiloNivel[alerta.prioridade],
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <DialogTitle className="truncate text-left font-serif text-lg font-medium">
+                    {alerta.clienteNome}
+                  </DialogTitle>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset",
+                        estiloNivel[alerta.prioridade],
+                      )}
+                    >
+                      Prioridade {NIVEL_LABEL[alerta.prioridade]}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{CATEGORIA_LABEL[alerta.categoria]}</span>
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <DialogDescription className="sr-only">
+              Detalhes da recomendação para {alerta.clienteNome}
+            </DialogDescription>
+
+            <div className="space-y-4">
+              {/* A recomendação em si — texto completo, sem truncar */}
+              <div className="rounded-lg border border-border/60 bg-muted/40 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recomendação</p>
+                <p className="mt-1.5 text-pretty text-sm leading-relaxed text-foreground">{alerta.texto}</p>
+              </div>
+
+              {/* O porquê — o raciocínio por trás da dica */}
+              {alerta.motivo && (
+                <div className="rounded-lg border border-primary/20 bg-primary/[0.06] p-4">
+                  <div className="flex items-center gap-1.5">
+                    <Lightbulb className="h-3.5 w-3.5 text-primary" />
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">Por que isto importa</p>
+                  </div>
+                  <p className="mt-1.5 text-pretty text-sm leading-relaxed text-foreground/90">{alerta.motivo}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Link
+                href={alerta.acaoUrl}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 sm:w-auto"
+              >
+                {alerta.acaoLabel}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -97,6 +197,7 @@ export function CentralAtencao({ alertas }: { alertas: AlertaCliente[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todos")
   const [expandido, setExpandido] = useState(false)
   const [regenerando, setRegenerando] = useState(false)
+  const [selecionado, setSelecionado] = useState<AlertaCliente | null>(null)
 
   // Enriquecimento por IA: o baseline determinístico (`alertas`) aparece
   // instantaneamente e é substituído quando a análise da IA chega (com cache).
@@ -222,7 +323,11 @@ export function CentralAtencao({ alertas }: { alertas: AlertaCliente[] }) {
           {/* Lista — duas colunas no desktop, lista vertical no mobile */}
           <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-2">
             {visiveis.map((a, i) => (
-              <AlertaItem key={`${a.clienteId}-${a.categoria}-${i}`} alerta={a} />
+              <AlertaItem
+                key={`${a.clienteId}-${a.categoria}-${i}`}
+                alerta={a}
+                onAbrir={() => setSelecionado(a)}
+              />
             ))}
           </div>
 
@@ -260,6 +365,8 @@ export function CentralAtencao({ alertas }: { alertas: AlertaCliente[] }) {
           <p className="text-xs text-muted-foreground/70">Continue assim.</p>
         </div>
       )}
+
+      <AlertaDetalheDialog alerta={selecionado} onOpenChange={(aberto) => !aberto && setSelecionado(null)} />
     </section>
   )
 }

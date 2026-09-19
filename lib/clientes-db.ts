@@ -134,6 +134,8 @@ export type AlertaCliente = {
   texto: string
   acaoLabel: string
   acaoUrl: string
+  // Explicação do "porquê" mostrada no card de detalhe da Central de Atenção.
+  motivo?: string
   severidade: number
 }
 
@@ -155,11 +157,35 @@ const PESO_PRIORIDADE: Record<PrioridadeAlerta, number> = {
 // determinística por cliente (hash do id), então cada cliente mantém a mesma
 // sugestão entre recarregamentos, mas clientes diferentes recebem focos
 // diferentes (estratégia, resultados, metas, pauta).
-const SUGESTOES_PROATIVAS: { texto: string; acaoLabel: string; aba: string }[] = [
-  { texto: "Revise a estratégia e planeje o próximo mês de conteúdos.", acaoLabel: "Ver estratégia", aba: "estrategia" },
-  { texto: "Analise os últimos resultados do Instagram e ajuste a pauta.", acaoLabel: "Ver resultados", aba: "resultados" },
-  { texto: "Confira as metas do mês e alinhe as próximas ações.", acaoLabel: "Ver resultados", aba: "resultados" },
-  { texto: "Planeje um conteúdo de destaque para engajar a audiência.", acaoLabel: "Programar conteúdos", aba: "conteudo" },
+const SUGESTOES_PROATIVAS: { texto: string; acaoLabel: string; aba: string; motivo: string }[] = [
+  {
+    texto: "Revise a estratégia e planeje o próximo mês de conteúdos.",
+    acaoLabel: "Ver estratégia",
+    aba: "estrategia",
+    motivo:
+      "Nenhuma pendência crítica no radar — é o momento ideal para trabalho de fundo. Revisar a estratégia e planejar o próximo mês mantém o crescimento intencional, e não reativo.",
+  },
+  {
+    texto: "Analise os últimos resultados do Instagram e ajuste a pauta.",
+    acaoLabel: "Ver resultados",
+    aba: "resultados",
+    motivo:
+      "Sem urgências agora. Olhar os últimos resultados do Instagram mostra o que realmente engajou e orienta a próxima pauta com base em dado, não em achismo.",
+  },
+  {
+    texto: "Confira as metas do mês e alinhe as próximas ações.",
+    acaoLabel: "Ver resultados",
+    aba: "resultados",
+    motivo:
+      "Nada crítico no momento. Conferir as metas do mês e alinhar as próximas ações mantém o time inteiro puxando para o mesmo objetivo.",
+  },
+  {
+    texto: "Planeje um conteúdo de destaque para engajar a audiência.",
+    acaoLabel: "Programar conteúdos",
+    aba: "conteudo",
+    motivo:
+      "Momento livre de pendências — a chance perfeita para planejar um conteúdo de destaque que gere pico de engajamento e mais conexão com a audiência.",
+  },
 ]
 
 function hashIndice(id: string, mod: number): number {
@@ -304,6 +330,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         categoria: "conteudo",
         prioridade: "critico",
         texto: "Nenhuma publicação sincronizada no Instagram.",
+        motivo:
+          "Sem nenhuma publicação sincronizada, a gente fica sem enxergar alcance, engajamento ou o que está funcionando. Conectar e publicar é o primeiro passo para provar valor e manter a marca viva na timeline.",
         severidade: PESO_PRIORIDADE.critico + 60,
       })
     } else if (diasPost >= DIAS_SEM_POST_CRITICO) {
@@ -314,6 +342,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         categoria: "conteudo",
         prioridade: "critico",
         texto: `Sem nova publicação no Instagram há ${diasPost} dias.`,
+        motivo: `Já são ${diasPost} dias sem novidade no feed. Consistência é o que mantém o algoritmo entregando e a audiência lembrando da marca — cada dia parado é alcance e conexão que ficam na mesa.`,
         severidade: PESO_PRIORIDADE.critico + Math.min(diasPost, 50),
       })
     } else if (diasPost >= DIAS_SEM_POST_ATENCAO) {
@@ -324,6 +353,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         categoria: "conteudo",
         prioridade: "atencao",
         texto: `Sem nova publicação no Instagram há ${diasPost} dias.`,
+        motivo: `São ${diasPost} dias sem publicar. Antes que a cadência esfrie de vez, vale reativar o feed: a regularidade é o que sustenta alcance e proximidade com quem segue.`,
         severidade: PESO_PRIORIDADE.atencao + diasPost,
       })
     }
@@ -339,6 +369,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             categoria: "renovacao",
             prioridade: "critico",
             texto: "Renovação hoje.",
+            motivo:
+              "O contrato renova hoje. Chegar nessa conversa com os resultados recentes na mão e um próximo passo claro transforma a renovação num sim natural, em vez de uma negociação.",
             severidade: PESO_PRIORIDADE.critico + 40,
           })
         } else if (dr <= DIAS_RENOVACAO_CRITICO) {
@@ -348,6 +380,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             categoria: "renovacao",
             prioridade: "critico",
             texto: `Renovação em ${dr} ${dr === 1 ? "dia" : "dias"}.`,
+            motivo:
+              "Faltam poucos dias para a renovação. É a hora de reunir os resultados entregues e reforçar o valor — antecipar essa conversa evita surpresa e mostra cuidado.",
             severidade: PESO_PRIORIDADE.critico + (DIAS_RENOVACAO_CRITICO - dr),
           })
         } else if (dr <= DIAS_RENOVACAO_ATENCAO) {
@@ -357,6 +391,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             categoria: "renovacao",
             prioridade: "atencao",
             texto: `Renovação em ${dr} dias.`,
+            motivo:
+              "A renovação está chegando. Começar a preparar o balanço de resultados agora dá tempo de fechar o ciclo com uma boa história para contar ao cliente.",
             severidade: PESO_PRIORIDADE.atencao + (DIAS_RENOVACAO_ATENCAO - dr),
           })
         } else if (dr <= DIAS_RENOVACAO_ACOMPANHAR) {
@@ -366,6 +402,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             categoria: "renovacao",
             prioridade: "acompanhar",
             texto: `Renovação em ${dr} dias.`,
+            motivo:
+              "A renovação entra no radar. Nada urgente, mas manter o cliente enxergando valor ao longo do mês é o que faz a renovação acontecer sem esforço.",
             severidade: PESO_PRIORIDADE.acompanhar + (DIAS_RENOVACAO_ACOMPANHAR - dr),
           })
         }
@@ -384,6 +422,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
           categoria: "meta",
           prioridade: "critico",
           texto: `Meta do mês em ${pct}%.`,
+          motivo: `A meta do mês está bem abaixo do esperado (${pct}%). Como o mês ainda está em curso, dá tempo de rever a pauta e concentrar esforço no que gera resultado antes do fechamento.`,
           severidade: PESO_PRIORIDADE.critico + (30 - pct),
         })
       } else if (ratio < 0.5) {
@@ -393,6 +432,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
           categoria: "meta",
           prioridade: "atencao",
           texto: `Meta do mês em ${pct}%.`,
+          motivo: `A meta está em ${pct}% do alvo. Um ajuste de rota agora — foco no que mais engaja — ainda coloca o mês nos trilhos.`,
           severidade: PESO_PRIORIDADE.atencao + (50 - pct),
         })
       } else if (ratio < 0.7) {
@@ -402,6 +442,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
           categoria: "meta",
           prioridade: "acompanhar",
           texto: `Meta do mês em ${pct}%.`,
+          motivo: `A meta está em ${pct}%, no meio do caminho. Vale um empurrão nas ações que mais performam para garantir o fechamento no azul.`,
           severidade: PESO_PRIORIDADE.acompanhar + (70 - pct),
         })
       }
@@ -418,6 +459,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         categoria: "tarefa",
         prioridade: "critico",
         texto: `${atrasadas} ${atrasadas === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`,
+        motivo:
+          "Há entregas fora do prazo para este cliente. Tarefa atrasada trava o resto da operação e mexe com a percepção de cuidado — destravar essas é o que libera o fluxo de novo.",
         severidade: PESO_PRIORIDADE.critico + 50 + Math.min(atrasadas, 20),
       })
     } else if (amanha > 0) {
@@ -427,6 +470,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         categoria: "tarefa",
         prioridade: "atencao",
         texto: `${amanha} ${amanha === 1 ? "tarefa vencendo amanhã" : "tarefas vencendo amanhã"}.`,
+        motivo:
+          "Há entregas vencendo amanhã. Adiantar hoje tira a operação do corre-corre e mantém tudo previsível para o time e para o cliente.",
         severidade: PESO_PRIORIDADE.atencao + Math.min(amanha, 20),
       })
     }
@@ -441,6 +486,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         categoria: "aprovacao",
         prioridade: "atencao",
         texto: `${aguardandoAprovacao} ${aguardandoAprovacao === 1 ? "conteúdo aguardando aprovação" : "conteúdos aguardando aprovação"}.`,
+        motivo:
+          "Tem conteúdo pronto parado esperando aprovação. Enquanto não sai, a produção fica represada e a data de publicação escorrega — destravar aqui solta todo o pipeline.",
         severidade: PESO_PRIORIDADE.atencao + 30 + Math.min(aguardandoAprovacao, 20),
       })
     }
@@ -460,6 +507,10 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
           totalConteudos === 0
             ? "Nenhum conteúdo cadastrado — monte o planejamento."
             : "Nada programado para a próxima semana.",
+        motivo:
+          totalConteudos === 0
+            ? "Não existe nenhum conteúdo cadastrado ainda. Sem pauta planejada a operação vira reação — montar o planejamento agora garante consistência e antecipa as aprovações."
+            : "A próxima semana está sem nada programado. Planejar com antecedência mantém a cadência de publicação e dá folga para aprovar sem aperto.",
         severidade: PESO_PRIORIDADE.atencao + 25,
       })
     }
@@ -475,6 +526,8 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
           categoria: "sugestao",
           prioridade: "acompanhar",
           texto: `${emProducao} ${emProducao === 1 ? "conteúdo em produção" : "conteúdos em produção"} — avance o pipeline.`,
+          motivo:
+            "Tem conteúdo em produção parado no meio do caminho. Avançar o pipeline garante que ele chegue à publicação no prazo, sem acúmulo.",
           severidade: PESO_PRIORIDADE.acompanhar + 20,
         })
       } else {
@@ -486,6 +539,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
           categoria: "sugestao",
           prioridade: "acompanhar",
           texto: sugestao.texto,
+          motivo: sugestao.motivo,
           severidade: PESO_PRIORIDADE.acompanhar + 5,
         })
       }

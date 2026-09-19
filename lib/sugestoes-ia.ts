@@ -42,6 +42,11 @@ const schema = z.object({
         texto: z
           .string()
           .describe("A observação/ação concreta em 1 frase curta, específica para ESTE cliente. Sem markdown."),
+        motivo: z
+          .string()
+          .describe(
+            "Explique em 1 a 2 frases POR QUE esta ação importa para ESTE cliente agora, ancorado no contexto real (o que sabemos dele) e no impacto esperado — engajamento, conexão, resultado ou retenção. Tom de parceiro estrategista, português do Brasil, sem markdown.",
+          ),
         acaoLabel: z.string().describe("Rótulo curto do botão de ação (ex.: 'Programar conteúdos', 'Ver Instagram')."),
         aba: z
           .enum(ABAS_VALIDAS)
@@ -113,6 +118,7 @@ ${contextoTexto || "Sem contexto estruturado disponível. Proponha ações proat
         texto,
         acaoLabel: limpar(s.acaoLabel) || "Ver cliente",
         acaoUrl: `/clientes/${cliente.id}?aba=${aba}`,
+        motivo: limpar(s.motivo) || undefined,
         // Mantém a ordenação por prioridade; desempata pela ordem sugerida pela IA.
         severidade: PESO_PRIORIDADE[prioridade] + (10 - indice),
       }
