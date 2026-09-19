@@ -272,9 +272,9 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             coalesce(cc.em_producao, 0) as conteudos_producao,
             coalesce(cc.total_conteudos, 0) as conteudos_total
      from active_empresas e
-     left join ult_post_instagram up on up.empresa_id = e.id
-     left join meta_calc mc on mc.empresa_id = e.id
-     left join tarefa_calc tc on tc.empresa_id = e.id
+     left join ult_post_instagram up on up.empresa_id = e.id::text
+     left join meta_calc mc on mc.empresa_id = e.id::text
+     left join tarefa_calc tc on tc.empresa_id = e.id::text
      left join conteudo_calc cc on cc.empresa_id = e.id::text
      order by e.nome asc`,
   )
