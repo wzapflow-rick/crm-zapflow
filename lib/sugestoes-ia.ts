@@ -11,8 +11,9 @@ import { getSugestoesVigentes, salvarSugestoesIa } from "@/lib/sugestoes-ia-db"
 
 const MODELO = "gpt-5"
 
-// Quantos clientes o modelo processa por chamada (evita rajada de requisições).
-const LOTE_CONCORRENCIA = 3
+// Quantos clientes o modelo processa por chamada (evita rajada de requisições
+// e protege o pool de conexões — cada cliente dispara várias queries de contexto).
+const LOTE_CONCORRENCIA = 2
 // Teto de gerações por carregamento, para não estourar custo em carteiras grandes.
 const MAX_GERACOES = 12
 
@@ -155,8 +156,14 @@ export async function carregarSugestoesAtivos(opcoes: { forcar?: boolean } = {})
 
   const cache = opcoes.forcar ? new Map<string, AlertaCliente[]>() : await getSugestoesVigentes(ids)
 
-  // Clientes que precisam de geração agora (respeitando o teto de custo).
-  const pendentes = ids.filter((id) => !cache.has(id)).slice(0, MAX_GERACOES)
+  // A geração por IA é cara: para cada cliente ela monta o contexto completo
+  // (várias queries) e chama o modelo. Se isso rodasse a cada carregamento do
+  // dashboard, saturava o pool de 5 conexões e derrubava outras páginas com
+  // "Query read timeout" (inclusive a de detalhe do cliente, que caía em 404).
+  // Por isso só geramos quando o usuário clica em "Atualizar com IA" (`forcar`).
+  // Nas cargas normais servimos apenas o cache vigente + baseline determinístico,
+  // que nunca fica vazio para clientes ativos.
+  const pendentes = opcoes.forcar ? ids.slice(0, MAX_GERACOES) : []
 
   if (pendentes.length > 0) {
     const geradas = await emLotes(pendentes, LOTE_CONCORRENCIA, async (id) => {
