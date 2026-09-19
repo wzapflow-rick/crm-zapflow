@@ -15,7 +15,7 @@ import {
   type StatusEstrategiaMensal,
 } from "@/lib/estrategia-mensal-db"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 export type EstadoEstrategiaMensal = { ok: boolean; erro?: string }
 

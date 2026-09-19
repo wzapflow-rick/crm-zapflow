@@ -9,7 +9,7 @@ import { limparFormatacaoChat } from "@/lib/texto-chat"
 import { getClientesAtencao, type AlertaCliente, type PrioridadeAlerta } from "@/lib/clientes-db"
 import { getSugestoesVigentes, salvarSugestoesIa } from "@/lib/sugestoes-ia-db"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 // Quantos clientes o modelo processa por chamada (evita rajada de requisições).
 const LOTE_CONCORRENCIA = 3

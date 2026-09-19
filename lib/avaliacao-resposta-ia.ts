@@ -6,8 +6,8 @@ import { z } from "zod"
 import { query } from "@/lib/db"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
 
-export const MODELO_CHAT = "gpt-5.4-mini"
-const MODELO_AVALIACAO = "gpt-5.4-mini"
+export const MODELO_CHAT = "gpt-5"
+const MODELO_AVALIACAO = "gpt-5"
 const LIMIAR_APROVACAO = 80
 
 const schemaAvaliacao = z.object({

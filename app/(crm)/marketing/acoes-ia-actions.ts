@@ -10,7 +10,7 @@ import { criarTarefa } from "@/lib/tarefas-db"
 import { criarExperimento } from "@/lib/experimentos-db"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 export type TipoAcaoIA = "conteudos" | "calendario" | "tarefas" | "estrategia" | "experimento"
 

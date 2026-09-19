@@ -10,7 +10,7 @@ import { limparFormatacaoChat } from "@/lib/texto-chat"
 import { criarConteudos } from "@/lib/clientes-db"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 export type RoteiroGerado = {
   gancho: string

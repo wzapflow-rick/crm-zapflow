@@ -5,7 +5,7 @@ import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { PERSONA } from "@/lib/persona"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 const schemaAprendizados = z.object({
   aprendizados: z

@@ -8,8 +8,8 @@ import { PERSONA } from "@/lib/persona"
 import { criarRegistroHistorico, excluirRegistroHistorico } from "@/lib/historico-db"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 
-// Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
-const MODELO = "gpt-4o"
+  // Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
+  const MODELO = "gpt-5"
 
 const schemaRegistro = z.object({
   referencia: z

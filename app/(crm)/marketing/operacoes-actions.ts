@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache"
 import { PERSONA } from "@/lib/persona"
 import { criarOperacao, excluirOperacao } from "@/lib/operacoes-db"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 export type EstadoOperacao = { ok: boolean; erro?: string }
 

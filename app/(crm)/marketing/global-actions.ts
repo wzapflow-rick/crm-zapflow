@@ -76,7 +76,7 @@ export async function analisarInteligenciaGlobalAction(): Promise<EstadoGlobal> 
     }
 
     const { object } = await generateObject({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5"),
       schema,
       system: `Você é o cérebro de inteligência da agência SIMPLE OS. Recebe dados AGREGADOS e ANÔNIMOS de toda a carteira de clientes (nunca dados identificáveis de um cliente específico).
 

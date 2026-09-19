@@ -12,7 +12,7 @@ import {
 } from "@/lib/experimentos-db"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 export type EstadoExperimento = { ok: boolean; erro?: string }
 

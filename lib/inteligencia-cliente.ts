@@ -8,7 +8,7 @@ import { getMidiasInstagram, type MidiaInstagram } from "@/lib/instagram-db"
 import { substituirPadroes, type ConfiancaPadrao } from "@/lib/padroes-db"
 import { salvarAnaliseIa } from "@/lib/analises-ia-db"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 const MAX_EVIDENCIAS_PARA_MODELO = 80
 
 export type MetricaInteligencia = {

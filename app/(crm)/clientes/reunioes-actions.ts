@@ -8,8 +8,8 @@ import { PERSONA } from "@/lib/persona"
 import { criarReuniao, excluirReuniao } from "@/lib/reunioes-db"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
-// Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
-const MODELO = "gpt-4o"
+  // Modelo da OpenAI. Troque aqui se sua conta usar outro (ex.: "gpt-4o-mini").
+  const MODELO = "gpt-5"
 
 const schemaReuniao = z.object({
   titulo: z
