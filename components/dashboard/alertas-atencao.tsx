@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import useSWR from "swr"
 import {
   ArrowRight,
   CalendarClock,
@@ -11,9 +12,11 @@ import {
   Lightbulb,
   ListChecks,
   Radar,
+  RefreshCw,
   TrendingDown,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { carregarSugestoesAction } from "@/app/(crm)/sugestoes-actions"
 import type { AlertaCliente, PrioridadeAlerta } from "@/lib/clientes-db"
 
 // Quantos alertas aparecem antes do "+ N outras pendências".
@@ -93,23 +96,48 @@ function AlertaItem({ alerta }: { alerta: AlertaCliente }) {
 export function CentralAtencao({ alertas }: { alertas: AlertaCliente[] }) {
   const [filtro, setFiltro] = useState<Filtro>("todos")
   const [expandido, setExpandido] = useState(false)
+  const [regenerando, setRegenerando] = useState(false)
+
+  // Enriquecimento por IA: o baseline determinístico (`alertas`) aparece
+  // instantaneamente e é substituído quando a análise da IA chega (com cache).
+  const { data, isLoading, mutate } = useSWR(
+    "central-atencao-sugestoes",
+    () => carregarSugestoesAction(false),
+    { revalidateOnFocus: false, fallbackData: { ok: true as const, sugestoes: alertas } },
+  )
+
+  const alertasIa = data?.ok && data.sugestoes.length > 0 ? data.sugestoes : null
+  const alertasAtivos = alertasIa ?? alertas
+  const enriquecido = alertasIa !== null
+
+  async function regenerar() {
+    setRegenerando(true)
+    try {
+      const res = await carregarSugestoesAction(true)
+      if (res.ok && res.sugestoes.length > 0) {
+        await mutate(res, { revalidate: false })
+      }
+    } finally {
+      setRegenerando(false)
+    }
+  }
 
   const contagem = useMemo(
     () => ({
-      todos: alertas.length,
-      critico: alertas.filter((a) => a.prioridade === "critico").length,
-      atencao: alertas.filter((a) => a.prioridade === "atencao").length,
-      acompanhar: alertas.filter((a) => a.prioridade === "acompanhar").length,
+      todos: alertasAtivos.length,
+      critico: alertasAtivos.filter((a) => a.prioridade === "critico").length,
+      atencao: alertasAtivos.filter((a) => a.prioridade === "atencao").length,
+      acompanhar: alertasAtivos.filter((a) => a.prioridade === "acompanhar").length,
     }),
-    [alertas],
+    [alertasAtivos],
   )
 
   const filtrados = useMemo(
-    () => (filtro === "todos" ? alertas : alertas.filter((a) => a.prioridade === filtro)),
-    [alertas, filtro],
+    () => (filtro === "todos" ? alertasAtivos : alertasAtivos.filter((a) => a.prioridade === filtro)),
+    [alertasAtivos, filtro],
   )
 
-  const total = alertas.length
+  const total = alertasAtivos.length
   const visiveis = expandido ? filtrados : filtrados.slice(0, VISIVEIS)
   const restantes = filtrados.length - visiveis.length
 
@@ -125,17 +153,25 @@ export function CentralAtencao({ alertas }: { alertas: AlertaCliente[] }) {
             <h3 className="font-serif text-lg font-medium tracking-tight text-foreground">
               Central de Atenção
             </h3>
-            <p className="text-sm text-muted-foreground">Tudo que merece sua atenção agora.</p>
+            <p className="text-sm text-muted-foreground">
+              {isLoading && !enriquecido
+                ? "Analisando cada cliente com IA…"
+                : enriquecido
+                  ? "Próximas ações sugeridas por IA para cada cliente ativo."
+                  : "Tudo que merece sua atenção agora."}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
-            </span>
-            Atualizado agora
-          </span>
+          <button
+            type="button"
+            onClick={regenerar}
+            disabled={regenerando}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw className={cn("h-3 w-3", regenerando && "animate-spin")} />
+            {regenerando ? "Gerando…" : "Atualizar com IA"}
+          </button>
           <Link
             href="/clientes"
             className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-opacity hover:opacity-80"
