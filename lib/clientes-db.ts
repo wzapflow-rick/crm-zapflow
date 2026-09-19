@@ -129,7 +129,7 @@ export type AlertaCliente = {
   iniciais: string
   cor: string
   // Origem do alerta (permite futuras fontes: financeiro, crm, calendario...)
-  categoria: "conteudo" | "renovacao" | "meta" | "tarefa"
+  categoria: "conteudo" | "aprovacao" | "renovacao" | "meta" | "tarefa"
   prioridade: PrioridadeAlerta
   texto: string
   acaoLabel: string
@@ -161,6 +161,7 @@ type AtencaoRow = {
   pior_ratio: string | null
   tarefas_atrasadas: string | number | null
   tarefas_amanha: string | number | null
+  conteudos_aprovacao: string | number | null
 }
 
 // Calcula quantos dias faltam para o próximo aniversário mensal de `desde`
@@ -224,17 +225,26 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
        join active_empresas e on e.id = t.empresa_id
        where t.status <> 'concluido' and t.prazo is not null
        group by t.empresa_id
+     ),
+     conteudo_calc as (
+       select c.empresa_id,
+              count(*) filter (where c.status = 'aprovacao') as aguardando_aprovacao
+       from public.conteudos c
+       join active_empresas e on e.id = c.empresa_id
+       group by c.empresa_id
      )
      select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
             to_char(e.desde, 'YYYY-MM-DD') as desde,
             up.ultima_data,
             mc.pior_ratio::text as pior_ratio,
             coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
-            coalesce(tc.vence_amanha, 0) as tarefas_amanha
+            coalesce(tc.vence_amanha, 0) as tarefas_amanha,
+            coalesce(cc.aguardando_aprovacao, 0) as conteudos_aprovacao
      from active_empresas e
      left join ult_post_instagram up on up.empresa_id = e.id
      left join meta_calc mc on mc.empresa_id = e.id
      left join tarefa_calc tc on tc.empresa_id = e.id
+     left join conteudo_calc cc on cc.empresa_id = e.id
      order by e.nome asc`,
   )
 
@@ -384,6 +394,20 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         prioridade: "atencao",
         texto: `${amanha} ${amanha === 1 ? "tarefa vencendo amanhã" : "tarefas vencendo amanhã"}.`,
         severidade: PESO_PRIORIDADE.atencao + Math.min(amanha, 20),
+      })
+    }
+
+    // 5) Conteúdos aguardando aprovação (status = 'aprovacao' no pipeline).
+    const aguardandoAprovacao = Number(r.conteudos_aprovacao ?? 0)
+    if (aguardandoAprovacao > 0) {
+      alertas.push({
+        ...base,
+        acaoLabel: "Ver conteúdos",
+        acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+        categoria: "aprovacao",
+        prioridade: "atencao",
+        texto: `${aguardandoAprovacao} ${aguardandoAprovacao === 1 ? "conteúdo aguardando aprovação" : "conteúdos aguardando aprovação"}.`,
+        severidade: PESO_PRIORIDADE.atencao + 30 + Math.min(aguardandoAprovacao, 20),
       })
     }
   }

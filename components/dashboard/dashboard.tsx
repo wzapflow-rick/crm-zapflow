@@ -17,7 +17,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
-import { AlertasAtencao } from "@/components/dashboard/alertas-atencao"
+import { CentralAtencao } from "@/components/dashboard/alertas-atencao"
 import type { ResumoCrm } from "@/lib/crm-db"
 import type { ResumoTarefas } from "@/lib/tarefas-db"
 import type { ResumoFinanceiro } from "@/lib/financeiro-db"
@@ -83,7 +83,6 @@ export function Dashboard({
   const receitaMrr = resumoFinanceiro?.receitaMrr ?? 0
   const meta = resumoFinanceiro?.meta ?? 0
   const progresso = resumoFinanceiro?.progressoMeta ?? 0
-  const leadsAbertos = resumoCrm.leadsEmAberto
   const totalLeads = resumoCrm.valorEmAberto
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
@@ -166,33 +165,34 @@ export function Dashboard({
           />
         </div>
 
-        {/* Receita + Insights */}
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Evolução da receita
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  MRR nos últimos 7 meses
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                <ArrowUpRight className="h-3 w-3" />
-                Crescendo
-              </span>
+        {/* Evolução da receita — o que está acontecendo */}
+        <div className="mt-4 rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Evolução da receita
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                MRR nos últimos 7 meses
+              </p>
             </div>
-            <div className="mt-4">
-              <RevenueChart dados={receitaMensal} />
-            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+              <ArrowUpRight className="h-3 w-3" />
+              Crescendo
+            </span>
           </div>
-
-          <AlertasAtencao alertas={alertasAtencao} />
+          <div className="mt-4">
+            <RevenueChart dados={receitaMensal} />
+          </div>
         </div>
 
-        {/* Gravações + Tarefas + Leads */}
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Central de Atenção — o que precisa da minha atenção agora */}
+        <div className="mt-4">
+          <CentralAtencao alertas={alertasAtencao} />
+        </div>
+
+        {/* Próximas gravações + Tarefas urgentes */}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Próximas gravações */}
           <Painel titulo="Próximas gravações" icon={Video}>
             {proximasGravacoes.length > 0 ? (
@@ -258,37 +258,6 @@ export function Dashboard({
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 Nenhuma tarefa pendente. Crie tarefas no módulo Tarefas.
-              </p>
-            )}
-          </Painel>
-
-          {/* Leads em aberto (dados reais do CRM) */}
-          <Painel titulo="Leads em aberto" icon={Target}>
-            {leadsAbertos.length > 0 ? (
-              <ul className="divide-y divide-border">
-                {leadsAbertos.slice(0, 6).map((l) => {
-                  const resp = membroPorId(l.responsavelId)
-                  return (
-                    <li key={l.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">
-                          {l.empresa}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {l.etapaLabel}
-                          {resp ? ` · ${resp.nome}` : ""}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-medium text-foreground">
-                        {brl(l.valor)}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Nenhum lead em aberto no funil. Adicione negócios no CRM.
               </p>
             )}
           </Painel>
