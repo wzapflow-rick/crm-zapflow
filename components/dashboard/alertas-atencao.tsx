@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   FileText,
   ImageOff,
+  Lightbulb,
   ListChecks,
   Radar,
   TrendingDown,
@@ -40,6 +41,7 @@ const iconePorCategoria: Record<AlertaCliente["categoria"], typeof ImageOff> = {
   renovacao: CalendarClock,
   meta: TrendingDown,
   tarefa: ListChecks,
+  sugestao: Lightbulb,
 }
 
 type Filtro = "todos" | PrioridadeAlerta

@@ -129,7 +129,7 @@ export type AlertaCliente = {
   iniciais: string
   cor: string
   // Origem do alerta (permite futuras fontes: financeiro, crm, calendario...)
-  categoria: "conteudo" | "aprovacao" | "renovacao" | "meta" | "tarefa"
+  categoria: "conteudo" | "aprovacao" | "renovacao" | "meta" | "tarefa" | "sugestao"
   prioridade: PrioridadeAlerta
   texto: string
   acaoLabel: string
@@ -137,7 +137,7 @@ export type AlertaCliente = {
   severidade: number
 }
 
-const DIAS_SEM_POST_ATENCAO = 7 // avisa quando passou uma semana sem publicar
+const DIAS_SEM_POST_ATENCAO = 5 // avisa já a partir de 5 dias sem publicar no feed
 const DIAS_SEM_POST_CRITICO = 10 // eleva para crítico após 10 dias
 const DIAS_RENOVACAO_CRITICO = 3 // renovação em até 3 dias = crítico
 const DIAS_RENOVACAO_ATENCAO = 15 // até 15 dias = atenção
@@ -148,6 +148,24 @@ const PESO_PRIORIDADE: Record<PrioridadeAlerta, number> = {
   critico: 300,
   atencao: 200,
   acompanhar: 100,
+}
+
+// Sugestões proativas rotativas: garantem que TODO cliente ativo sem pendência
+// ainda apareça na Central de Atenção com uma próxima ação. A escolha é
+// determinística por cliente (hash do id), então cada cliente mantém a mesma
+// sugestão entre recarregamentos, mas clientes diferentes recebem focos
+// diferentes (estratégia, resultados, metas, pauta).
+const SUGESTOES_PROATIVAS: { texto: string; acaoLabel: string; aba: string }[] = [
+  { texto: "Revise a estratégia e planeje o próximo mês de conteúdos.", acaoLabel: "Ver estratégia", aba: "estrategia" },
+  { texto: "Analise os últimos resultados do Instagram e ajuste a pauta.", acaoLabel: "Ver resultados", aba: "resultados" },
+  { texto: "Confira as metas do mês e alinhe as próximas ações.", acaoLabel: "Ver resultados", aba: "resultados" },
+  { texto: "Planeje um conteúdo de destaque para engajar a audiência.", acaoLabel: "Programar conteúdos", aba: "conteudo" },
+]
+
+function hashIndice(id: string, mod: number): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % mod
+  return h
 }
 
 type AtencaoRow = {
@@ -162,6 +180,9 @@ type AtencaoRow = {
   tarefas_atrasadas: string | number | null
   tarefas_amanha: string | number | null
   conteudos_aprovacao: string | number | null
+  conteudos_semana: string | number | null
+  conteudos_producao: string | number | null
+  conteudos_total: string | number | null
 }
 
 // Calcula quantos dias faltam para o próximo aniversário mensal de `desde`
@@ -228,7 +249,14 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
      ),
      conteudo_calc as (
        select c.empresa_id,
-              count(*) filter (where c.status = 'aprovacao') as aguardando_aprovacao
+              count(*) filter (where c.status = 'aprovacao') as aguardando_aprovacao,
+              count(*) filter (
+                where c.data is not null
+                  and c.data::date between current_date + 1 and current_date + 7
+                  and c.status <> 'publicado'
+              ) as programados_semana,
+              count(*) filter (where c.status in ('ideia', 'roteiro', 'gravacao', 'edicao')) as em_producao,
+              count(*) as total_conteudos
        from public.conteudos c
        join active_empresas e on e.id = c.empresa_id
        group by c.empresa_id
@@ -239,7 +267,10 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             mc.pior_ratio::text as pior_ratio,
             coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
             coalesce(tc.vence_amanha, 0) as tarefas_amanha,
-            coalesce(cc.aguardando_aprovacao, 0) as conteudos_aprovacao
+            coalesce(cc.aguardando_aprovacao, 0) as conteudos_aprovacao,
+            coalesce(cc.programados_semana, 0) as conteudos_semana,
+            coalesce(cc.em_producao, 0) as conteudos_producao,
+            coalesce(cc.total_conteudos, 0) as conteudos_total
      from active_empresas e
      left join ult_post_instagram up on up.empresa_id = e.id
      left join meta_calc mc on mc.empresa_id = e.id
@@ -259,6 +290,9 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
       cor: r.cor || "bg-primary",
     }
     const verCliente = { acaoLabel: "Ver cliente", acaoUrl: `/clientes/${r.id}` }
+    // Marca quantos alertas existiam antes deste cliente: se ao final nada foi
+    // detectado, geramos uma sugestão proativa para que ele nunca fique sem ação.
+    const antes = alertas.length
 
     // 1) Instagram — considera somente publicações sincronizadas pela API oficial.
     const diasPost = diasDesde(r.ultima_data, hoje)
@@ -409,6 +443,52 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
         texto: `${aguardandoAprovacao} ${aguardandoAprovacao === 1 ? "conteúdo aguardando aprovação" : "conteúdos aguardando aprovação"}.`,
         severidade: PESO_PRIORIDADE.atencao + 30 + Math.min(aguardandoAprovacao, 20),
       })
+    }
+
+    // 6) Programação da próxima semana — sinal proativo de que falta pauta.
+    const programadosSemana = Number(r.conteudos_semana ?? 0)
+    const emProducao = Number(r.conteudos_producao ?? 0)
+    const totalConteudos = Number(r.conteudos_total ?? 0)
+    if (programadosSemana === 0) {
+      alertas.push({
+        ...base,
+        acaoLabel: "Programar conteúdos",
+        acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+        categoria: "conteudo",
+        prioridade: "atencao",
+        texto:
+          totalConteudos === 0
+            ? "Nenhum conteúdo cadastrado — monte o planejamento."
+            : "Nada programado para a próxima semana.",
+        severidade: PESO_PRIORIDADE.atencao + 25,
+      })
+    }
+
+    // 7) Baseline proativo — nenhum cliente ativo fica sem uma próxima ação.
+    // Só entra se as regras acima não geraram nada para este cliente.
+    if (alertas.length === antes) {
+      if (emProducao > 0) {
+        alertas.push({
+          ...base,
+          acaoLabel: "Ver conteúdos",
+          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+          categoria: "sugestao",
+          prioridade: "acompanhar",
+          texto: `${emProducao} ${emProducao === 1 ? "conteúdo em produção" : "conteúdos em produção"} — avance o pipeline.`,
+          severidade: PESO_PRIORIDADE.acompanhar + 20,
+        })
+      } else {
+        const sugestao = SUGESTOES_PROATIVAS[hashIndice(r.id, SUGESTOES_PROATIVAS.length)]
+        alertas.push({
+          ...base,
+          acaoLabel: sugestao.acaoLabel,
+          acaoUrl: `/clientes/${r.id}?aba=${sugestao.aba}`,
+          categoria: "sugestao",
+          prioridade: "acompanhar",
+          texto: sugestao.texto,
+          severidade: PESO_PRIORIDADE.acompanhar + 5,
+        })
+      }
     }
   }
 
