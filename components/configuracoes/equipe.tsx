@@ -74,6 +74,22 @@ function MembroDialog({ membro, trigger }: { membro?: Membro; trigger: ReactNode
             <Input id="cargo" name="cargo" placeholder="Ex.: Social Media" defaultValue={membro?.cargo} />
           </div>
 
+          <div className="grid gap-1.5">
+            <Label htmlFor="pin">PIN de acesso {membro && <span className="text-muted-foreground">(opcional ao editar)</span>}</Label>
+            <Input
+              id="pin"
+              name="pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={membro ? "Deixe em branco para manter" : "4 a 8 dígitos"}
+              className="tracking-[0.3em]"
+            />
+            <p className="text-xs text-muted-foreground">
+              É com este PIN que {membro ? "a pessoa" : "o membro"} entra no sistema. Use apenas números (4 a 8 dígitos).
+            </p>
+          </div>
+
           {estado.erro && (
             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{estado.erro}</p>
           )}

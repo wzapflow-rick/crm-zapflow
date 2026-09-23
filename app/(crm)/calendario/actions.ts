@@ -8,6 +8,7 @@ import {
   excluirEvento,
   type EventoInput,
 } from "@/lib/eventos-db"
+import { registrarAtividade } from "@/lib/atividades-db"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -39,6 +40,13 @@ export async function criarEventoAction(_prev: EstadoForm, formData: FormData): 
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "calendario",
+    acao: "criar",
+    entidadeTipo: "evento",
+    entidadeNome: dados.titulo,
+    descricao: `Criou o compromisso "${dados.titulo}"`,
+  })
   revalidatePath("/calendario")
   revalidatePath("/tarefas")
   revalidatePath("/")
@@ -57,6 +65,14 @@ export async function atualizarEventoAction(_prev: EstadoForm, formData: FormDat
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "calendario",
+    acao: "atualizar",
+    entidadeTipo: "evento",
+    entidadeId: id,
+    entidadeNome: dados.titulo,
+    descricao: `Editou o compromisso "${dados.titulo}"`,
+  })
   revalidatePath("/calendario")
   revalidatePath("/tarefas")
   revalidatePath("/")
@@ -71,6 +87,13 @@ export async function excluirEventoAction(id: string): Promise<EstadoForm> {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: msg }
   }
+  await registrarAtividade({
+    modulo: "calendario",
+    acao: "excluir",
+    entidadeTipo: "evento",
+    entidadeId: id,
+    descricao: "Excluiu um compromisso",
+  })
   revalidatePath("/calendario")
   revalidatePath("/tarefas")
   revalidatePath("/")

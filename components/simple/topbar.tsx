@@ -1,11 +1,12 @@
 "use client"
 
-import { Search, Menu } from "lucide-react"
+import { Search, Menu, LogOut } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { Notificacoes } from "@/components/simple/notificacoes"
+import { sairAction } from "@/app/login/actions"
 
 export function Topbar({ titulo }: { titulo: string }) {
   const { usuario, setNavAberta } = useApp()
@@ -40,8 +41,18 @@ export function Topbar({ titulo }: { titulo: string }) {
         </Avatar>
         <div className="hidden flex-col items-start leading-tight sm:flex">
           <span className="text-sm font-medium text-foreground">{usuario.nome}</span>
-          <span className="text-[10px] text-muted-foreground">{usuario.papel}</span>
+          <span className="text-[10px] text-muted-foreground">{usuario.cargo || "Equipe"}</span>
         </div>
+        <form action={sairAction}>
+          <button
+            type="submit"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label="Sair"
+            title="Sair"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </form>
       </div>
     </header>
   )

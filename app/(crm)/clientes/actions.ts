@@ -30,6 +30,7 @@ import {
 } from "@/lib/clientes-db"
 import type { StatusCliente } from "@/lib/simple-data"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
+import { registrarAtividade } from "@/lib/atividades-db"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -83,6 +84,14 @@ export async function criarClienteAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "clientes",
+    acao: "criar",
+    entidadeTipo: "cliente",
+    entidadeNome: nome,
+    descricao: `Cadastrou o cliente ${nome}`,
+  })
+
   revalidatePath("/clientes")
   revalidatePath("/marketing")
   return { ok: true }
@@ -122,6 +131,15 @@ export async function atualizarClienteAction(
     return { ok: false, erro: `Não foi possível atualizar no banco: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "clientes",
+    acao: "atualizar",
+    entidadeTipo: "cliente",
+    entidadeId: id,
+    entidadeNome: nome,
+    descricao: `Editou o cliente ${nome}`,
+  })
+
   revalidatePath("/clientes")
   revalidatePath(`/clientes/${id}`)
   revalidatePath("/marketing")
@@ -139,6 +157,15 @@ export async function excluirClienteAction(id: string, redirectTo?: string): Pro
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: `Não foi possível excluir no banco: ${msg}` }
   }
+
+  await registrarAtividade({
+    modulo: "clientes",
+    acao: "excluir",
+    entidadeTipo: "cliente",
+    entidadeId: clienteId,
+    descricao: "Excluiu um cliente",
+  })
+
   revalidatePath("/clientes")
   revalidatePath("/marketing")
   // Quando a exclusão parte da página de detalhe (/clientes/[id]), redirecionamos
@@ -308,6 +335,15 @@ export async function criarConteudoAction(
     return { ok: false, erro: `Não foi possível criar o conteúdo: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "criar",
+    entidadeTipo: "conteudo",
+    entidadeId: id,
+    entidadeNome: titulo,
+    descricao: `Criou o conteúdo "${titulo}"`,
+  })
+
   agendarAtualizacaoInteligencia(id)
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
@@ -340,6 +376,15 @@ export async function atualizarDadosConteudoAction(
     return { ok: false, erro: `Não foi possível salvar o conteúdo: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "atualizar",
+    entidadeTipo: "conteudo",
+    entidadeId: conteudoId,
+    entidadeNome: titulo,
+    descricao: `Editou o conteúdo "${titulo}"`,
+  })
+
   agendarAtualizacaoInteligencia(clienteId)
   revalidatePath(`/clientes/${clienteId}`)
   return { ok: true }
@@ -358,6 +403,15 @@ export async function excluirConteudoAction(clienteId: string, conteudoId: strin
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: `Não foi possível excluir o conteúdo: ${msg}` }
   }
+
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "excluir",
+    entidadeTipo: "conteudo",
+    entidadeId: cId,
+    descricao: "Excluiu um conteúdo",
+  })
+
   agendarAtualizacaoInteligencia(id)
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
@@ -398,6 +452,14 @@ export async function salvarRoteiroConteudoAction(
     return { ok: false, erro: `Não foi possível salvar o roteiro: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "atualizar",
+    entidadeTipo: "roteiro",
+    entidadeId: conteudoId,
+    descricao: "Editou o roteiro de um conteúdo",
+  })
+
   agendarAtualizacaoInteligencia(clienteId)
   revalidatePath(`/clientes/${clienteId}`)
   return { ok: true }
@@ -432,6 +494,14 @@ export async function salvarEstrategiaAction(
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "atualizar",
+    entidadeTipo: "estrategia",
+    entidadeId: id,
+    descricao: "Atualizou a estratégia de um cliente",
+  })
 
   revalidatePath(`/clientes/${id}`)
   return { ok: true }

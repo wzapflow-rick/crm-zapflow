@@ -8,6 +8,7 @@ import {
   salvarMeta,
   type LancamentoInput,
 } from "@/lib/financeiro-db"
+import { registrarAtividade } from "@/lib/atividades-db"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -44,6 +45,13 @@ export async function criarLancamentoAction(_prev: EstadoForm, formData: FormDat
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "financeiro",
+    acao: "criar",
+    entidadeTipo: "lancamento",
+    entidadeNome: dados.descricao,
+    descricao: `Lançou ${dados.tipo === "receita" ? "receita" : "custo"} "${dados.descricao}"`,
+  })
   revalidatePath("/financeiro")
   revalidatePath("/")
   return { ok: true }
@@ -62,6 +70,14 @@ export async function atualizarLancamentoAction(_prev: EstadoForm, formData: For
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "financeiro",
+    acao: "atualizar",
+    entidadeTipo: "lancamento",
+    entidadeId: id,
+    entidadeNome: dados.descricao,
+    descricao: `Editou o lançamento "${dados.descricao}"`,
+  })
   revalidatePath("/financeiro")
   revalidatePath("/")
   return { ok: true }
@@ -75,6 +91,13 @@ export async function excluirLancamentoAction(id: string): Promise<EstadoForm> {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: msg }
   }
+  await registrarAtividade({
+    modulo: "financeiro",
+    acao: "excluir",
+    entidadeTipo: "lancamento",
+    entidadeId: id,
+    descricao: "Excluiu um lançamento",
+  })
   revalidatePath("/financeiro")
   revalidatePath("/")
   return { ok: true }
@@ -90,6 +113,13 @@ export async function salvarMetaAction(mes: string, valor: number): Promise<Esta
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar a meta."
     return { ok: false, erro: `Não foi possível salvar a meta: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "financeiro",
+    acao: "atualizar",
+    entidadeTipo: "meta",
+    entidadeId: mes,
+    descricao: `Definiu a meta de ${mes}`,
+  })
   revalidatePath("/financeiro")
   revalidatePath("/")
   return { ok: true }
