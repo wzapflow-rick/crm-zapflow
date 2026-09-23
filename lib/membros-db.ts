@@ -7,6 +7,7 @@ export type Membro = {
   iniciais: string
   cor: string
   cargo: string
+  temPin: boolean
 }
 
 type MembroRow = {
@@ -15,6 +16,7 @@ type MembroRow = {
   iniciais: string | null
   cor: string | null
   cargo: string | null
+  tem_pin: boolean | null
 }
 
 const CORES = ["bg-primary", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"]
@@ -39,7 +41,7 @@ function iniciaisDe(nome: string) {
 export async function getMembros(): Promise<Membro[]> {
   try {
     const rows = await query<MembroRow>(
-      `select id, nome, iniciais, cor, cargo
+      `select id, nome, iniciais, cor, cargo, (pin is not null) as tem_pin
        from public.equipe
        order by nome asc`,
     )
@@ -51,6 +53,7 @@ export async function getMembros(): Promise<Membro[]> {
         iniciais: r.iniciais || iniciaisDe(nome),
         cor: r.cor || corPara(nome),
         cargo: r.cargo ?? "",
+        temPin: r.tem_pin ?? false,
       }
     })
   } catch {
@@ -70,7 +73,7 @@ export async function getMembroPorPin(pin: string): Promise<Membro | null> {
   if (!limpo) return null
   try {
     const rows = await query<MembroRow>(
-      `select id, nome, iniciais, cor, cargo
+      `select id, nome, iniciais, cor, cargo, (pin is not null) as tem_pin
        from public.equipe
        where pin = $1
        limit 1`,
@@ -85,6 +88,7 @@ export async function getMembroPorPin(pin: string): Promise<Membro | null> {
       iniciais: r.iniciais || iniciaisDe(nome),
       cor: r.cor || corPara(nome),
       cargo: r.cargo ?? "",
+      temPin: r.tem_pin ?? true,
     }
   } catch {
     return null

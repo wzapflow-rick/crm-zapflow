@@ -167,6 +167,16 @@ export function Equipe({ membros, children }: { membros: Membro[]; children?: Re
                     <p className="truncate text-sm font-medium text-foreground">{m.nome}</p>
                     <p className="truncate text-xs text-muted-foreground">{m.cargo || "Sem cargo definido"}</p>
                   </div>
+                  <span
+                    className={cn(
+                      "hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-medium sm:inline-block",
+                      m.temPin
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {m.temPin ? "PIN definido" : "Sem PIN"}
+                  </span>
                   <MembroDialog
                     membro={m}
                     trigger={
