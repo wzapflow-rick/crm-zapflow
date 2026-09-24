@@ -1,30 +1,10 @@
 import "server-only"
 import { query } from "@/lib/db"
 import { getUsuarioAtual } from "@/lib/sessao"
+import type { Atividade, ModuloAtividade, AcaoAtividade } from "@/lib/atividades-tipos"
 
-export type ModuloAtividade =
-  | "clientes"
-  | "tarefas"
-  | "crm"
-  | "financeiro"
-  | "conteudo"
-  | "calendario"
-  | "equipe"
-
-export type AcaoAtividade = "criar" | "atualizar" | "excluir"
-
-export type Atividade = {
-  id: string
-  membroId: string | null
-  membroNome: string
-  modulo: string
-  acao: string
-  entidadeTipo: string | null
-  entidadeId: string | null
-  entidadeNome: string | null
-  descricao: string
-  criadoEm: string
-}
+export { tempoRelativo } from "@/lib/atividades-tipos"
+export type { Atividade, ModuloAtividade, AcaoAtividade } from "@/lib/atividades-tipos"
 
 type AtividadeRow = {
   id: string

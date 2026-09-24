@@ -15,7 +15,7 @@ import {
   Trash2,
   type LucideIcon,
 } from "lucide-react"
-import { tempoRelativo, type Atividade } from "@/lib/atividades-db"
+import { tempoRelativo, type Atividade } from "@/lib/atividades-tipos"
 import { cn } from "@/lib/utils"
 
 type ModuloMeta = { rotulo: string; icon: LucideIcon }
