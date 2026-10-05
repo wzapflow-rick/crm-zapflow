@@ -48,10 +48,15 @@ export default async function ClientePage({
 }) {
   const { id } = await params
 
-  // Todas as buscas disparam EM PARALELO (uma ida ao banco em vez de ~16 em série).
-  // Cada uma tem fallback próprio via `seguro`: se uma tabela não existir, a página não quebra.
+  // Busca o cliente primeiro e SEM fallback: uma falha de banco (timeout, pool
+  // cheio) precisa cair no error.tsx com "Tentar novamente", e não virar 404.
+  const cliente = await getClientePorId(id)
+  if (!cliente) {
+    notFound()
+  }
+
+  // As demais buscas disparam em paralelo, cada uma com fallback próprio via `seguro`.
   const [
-    cliente,
     membros,
     metas,
     eventos,
@@ -72,7 +77,6 @@ export default async function ClientePage({
     instagramConexao,
     instagramMidias,
   ] = await Promise.all([
-    seguro<Cliente | null>(getClientePorId(id), null),
     seguro<Membro[]>(getMembros(), []),
     seguro<Meta[]>(getMetas(id), []),
     seguro<EventoCliente[]>(getEventos(id), []),
@@ -93,10 +97,6 @@ export default async function ClientePage({
     seguro<ConexaoInstagram | null>(getConexaoInstagram(id), null),
     seguro<MidiaInstagram[]>(getMidiasInstagram(id), []),
   ])
-
-  if (!cliente) {
-    notFound()
-  }
 
   return (
     <>

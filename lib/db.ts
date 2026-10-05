@@ -28,7 +28,9 @@ function makePool() {
     max: 5,
     min: 0,
     idleTimeoutMillis: 20_000,
-    connectionTimeoutMillis: 5_000,
+    // Páginas como /clientes/[id] enfileiram ~20 consultas em 5 conexões;
+    // 5s de espera pela conexão estourava sob carga e derrubava a página.
+    connectionTimeoutMillis: 15_000,
     // O limite é aplicado no cliente. Proxies como PgBouncer não aceitam
     // statement_timeout como parâmetro de inicialização da conexão.
     query_timeout: 10_000,

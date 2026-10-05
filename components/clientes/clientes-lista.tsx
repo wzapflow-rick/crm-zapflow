@@ -141,6 +141,7 @@ export function ClientesLista({
                 <Link
                   key={c.id}
                   href={`/clientes/${c.id}`}
+                  prefetch={false}
                   className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/40"
                 >
                   <div className="flex items-start justify-between">
