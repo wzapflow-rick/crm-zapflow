@@ -126,14 +126,31 @@ export async function enviarAvisoCliente(cli: ClientePendencia): Promise<Resulta
   if (cli.pendentes <= 0) {
     return { ...base, ok: true, motivo: "Sem conteúdos pendentes." }
   }
-  const telefone = cli.telefone.replace(/\D/g, "")
-  if (!telefone) {
+  const telefoneBruto = cli.telefone.trim()
+  const digitos = telefoneBruto.replace(/\D/g, "")
+  if (!digitos) {
     return { ...base, motivo: "Cliente sem telefone cadastrado." }
+  }
+  // Sem "+" tratamos como BR: precisa ter DDD (10/11 dígitos) ou já vir com 55 (12/13).
+  const internacional = telefoneBruto.startsWith("+")
+  const brValido =
+    digitos.length === 10 || digitos.length === 11 || ((digitos.length === 12 || digitos.length === 13) && digitos.startsWith("55"))
+  if (!internacional && !brValido) {
+    return {
+      ...base,
+      motivo: `Telefone "${telefoneBruto}" incompleto. Cadastre com DDD, ex.: (11) 99864-5070.`,
+    }
   }
 
   const texto = montarMensagemPendencia(cli.nome, cli.pendentes, urlPortalDe(cli.portalToken))
-  const envio = await enviarTextoWhatsApp(telefone, texto, "contato")
+  const envio = await enviarTextoWhatsApp(internacional ? telefoneBruto : digitos, texto, "contato")
   if (!envio.ok) {
+    if (envio.erro?.includes('"exists":false')) {
+      return {
+        ...base,
+        motivo: `O número "${telefoneBruto}" não tem WhatsApp. Confira o DDD e o número no cadastro do cliente.`,
+      }
+    }
     return { ...base, motivo: envio.erro || `Falha no envio (status ${envio.status}).` }
   }
   return { ...base, ok: true, enviado: true }
