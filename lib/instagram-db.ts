@@ -38,6 +38,9 @@ export type MidiaInstagram = {
   salvamentos: number | null
   compartilhamentos: number | null
   visualizacoes: number | null
+  visitasPerfil: number | null
+  seguidores: number | null
+  reposts: number | null
 }
 
 type ConexaoRow = {
@@ -73,6 +76,9 @@ type MidiaRow = {
   salvamentos: number | null
   compartilhamentos: number | null
   visualizacoes: number | null
+  visitas_perfil: number | null
+  seguidores: number | null
+  reposts: number | null
 }
 
 function mapConexao(r: ConexaoRow): ConexaoInstagram {
@@ -231,7 +237,8 @@ export async function excluirDadosPorIgUserId(igUserId: string): Promise<string[
 export async function getMidiasInstagram(empresaId: string): Promise<MidiaInstagram[]> {
   const rows = await query<MidiaRow>(
     `select id, tipo, legenda, permalink, thumbnail_url, media_url, publicado_em, curtidas,
-            comentarios, alcance, impressoes, salvamentos, compartilhamentos, visualizacoes
+            comentarios, alcance, impressoes, salvamentos, compartilhamentos, visualizacoes,
+            visitas_perfil, seguidores, reposts
        from public.instagram_midia
       where empresa_id = $1
       order by publicado_em desc nulls last`,
@@ -252,6 +259,9 @@ export async function getMidiasInstagram(empresaId: string): Promise<MidiaInstag
     salvamentos: r.salvamentos,
     compartilhamentos: r.compartilhamentos,
     visualizacoes: r.visualizacoes,
+    visitasPerfil: r.visitas_perfil,
+    seguidores: r.seguidores,
+    reposts: r.reposts,
   }))
 }
 
@@ -270,6 +280,9 @@ export type MidiaUpsert = {
   salvamentos?: number | null
   compartilhamentos?: number | null
   visualizacoes?: number | null
+  visitasPerfil?: number | null
+  seguidores?: number | null
+  reposts?: number | null
 }
 
 // Grava/atualiza as mídias sincronizadas (upsert por id da mídia).
@@ -283,8 +296,9 @@ export async function salvarMidiasInstagram(empresaId: string, midias: MidiaUpse
       await client.query(
         `insert into public.instagram_midia
            (id, empresa_id, tipo, legenda, permalink, thumbnail_url, media_url, publicado_em,
-            curtidas, comentarios, alcance, impressoes, salvamentos, compartilhamentos, visualizacoes, atualizado_em)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15, now())
+            curtidas, comentarios, alcance, impressoes, salvamentos, compartilhamentos, visualizacoes,
+            visitas_perfil, seguidores, reposts, atualizado_em)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, now())
          on conflict (id) do update set
            tipo = excluded.tipo,
            legenda = excluded.legenda,
@@ -299,6 +313,9 @@ export async function salvarMidiasInstagram(empresaId: string, midias: MidiaUpse
            salvamentos = excluded.salvamentos,
            compartilhamentos = excluded.compartilhamentos,
            visualizacoes = excluded.visualizacoes,
+           visitas_perfil = excluded.visitas_perfil,
+           seguidores = excluded.seguidores,
+           reposts = excluded.reposts,
            atualizado_em = now()`,
         [
           m.id,
@@ -316,6 +333,9 @@ export async function salvarMidiasInstagram(empresaId: string, midias: MidiaUpse
           m.salvamentos ?? null,
           m.compartilhamentos ?? null,
           m.visualizacoes ?? null,
+          m.visitasPerfil ?? null,
+          m.seguidores ?? null,
+          m.reposts ?? null,
         ],
       )
     }

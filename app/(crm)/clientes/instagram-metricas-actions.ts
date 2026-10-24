@@ -11,6 +11,7 @@ import {
   mapearFormatoInstagram,
   jaImportado,
   type ConteudoParaMatch,
+  type MetricasPost,
   type NivelConfianca,
 } from "@/lib/instagram-match"
 
@@ -26,14 +27,7 @@ export type CandidatoMetrica = {
   score: number
   confianca: NivelConfianca
   jaImportado: boolean
-  metricas: {
-    views: number | null
-    alcance: number | null
-    curtidas: number | null
-    comentarios: number | null
-    salvamentos: number | null
-    compartilhamentos: number | null
-  }
+  metricas: MetricasPost
 }
 
 function paraCandidato(
@@ -153,6 +147,9 @@ export async function importarMidiaAction(
       salvamentos: metricas.salvamentos,
       compartilhamentos: metricas.compartilhamentos,
       alcance: metricas.alcance,
+      visitasPerfil: metricas.visitasPerfil,
+      seguidores: metricas.seguidores,
+      reposts: metricas.reposts,
       aprendizados,
     })
   } catch (e) {

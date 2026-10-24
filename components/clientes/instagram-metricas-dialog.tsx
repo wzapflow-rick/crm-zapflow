@@ -46,6 +46,9 @@ function MetricasGrid({ m }: { m: CandidatoMetrica["metricas"] }) {
     ["Comentários", m.comentarios],
     ["Salvamentos", m.salvamentos],
     ["Compart.", m.compartilhamentos],
+    ["Reposts", m.reposts],
+    ["Visitas perfil", m.visitasPerfil],
+    ["Seguidores", m.seguidores],
   ]
   return (
     <div className="grid grid-cols-3 gap-2">

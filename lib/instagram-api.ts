@@ -205,31 +205,64 @@ export async function buscarMidias(token: string, limite = 25): Promise<MidiaUps
 
 type InsightsMidia = Pick<
   MidiaUpsert,
-  "alcance" | "impressoes" | "salvamentos" | "compartilhamentos" | "visualizacoes"
+  | "alcance"
+  | "impressoes"
+  | "salvamentos"
+  | "compartilhamentos"
+  | "visualizacoes"
+  | "visitasPerfil"
+  | "seguidores"
+  | "reposts"
 >
 
-// Os insights válidos variam por tipo de mídia; pedimos um conjunto seguro e
-// mapeamos o que voltar (a API pode recusar métricas não suportadas).
-async function buscarInsightsMidia(token: string, mediaId: string, tipo: string): Promise<InsightsMidia> {
-  const metricas =
-    tipo === "REELS" || tipo === "VIDEO"
-      ? "reach,saved,shares,views,comments,likes"
-      : "reach,saved,shares,views"
+type MapaInsights = Record<string, number>
+
+async function pedirInsights(token: string, mediaId: string, metricas: string): Promise<MapaInsights | null> {
   const res = await fetch(
     `${GRAPH}/${API_VERSION}/${mediaId}/insights?metric=${metricas}&access_token=${token}`,
   )
-  if (!res.ok) return {}
+  if (!res.ok) return null
   const json = (await res.json()) as { data?: { name: string; values?: { value: number }[] }[] }
-  const mapa: Record<string, number> = {}
+  const mapa: MapaInsights = {}
   for (const m of json.data ?? []) {
     mapa[m.name] = m.values?.[0]?.value ?? 0
   }
+  return mapa
+}
+
+// A API recusa a chamada inteira se uma métrica não for suportada pelo tipo
+// de mídia. Por isso as métricas de conversão (visitas ao perfil, seguidores,
+// reposts) vão numa chamada separada; se ela falhar, tentamos uma a uma para
+// aproveitar o que estiver disponível sem perder as métricas básicas.
+async function pedirInsightsExtras(token: string, mediaId: string, metricas: string[]): Promise<MapaInsights> {
+  if (metricas.length === 0) return {}
+  const juntas = await pedirInsights(token, mediaId, metricas.join(","))
+  if (juntas) return juntas
+  const separadas = await Promise.all(metricas.map((m) => pedirInsights(token, mediaId, m)))
+  return Object.assign({}, ...separadas.filter(Boolean))
+}
+
+// profile_visits e follows não existem para Reels; reposts vale para todos.
+async function buscarInsightsMidia(token: string, mediaId: string, tipo: string): Promise<InsightsMidia> {
+  const ehVideo = tipo === "REELS" || tipo === "VIDEO"
+  const basicas = ehVideo ? "reach,saved,shares,views,comments,likes" : "reach,saved,shares,views"
+  const extras = ehVideo ? ["reposts"] : ["profile_visits", "follows", "reposts"]
+
+  const [mapa, mapaExtras] = await Promise.all([
+    pedirInsights(token, mediaId, basicas),
+    pedirInsightsExtras(token, mediaId, extras),
+  ])
+  const tudo = { ...(mapa ?? {}), ...mapaExtras }
+
   return {
-    alcance: mapa.reach ?? null,
-    impressoes: mapa.impressions ?? null,
-    salvamentos: mapa.saved ?? null,
-    compartilhamentos: mapa.shares ?? null,
-    visualizacoes: mapa.views ?? null,
+    alcance: tudo.reach ?? null,
+    impressoes: tudo.impressions ?? null,
+    salvamentos: tudo.saved ?? null,
+    compartilhamentos: tudo.shares ?? null,
+    visualizacoes: tudo.views ?? null,
+    visitasPerfil: tudo.profile_visits ?? null,
+    seguidores: tudo.follows ?? null,
+    reposts: tudo.reposts ?? null,
   }
 }
 
@@ -275,8 +308,15 @@ export function gerarMidiasDemo(): MidiaUpsert[] {
     const comentarios = Math.floor(curtidas * (0.02 + Math.random() * 0.08))
     const salvamentos = Math.floor(alcance * (0.01 + Math.random() * 0.04))
     const compartilhamentos = Math.floor(alcance * (0.005 + Math.random() * 0.03))
-    const visualizacoes = tipo === "REELS" || tipo === "VIDEO" ? alcance + Math.floor(Math.random() * 8000) : null
+    const ehVideo = tipo === "REELS" || tipo === "VIDEO"
+    const visualizacoes = ehVideo ? alcance + Math.floor(Math.random() * 8000) : null
+    const visitasPerfil = ehVideo ? null : Math.floor(alcance * (0.01 + Math.random() * 0.03))
+    const seguidores = visitasPerfil != null ? Math.floor(visitasPerfil * (0.05 + Math.random() * 0.15)) : null
+    const reposts = Math.floor(compartilhamentos * (0.1 + Math.random() * 0.3))
     return {
+      visitasPerfil,
+      seguidores,
+      reposts,
       id: `demo-${i}-${hoje}`,
       tipo,
       legenda,

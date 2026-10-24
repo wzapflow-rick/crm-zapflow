@@ -25,6 +25,9 @@ export type MetricasPost = {
   comentarios: number | null
   salvamentos: number | null
   compartilhamentos: number | null
+  visitasPerfil: number | null
+  seguidores: number | null
+  reposts: number | null
 }
 
 const STOPWORDS = new Set([
@@ -104,6 +107,9 @@ export function metricasDaMidia(m: MidiaInstagram): MetricasPost {
     comentarios: m.comentarios,
     salvamentos: m.salvamentos,
     compartilhamentos: m.compartilhamentos,
+    visitasPerfil: m.visitasPerfil,
+    seguidores: m.seguidores,
+    reposts: m.reposts,
   }
 }
 
