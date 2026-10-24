@@ -31,7 +31,6 @@ import {
 import { instagramConfigurado } from "@/lib/instagram-api"
 import type {
   Arquivo,
-  Cliente,
   ConteudoItem,
   Estrategia,
   EventoCliente,

@@ -36,18 +36,18 @@ export default async function FinanceiroPage({
   }
   let lancamentos: Lancamento[] = []
   let clientes: { id: string; nome: string }[] = []
-  let erro: string | undefined
-
   // Todas as buscas em paralelo: uma ida ao banco em vez de 2 em série.
-  const [dadosFinanceiros, cs] = await Promise.all([
-    Promise.all([getResumoFinanceiro(mes), getLancamentos(mes), getAvulsosComoLancamentos(mes)]).catch(
-      (e: unknown) => {
-        erro = e instanceof Error ? e.message : "Erro desconhecido ao buscar os dados financeiros."
-        return null
-      },
+  const [resultadoFinanceiro, cs] = await Promise.all([
+    Promise.all([getResumoFinanceiro(mes), getLancamentos(mes), getAvulsosComoLancamentos(mes)]).then(
+      (dados) => ({ dados, erro: undefined }),
+      (e: unknown) => ({
+        dados: null,
+        erro: e instanceof Error ? e.message : "Erro desconhecido ao buscar os dados financeiros.",
+      }),
     ),
     seguro(getClientes(), []),
   ])
+  const { dados: dadosFinanceiros, erro } = resultadoFinanceiro
   if (dadosFinanceiros) {
     const [resumoDb, lancamentosDb, avulsos] = dadosFinanceiros
     resumo = resumoDb

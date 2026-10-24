@@ -68,39 +68,45 @@ const schemaExperimento = z.object({
   status: z.enum(["em_teste", "repetir", "melhorar", "descartar"]),
 })
 
+const temItens = (valor: unknown) => Array.isArray(valor) && valor.length > 0
+
 const CONFIG: Record<
   TipoAcaoIA,
-  { schema: z.ZodTypeAny; instrucao: string; vazio: (dados: any) => boolean }
+  {
+    schema: z.ZodTypeAny
+    instrucao: string
+    vazio: (dados: Record<string, unknown>) => boolean
+  }
 > = {
   conteudos: {
     schema: schemaConteudos,
     instrucao:
       "Extraia da resposta todos os conteúdos, ideias de post ou roteiros e organize-os no pipeline. Preserve ganchos, falas e CTA no roteiro. Não invente dados que não estejam na resposta.",
-    vazio: (d) => !d.conteudos?.length,
+    vazio: (d) => !temItens(d.conteudos),
   },
   calendario: {
     schema: schemaCalendario,
     instrucao:
       "Extraia da resposta os compromissos, gravações, postagens ou entregas que possam virar eventos de calendário. Só preencha data/hora se a resposta indicar; caso contrário deixe vazio.",
-    vazio: (d) => !d.eventos?.length,
+    vazio: (d) => !temItens(d.eventos),
   },
   tarefas: {
     schema: schemaTarefas,
     instrucao:
       "Extraia da resposta as ações concretas que a equipe precisa executar e transforme-as em tarefas objetivas, no infinitivo.",
-    vazio: (d) => !d.tarefas?.length,
+    vazio: (d) => !temItens(d.tarefas),
   },
   estrategia: {
     schema: schemaEstrategia,
     instrucao:
       "Extraia da resposta as direções estratégicas e os insights que valem a pena registrar na estratégia do cliente. Seja fiel ao texto.",
-    vazio: (d) => !d.estrategiaAtual?.length && !d.insights?.length,
+    vazio: (d) => !temItens(d.estrategiaAtual) && !temItens(d.insights),
   },
   experimento: {
     schema: schemaExperimento,
     instrucao:
       "Transforme a ideia/recomendação da resposta em um experimento no formato hipótese → teste → resultado → conclusão. Se ainda não há dados, deixe resultado e conclusão vazios e use status 'em_teste'.",
-    vazio: (d) => !d.hipotese?.trim(),
+    vazio: (d) => typeof d.hipotese !== "string" || !d.hipotese.trim(),
   },
 }
 
@@ -130,7 +136,7 @@ ${config.instrucao}
 Regras: seja fiel ao texto, não invente números nem informações do cliente, e escreva em português do Brasil.`,
       prompt: `Resposta a estruturar:\n\n${texto}`,
     })
-    if (config.vazio(object)) {
+    if (config.vazio(object as Record<string, unknown>)) {
       return { ok: false, erro: "Não encontrei itens aplicáveis nesta resposta para esta ação." }
     }
     return { ok: true, dados: object }
