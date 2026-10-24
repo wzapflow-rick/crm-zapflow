@@ -1,8 +1,13 @@
 import { Topbar } from "@/components/simple/topbar"
 import { Equipe } from "@/components/configuracoes/equipe"
+import { WhatsAppDiagnostico } from "@/components/configuracoes/whatsapp-diagnostico"
+import { AvisoPendenciasCard } from "@/components/configuracoes/aviso-pendencias-card"
 import { getMembros, type Membro } from "@/lib/membros-db"
 
 export const dynamic = "force-dynamic"
+// A reconexão do WhatsApp faz connect + restart + espera + connect; dá folga
+// para a função serverless não ser encerrada no meio do processo.
+export const maxDuration = 30
 
 export default async function ConfiguracoesPage() {
   let membros: Membro[] = []
@@ -15,7 +20,10 @@ export default async function ConfiguracoesPage() {
   return (
     <>
       <Topbar titulo="Configurações" />
-      <Equipe membros={membros} />
+      <Equipe membros={membros}>
+        <WhatsAppDiagnostico />
+        <AvisoPendenciasCard />
+      </Equipe>
     </>
   )
 }

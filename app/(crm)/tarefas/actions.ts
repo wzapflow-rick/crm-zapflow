@@ -8,6 +8,7 @@ import {
   excluirTarefa,
   type TarefaInput,
 } from "@/lib/tarefas-db"
+import { registrarAtividade } from "@/lib/atividades-db"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -34,7 +35,15 @@ export async function criarTarefaAction(_prev: EstadoForm, formData: FormData): 
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "tarefas",
+    acao: "criar",
+    entidadeTipo: "tarefa",
+    entidadeNome: dados.titulo,
+    descricao: `Criou a tarefa "${dados.titulo}"`,
+  })
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }
@@ -52,7 +61,16 @@ export async function atualizarTarefaAction(_prev: EstadoForm, formData: FormDat
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "tarefas",
+    acao: "atualizar",
+    entidadeTipo: "tarefa",
+    entidadeId: id,
+    entidadeNome: dados.titulo,
+    descricao: `Editou a tarefa "${dados.titulo}"`,
+  })
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }
@@ -66,7 +84,15 @@ export async function alternarConclusaoAction(id: string, concluida: boolean): P
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao atualizar."
     return { ok: false, erro: msg }
   }
+  await registrarAtividade({
+    modulo: "tarefas",
+    acao: concluida ? "concluir" : "reabrir",
+    entidadeTipo: "tarefa",
+    entidadeId: id,
+    descricao: concluida ? "Concluiu uma tarefa" : "Reabriu uma tarefa",
+  })
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }
@@ -79,7 +105,15 @@ export async function excluirTarefaAction(id: string): Promise<EstadoForm> {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: msg }
   }
+  await registrarAtividade({
+    modulo: "tarefas",
+    acao: "excluir",
+    entidadeTipo: "tarefa",
+    entidadeId: id,
+    descricao: "Excluiu uma tarefa",
+  })
   revalidatePath("/tarefas")
+  revalidatePath("/calendario")
   revalidatePath("/")
   return { ok: true }
 }

@@ -3,7 +3,7 @@ import { getTarefas } from "@/lib/tarefas-db"
 import { getEventos } from "@/lib/eventos-db"
 import { getMembros } from "@/lib/membros-db"
 import { getClientes } from "@/lib/clientes-db"
-import { TIPOS_EVENTO } from "@/lib/eventos-types"
+import { TIPOS_EVENTO, calcularDuracao } from "@/lib/eventos-types"
 
 // Data de "hoje" no fuso de São Paulo (o servidor roda em UTC).
 // en-CA formata como YYYY-MM-DD.
@@ -39,19 +39,31 @@ export async function montarResumoDiario(): Promise<{ texto: string; temItens: b
   const nomeMembro = (id: string) => membros.find((m) => m.id === id)?.nome ?? ""
   const nomeCliente = (id: string) => clientes.find((c) => c.id === id)?.nome ?? ""
 
-  // Tarefas não concluídas com prazo até hoje (hoje + atrasadas).
-  const relevantes = tarefas.filter(
-    (t) => t.status !== "concluido" && t.prazo && t.prazo <= hoje,
-  )
+  // Ordena um mapa de responsáveis: "Sem responsável" por último, resto alfabético.
+  function ordenarChaves<T>(mapa: Map<string, T>): string[] {
+    return [...mapa.keys()].sort((a, b) => {
+      if (a === "Sem responsável") return 1
+      if (b === "Sem responsável") return -1
+      return a.localeCompare(b)
+    })
+  }
 
-  // Agrupa por responsável (nome). Sem responsável vai para um balde próprio.
-  const grupos = new Map<string, { hoje: typeof relevantes; atrasadas: typeof relevantes }>()
-  for (const t of relevantes) {
+  // Tarefas não concluídas: separadas em atrasadas (prazo < hoje) e de hoje.
+  const atrasadas = tarefas.filter((t) => t.status !== "concluido" && t.prazo && t.prazo < hoje)
+  const deHojeLista = tarefas.filter((t) => t.status !== "concluido" && t.prazo && t.prazo === hoje)
+
+  // Agrupa por responsável (nome).
+  const gruposAtrasadas = new Map<string, typeof atrasadas>()
+  for (const t of atrasadas) {
     const chave = nomeMembro(t.responsavelId) || "Sem responsável"
-    if (!grupos.has(chave)) grupos.set(chave, { hoje: [], atrasadas: [] })
-    const balde = grupos.get(chave)!
-    if (t.prazo === hoje) balde.hoje.push(t)
-    else balde.atrasadas.push(t)
+    if (!gruposAtrasadas.has(chave)) gruposAtrasadas.set(chave, [])
+    gruposAtrasadas.get(chave)!.push(t)
+  }
+  const gruposHoje = new Map<string, typeof deHojeLista>()
+  for (const t of deHojeLista) {
+    const chave = nomeMembro(t.responsavelId) || "Sem responsável"
+    if (!gruposHoje.has(chave)) gruposHoje.set(chave, [])
+    gruposHoje.get(chave)!.push(t)
   }
 
   // Compromissos da agenda para hoje.
@@ -66,26 +78,31 @@ export async function montarResumoDiario(): Promise<{ texto: string; temItens: b
 
   let temItens = false
 
-  // Seção de tarefas por responsável.
-  const chavesOrdenadas = [...grupos.keys()].sort((a, b) => {
-    // "Sem responsável" por último; o resto em ordem alfabética.
-    if (a === "Sem responsável") return 1
-    if (b === "Sem responsável") return -1
-    return a.localeCompare(b)
-  })
-
-  if (chavesOrdenadas.length > 0) {
+  // Seção destacada de tarefas ATRASADAS (aparece primeiro para chamar atenção).
+  if (gruposAtrasadas.size > 0) {
     temItens = true
-    linhas.push(`*✅ Tarefas*`)
-    for (const chave of chavesOrdenadas) {
-      const { hoje: deHoje, atrasadas } = grupos.get(chave)!
+    linhas.push(`*🚨 TAREFAS ATRASADAS (${atrasadas.length})*`)
+    for (const chave of ordenarChaves(gruposAtrasadas)) {
+      const lista = gruposAtrasadas.get(chave)!
       linhas.push("")
       linhas.push(`*👤 ${chave}*`)
-      for (const t of atrasadas) {
+      for (const t of lista) {
         const cli = nomeCliente(t.clienteId)
-        linhas.push(`⚠️ ${t.titulo}${cli ? ` — ${cli}` : ""} _(atrasada · ${dataBonita(t.prazo)})_`)
+        linhas.push(`⚠️ ${t.titulo}${cli ? ` — ${cli}` : ""} _(venceu ${dataBonita(t.prazo)})_`)
       }
-      for (const t of deHoje) {
+    }
+    linhas.push("")
+  }
+
+  // Seção de tarefas de hoje por responsável.
+  if (gruposHoje.size > 0) {
+    temItens = true
+    linhas.push(`*✅ Tarefas de hoje*`)
+    for (const chave of ordenarChaves(gruposHoje)) {
+      const lista = gruposHoje.get(chave)!
+      linhas.push("")
+      linhas.push(`*👤 ${chave}*`)
+      for (const t of lista) {
         const cli = nomeCliente(t.clienteId)
         linhas.push(`• ${t.titulo}${cli ? ` — ${cli}` : ""}`)
       }
@@ -93,14 +110,16 @@ export async function montarResumoDiario(): Promise<{ texto: string; temItens: b
     linhas.push("")
   }
 
-  // Seção de compromissos.
+  // Seção de compromissos (com intervalo e duração quando houver hora final).
   if (compromissosHoje.length > 0) {
     temItens = true
     linhas.push(`*📅 Compromissos de hoje*`)
     for (const e of compromissosHoje) {
       const cli = nomeCliente(e.clienteId)
-      const hora = e.hora ? `${e.hora} · ` : ""
-      linhas.push(`• ${hora}${e.titulo} _(${labelTipo(e.tipo)})_${cli ? ` — ${cli}` : ""}`)
+      const duracao = calcularDuracao(e.hora, e.horaFim)
+      const intervalo = e.hora ? (e.horaFim ? `${e.hora}–${e.horaFim}` : e.hora) : ""
+      const horaLabel = intervalo ? `${intervalo}${duracao ? ` (${duracao})` : ""} · ` : ""
+      linhas.push(`• ${horaLabel}${e.titulo} _(${labelTipo(e.tipo)})_${cli ? ` — ${cli}` : ""}`)
     }
     linhas.push("")
   }

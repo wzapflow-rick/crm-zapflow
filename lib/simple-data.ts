@@ -69,7 +69,13 @@ export const clientePorId = (id: string) => clientes.find((c) => c.id === id)
 
 // ── Detalhe do cliente (submódulos) ──────────────────────────────────────────
 
-export type StatusConteudo = "ideia" | "roteiro" | "gravacao" | "edicao" | "aprovacao" | "publicado"
+export type StatusConteudo = "ideia" | "roteiro" | "gravacao" | "edicao" | "aprovacao" | "aprovado" | "publicado"
+
+// Link do drive (vídeo bruto, editado, arte...) associado a um conteúdo.
+export type LinkConteudo = {
+  rotulo: string // ex.: "Vídeo editado", "Bruto", "Arte"
+  url: string
+}
 
 export type ConteudoItem = {
   id: string
@@ -79,7 +85,11 @@ export type ConteudoItem = {
   status: StatusConteudo
   data: string
   dataISO?: string // YYYY-MM-DD (para edição)
-  roteiro?: string // roteiro/descrição do conteúdo
+  roteiro?: string // roteiro do conteúdo (falas, cenas, CTA, cortes...)
+  legenda?: string // sugestão de legenda para a publicação
+  direcionamento?: string // direcionamento interno (filmagem/videomaker + visual/design) — nunca exibido no portal
+  links?: LinkConteudo[] // links do drive do conteúdo (bruto, editado, arte...)
+  referencia?: string // link de referência do conteúdo (opcional)
 }
 
 export type EventoCliente = {
@@ -109,6 +119,8 @@ export type Arquivo = {
   tipo: "Branding" | "Material" | "Drive" | "Contrato"
   tamanho: string
   url?: string // link para baixar/abrir (Drive, YouTube, Dropbox...)
+  data?: string // rótulo curto da data de postagem (ex.: 12/03)
+  dataISO?: string // YYYY-MM-DD (para edição)
 }
 
 export type MetricaResultado = {

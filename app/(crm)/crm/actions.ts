@@ -8,6 +8,7 @@ import {
   moverNegocio,
   type NegocioInput,
 } from "@/lib/crm-db"
+import { registrarAtividade } from "@/lib/atividades-db"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -34,6 +35,13 @@ export async function criarNegocioAction(_prev: EstadoForm, formData: FormData):
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "crm",
+    acao: "criar",
+    entidadeTipo: "negocio",
+    entidadeNome: dados.titulo,
+    descricao: `Criou o negócio "${dados.titulo}"`,
+  })
   revalidatePath("/crm")
   return { ok: true }
 }
@@ -51,6 +59,14 @@ export async function atualizarNegocioAction(_prev: EstadoForm, formData: FormDa
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
+  await registrarAtividade({
+    modulo: "crm",
+    acao: "atualizar",
+    entidadeTipo: "negocio",
+    entidadeId: id,
+    entidadeNome: dados.titulo,
+    descricao: `Editou o negócio "${dados.titulo}"`,
+  })
   revalidatePath("/crm")
   return { ok: true }
 }
@@ -64,6 +80,13 @@ export async function moverNegocioAction(id: string, etapa: string): Promise<Est
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao mover."
     return { ok: false, erro: msg }
   }
+  await registrarAtividade({
+    modulo: "crm",
+    acao: "mover",
+    entidadeTipo: "negocio",
+    entidadeId: id,
+    descricao: `Moveu um negócio para a etapa "${etapa}"`,
+  })
   revalidatePath("/crm")
   return { ok: true }
 }
@@ -76,6 +99,13 @@ export async function excluirNegocioAction(id: string): Promise<EstadoForm> {
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: msg }
   }
+  await registrarAtividade({
+    modulo: "crm",
+    acao: "excluir",
+    entidadeTipo: "negocio",
+    entidadeId: id,
+    descricao: "Excluiu um negócio",
+  })
   revalidatePath("/crm")
   return { ok: true }
 }

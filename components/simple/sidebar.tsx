@@ -16,6 +16,7 @@ import {
   Wallet,
   BookOpen,
   Library,
+  History,
   Settings,
   X,
   type LucideIcon,
@@ -60,6 +61,7 @@ const grupos: NavGroup[] = [
       { href: "/comercial", label: "Comercial", icon: Briefcase },
       { href: "/financeiro", label: "Financeiro", icon: Wallet },
       { href: "/wiki", label: "Wiki", icon: Library },
+      { href: "/atividades", label: "Atividades", icon: History },
     ],
   },
 ]

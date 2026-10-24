@@ -6,8 +6,12 @@ import {
   adicionarMensagemEquipe,
   atualizarBanner,
   atualizarCliente,
+  atualizarDadosConteudo,
+  atualizarRoteiroConteudo,
   criarCliente,
+  criarConteudos,
   excluirCliente,
+  excluirConteudo,
   salvarArquivos,
   salvarConteudos,
   salvarEstrategia,
@@ -25,6 +29,8 @@ import {
   type ResultadoInput,
 } from "@/lib/clientes-db"
 import type { StatusCliente } from "@/lib/simple-data"
+import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
+import { registrarAtividade } from "@/lib/atividades-db"
 
 export type EstadoForm = { ok: boolean; erro?: string }
 
@@ -78,6 +84,14 @@ export async function criarClienteAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "clientes",
+    acao: "criar",
+    entidadeTipo: "cliente",
+    entidadeNome: nome,
+    descricao: `Cadastrou o cliente ${nome}`,
+  })
+
   revalidatePath("/clientes")
   revalidatePath("/marketing")
   return { ok: true }
@@ -117,6 +131,15 @@ export async function atualizarClienteAction(
     return { ok: false, erro: `Não foi possível atualizar no banco: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "clientes",
+    acao: "atualizar",
+    entidadeTipo: "cliente",
+    entidadeId: id,
+    entidadeNome: nome,
+    descricao: `Editou o cliente ${nome}`,
+  })
+
   revalidatePath("/clientes")
   revalidatePath(`/clientes/${id}`)
   revalidatePath("/marketing")
@@ -134,6 +157,15 @@ export async function excluirClienteAction(id: string, redirectTo?: string): Pro
     const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
     return { ok: false, erro: `Não foi possível excluir no banco: ${msg}` }
   }
+
+  await registrarAtividade({
+    modulo: "clientes",
+    acao: "excluir",
+    entidadeTipo: "cliente",
+    entidadeId: clienteId,
+    descricao: "Excluiu um cliente",
+  })
+
   revalidatePath("/clientes")
   revalidatePath("/marketing")
   // Quando a exclusão parte da página de detalhe (/clientes/[id]), redirecionamos
@@ -252,6 +284,10 @@ export async function salvarConteudosAction(
             status: String(item.status ?? "ideia"),
             data: item.data ? String(item.data) : undefined,
             roteiro: item.roteiro ? String(item.roteiro) : undefined,
+            legenda: item.legenda ? String(item.legenda) : undefined,
+            direcionamento: item.direcionamento ? String(item.direcionamento) : undefined,
+            links: Array.isArray(item.links) ? (item.links as ConteudoInput["links"]) : undefined,
+            referencia: item.referencia ? String(item.referencia) : undefined,
           }
         })
         .filter((c) => c.titulo.trim())
@@ -267,7 +303,165 @@ export async function salvarConteudosAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  agendarAtualizacaoInteligencia(id)
   revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Cria um único conteúdo novo no pipeline (acrescenta sem apagar os existentes).
+export async function criarConteudoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = String(formData.get("id") ?? "").trim()
+  if (!id) {
+    return { ok: false, erro: "Cliente não identificado." }
+  }
+  const titulo = String(formData.get("titulo") ?? "").trim()
+  if (!titulo) {
+    return { ok: false, erro: "Informe um título para o conteúdo." }
+  }
+  const conteudo: ConteudoInput = {
+    titulo,
+    formato: String(formData.get("formato") ?? "Reels"),
+    status: String(formData.get("status") ?? "ideia"),
+    data: String(formData.get("data") ?? "") || undefined,
+  }
+
+  try {
+    await criarConteudos(id, [conteudo])
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível criar o conteúdo: ${msg}` }
+  }
+
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "criar",
+    entidadeTipo: "conteudo",
+    entidadeId: id,
+    entidadeNome: titulo,
+    descricao: `Criou o conteúdo "${titulo}"`,
+  })
+
+  agendarAtualizacaoInteligencia(id)
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Edita os dados básicos (título, formato, status, data) de um único conteúdo.
+export async function atualizarDadosConteudoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const clienteId = String(formData.get("clienteId") ?? "").trim()
+  const conteudoId = String(formData.get("conteudoId") ?? "").trim()
+  if (!clienteId || !conteudoId) {
+    return { ok: false, erro: "Conteúdo não identificado." }
+  }
+  const titulo = String(formData.get("titulo") ?? "").trim()
+  if (!titulo) {
+    return { ok: false, erro: "Informe um título para o conteúdo." }
+  }
+
+  try {
+    await atualizarDadosConteudo(clienteId, conteudoId, {
+      titulo,
+      formato: String(formData.get("formato") ?? "Reels"),
+      status: String(formData.get("status") ?? "ideia"),
+      data: String(formData.get("data") ?? "") || undefined,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar o conteúdo: ${msg}` }
+  }
+
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "atualizar",
+    entidadeTipo: "conteudo",
+    entidadeId: conteudoId,
+    entidadeNome: titulo,
+    descricao: `Editou o conteúdo "${titulo}"`,
+  })
+
+  agendarAtualizacaoInteligencia(clienteId)
+  revalidatePath(`/clientes/${clienteId}`)
+  return { ok: true }
+}
+
+// Exclui um único conteúdo do pipeline.
+export async function excluirConteudoAction(clienteId: string, conteudoId: string): Promise<EstadoForm> {
+  const id = clienteId.trim()
+  const cId = conteudoId.trim()
+  if (!id || !cId) {
+    return { ok: false, erro: "Conteúdo não identificado." }
+  }
+  try {
+    await excluirConteudo(id, cId)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao excluir."
+    return { ok: false, erro: `Não foi possível excluir o conteúdo: ${msg}` }
+  }
+
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "excluir",
+    entidadeTipo: "conteudo",
+    entidadeId: cId,
+    descricao: "Excluiu um conteúdo",
+  })
+
+  agendarAtualizacaoInteligencia(id)
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Salva/edita apenas o roteiro de um conteúdo do pipeline (aberto ao clicar no título).
+export async function salvarRoteiroConteudoAction(
+  _prev: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const clienteId = String(formData.get("clienteId") ?? "").trim()
+  const conteudoId = String(formData.get("conteudoId") ?? "").trim()
+  if (!clienteId || !conteudoId) {
+    return { ok: false, erro: "Conteúdo não identificado." }
+  }
+  const roteiro = String(formData.get("roteiro") ?? "")
+  const legenda = String(formData.get("legenda") ?? "")
+  const direcionamento = String(formData.get("direcionamento") ?? "")
+  const referencia = String(formData.get("referencia") ?? "")
+
+  let links: NonNullable<ConteudoInput["links"]> = []
+  try {
+    const parsed = JSON.parse(String(formData.get("links") ?? "[]")) as unknown
+    if (Array.isArray(parsed)) {
+      links = parsed.map((l) => {
+        const item = (l ?? {}) as Record<string, unknown>
+        return { rotulo: String(item.rotulo ?? ""), url: String(item.url ?? "") }
+      })
+    }
+  } catch {
+    links = []
+  }
+
+  try {
+    await atualizarRoteiroConteudo(clienteId, conteudoId, { roteiro, legenda, direcionamento, links, referencia })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Erro desconhecido ao salvar."
+    return { ok: false, erro: `Não foi possível salvar o roteiro: ${msg}` }
+  }
+
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "atualizar",
+    entidadeTipo: "roteiro",
+    entidadeId: conteudoId,
+    descricao: "Editou o roteiro de um conteúdo",
+  })
+
+  agendarAtualizacaoInteligencia(clienteId)
+  revalidatePath(`/clientes/${clienteId}`)
   return { ok: true }
 }
 
@@ -301,6 +495,14 @@ export async function salvarEstrategiaAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  await registrarAtividade({
+    modulo: "conteudo",
+    acao: "atualizar",
+    entidadeTipo: "estrategia",
+    entidadeId: id,
+    descricao: "Atualizou a estratégia de um cliente",
+  })
+
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
 }
@@ -325,6 +527,7 @@ export async function salvarArquivosAction(
             nome: String(item.nome ?? ""),
             tipo: String(item.tipo ?? "Material"),
             url: item.url ? String(item.url) : undefined,
+            data: item.data ? String(item.data) : undefined,
           }
         })
         .filter((a) => a.nome.trim())

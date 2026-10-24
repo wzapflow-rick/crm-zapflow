@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { EstadoForm } from "@/app/(crm)/calendario/actions"
-import { TIPOS_EVENTO, type Evento } from "@/lib/eventos-types"
+import { TIPOS_EVENTO, calcularDuracao, type Evento } from "@/lib/eventos-types"
 import type { Membro } from "@/lib/membros-db"
 
 export type ClienteOpcao = { id: string; nome: string }
@@ -72,6 +72,19 @@ export function EventoDialog({
   const [estado, formAction] = useActionState(acao, estadoInicial)
   const router = useRouter()
 
+  // Horários controlados para exibir a duração em tempo real.
+  const [hora, setHora] = useState(evento?.hora ?? "")
+  const [horaFim, setHoraFim] = useState(evento?.horaFim ?? "")
+  const duracao = calcularDuracao(hora, horaFim)
+  const fimInvalido = Boolean(hora && horaFim && !duracao)
+
+  // Ao reabrir para outro evento, sincroniza os horários do formulário.
+  useEffect(() => {
+    setHora(evento?.hora ?? "")
+    setHoraFim(evento?.horaFim ?? "")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evento?.id, aberto])
+
   useEffect(() => {
     if (estado.ok) {
       setAberto(false)
@@ -114,16 +127,33 @@ export function EventoDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="data">Data *</Label>
               <Input id="data" name="data" type="date" defaultValue={evento?.data || dataPadrao || ""} required />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="hora">Hora</Label>
-              <Input id="hora" name="hora" type="time" defaultValue={evento?.hora || ""} />
+              <Label htmlFor="hora">Início</Label>
+              <Input id="hora" name="hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="horaFim">Fim</Label>
+              <Input
+                id="horaFim"
+                name="horaFim"
+                type="time"
+                value={horaFim}
+                onChange={(e) => setHoraFim(e.target.value)}
+                aria-invalid={fimInvalido}
+              />
             </div>
           </div>
+
+          {(duracao || fimInvalido) && (
+            <p className={cn("-mt-1 text-xs", fimInvalido ? "text-destructive" : "text-muted-foreground")}>
+              {fimInvalido ? "O horário final precisa ser depois do início." : `Duração: ${duracao}`}
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">

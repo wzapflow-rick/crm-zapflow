@@ -7,7 +7,7 @@ import { PERSONA } from "@/lib/persona"
 
 // Modelo da OpenAI usado para gerar os insights. Troque aqui caso sua conta
 // tenha acesso a outro (ex.: "gpt-4o-mini" para custo menor, "gpt-4o" padrão).
-const MODELO = "gpt-4o"
+  const MODELO = "gpt-5"
 
 const schemaInsights = z.object({
   resumo: z.string().describe("Diagnóstico geral do perfil em 2 a 3 frases, em português do Brasil."),

@@ -8,6 +8,15 @@ import { getPerformance } from "@/lib/performance-db"
 import { getExperimentos } from "@/lib/experimentos-db"
 import { getPadroes } from "@/lib/padroes-db"
 import { getAprendizadosGlobais } from "@/lib/global-db"
+import { getOperacoes } from "@/lib/operacoes-db"
+import { getConexaoInstagram, getMidiasInstagram } from "@/lib/instagram-db"
+import { compararAnalisesIa, getHistoricoAnalisesIa } from "@/lib/analises-ia-db"
+import { buscarEvidenciasSemanticas, formatarEvidenciasSemanticas } from "@/lib/busca-semantica"
+import {
+  analisarMidiasInstagram,
+  formatarResumoInteligencia,
+  selecionarEvidenciasInstagram,
+} from "@/lib/inteligencia-cliente"
 
 // Resumo enxuto do contexto, usado para o painel "Contexto Atual" na UI.
 export type ResumoContexto = {
@@ -33,8 +42,8 @@ function linhasMetas(metas: { rotulo: string; atual: number; alvo: number; unida
 
 // Monta TODA a memória disponível do cliente no banco e devolve em dois formatos:
 // um resumo para a UI e um texto pronto para o system prompt.
-export async function montarContextoCliente(empresaId: string): Promise<ContextoCliente | null> {
-  const cliente = await getClientePorId(empresaId)
+export async function montarContextoCliente(empresaId: string, consulta = ""): Promise<ContextoCliente | null> {
+  const cliente = await getClientePorId(empresaId).catch(() => null)
   if (!cliente) return null
 
   const [metas, estrategia, conteudos, resultados, historico, memoria, reunioes] = await Promise.all([
@@ -47,12 +56,17 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     getReunioes(empresaId).catch(() => []),
   ])
 
-  const [performance, experimentos, padroes, aprendizadosGlobais] = await Promise.all([
-    getPerformance(empresaId).catch(() => []),
-    getExperimentos(empresaId).catch(() => []),
-    getPadroes(empresaId).catch(() => []),
-    getAprendizadosGlobais().catch(() => []),
-  ])
+  const [performance, experimentos, padroes, aprendizadosGlobais, operacoes, instaConexao, instaMidias, historicoAnalisesIa] =
+    await Promise.all([
+      getPerformance(empresaId).catch(() => []),
+      getExperimentos(empresaId).catch(() => []),
+      getPadroes(empresaId).catch(() => []),
+      getAprendizadosGlobais().catch(() => []),
+      getOperacoes().catch(() => []),
+      getConexaoInstagram(empresaId).catch(() => null),
+      getMidiasInstagram(empresaId).catch(() => []),
+      getHistoricoAnalisesIa(empresaId, 5).catch(() => []),
+    ])
 
   const partes: string[] = []
 
@@ -96,10 +110,13 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
   }
 
   if (conteudos.length > 0) {
-    const amostra = conteudos.slice(0, 15)
+    const amostra = conteudos.slice(0, 30)
     partes.push(
-      `\n## CONTEÚDOS (${conteudos.length} no total, amostra)\n${amostra
-        .map((c) => `- [${c.status}] ${c.titulo} (${c.formato})`)
+      `\n## CONTEÚDOS DO SIMPLE OS (${conteudos.length} no total; amostra detalhada)\n${amostra
+        .map((c) => {
+          const detalhes = [c.legenda, c.roteiro, c.direcionamento].filter(Boolean).join(" | ").slice(0, 500)
+          return `- [${c.status}] ${c.titulo} (${c.formato})${c.dataISO ? ` em ${c.dataISO}` : ""}${detalhes ? ` — ${detalhes}` : ""}`
+        })
         .join("\n")}`,
     )
   }
@@ -182,6 +199,94 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     )
   }
 
+  if (instaConexao) {
+    const perfil = [
+      `Conta: @${instaConexao.username ?? "—"}${instaConexao.modo === "demo" ? " (DADOS DE DEMONSTRAÇÃO — não reais)" : ""}`,
+      instaConexao.seguidores != null ? `Seguidores: ${instaConexao.seguidores}` : "",
+      instaConexao.midiaCount != null ? `Publicações: ${instaConexao.midiaCount}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ")
+
+    const topPosts = [...instaMidias]
+      .sort((a, b) => (b.alcance ?? 0) - (a.alcance ?? 0))
+      .slice(0, 8)
+      .map((m) => {
+        const metr = [
+          m.alcance != null ? `${m.alcance} alcance` : "",
+          m.visualizacoes != null ? `${m.visualizacoes} views` : "",
+          m.curtidas != null ? `${m.curtidas} curtidas` : "",
+          m.comentarios != null ? `${m.comentarios} coment.` : "",
+          m.salvamentos != null ? `${m.salvamentos} salvos` : "",
+          m.compartilhamentos != null ? `${m.compartilhamentos} compart.` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+        const leg = m.legenda ? m.legenda.slice(0, 80) : "(sem legenda)"
+        return `- [${m.tipo}] ${leg}${metr ? ` — ${metr}.` : "."}`
+      })
+      .join("\n")
+
+    const inteligencia = analisarMidiasInstagram(instaMidias, {
+      ultimaSync: instaConexao.ultimaSync,
+      midiaCountEsperada: instaConexao.midiaCount,
+    })
+    inteligencia.conteudosSIMPLE = conteudos.length
+    const resumoNumerico = formatarResumoInteligencia(inteligencia)
+    const evidencias = selecionarEvidenciasInstagram(instaMidias)
+    partes.push(
+      `\n## INSTAGRAM (dados da conta conectada)\n${perfil}${topPosts ? `\n### Publicações com melhor alcance\n${topPosts}` : ""}\n\n### ANÁLISE NUMÉRICA COMPLETA\n${resumoNumerico}${evidencias ? `\n### EVIDÊNCIAS DE PUBLICAÇÕES\n${evidencias}` : ""}`,
+    )
+  }
+
+  if (consulta.trim()) {
+    const evidenciasSemanticas = await buscarEvidenciasSemanticas({
+      empresaId,
+      consulta,
+      midias: instaMidias,
+      conteudos,
+    })
+    const textoEvidencias = formatarEvidenciasSemanticas(evidenciasSemanticas)
+    if (textoEvidencias) {
+      partes.push(`\n## EVIDÊNCIAS SEMANTICAMENTE RELEVANTES PARA A PERGUNTA\n${textoEvidencias}\nUse estas evidências como apoio específico para a pergunta atual. Relevância não prova causalidade; cite a origem e diferencie observação de interpretação.`)
+    }
+  }
+
+  if (historicoAnalisesIa.length > 0) {
+    const comparacao = compararAnalisesIa(historicoAnalisesIa)
+    if (comparacao.disponivel) {
+      const formatarMetrica = (nome: string, valor: { atual: number | null; anterior: number | null; absoluta: number | null; percentual: number | null; direcao: string }) => {
+        if (valor.direcao === "sem_dados") return `${nome}: sem dados comparáveis`
+        const percentual = valor.percentual === null ? "percentual n/d" : `${valor.percentual > 0 ? "+" : ""}${valor.percentual}%`
+        return `${nome}: ${valor.direcao}, ${valor.atual} vs ${valor.anterior} (${percentual})`
+      }
+      partes.push(`\n## EVOLUÇÃO TEMPORAL COMPARÁVEL\n${comparacao.resumo}\n${[
+        formatarMetrica("Curtidas", comparacao.metricas.curtidasTotal),
+        formatarMetrica("Comentários", comparacao.metricas.comentariosTotal),
+        formatarMetrica("Salvamentos", comparacao.metricas.salvamentosTotal),
+        formatarMetrica("Compartilhamentos", comparacao.metricas.compartilhamentosTotal),
+        formatarMetrica("Visualizações", comparacao.metricas.visualizacoesTotal),
+      ].join("\\n")}\nPadrões persistentes: ${comparacao.padroes.persistentes.length > 0 ? comparacao.padroes.persistentes.join("; ") : "nenhum identificado"}\nPadrões novos: ${comparacao.padroes.novos.length > 0 ? comparacao.padroes.novos.join("; ") : "nenhum identificado"}\nPadrões ausentes nesta análise: ${comparacao.padroes.ausentes.length > 0 ? comparacao.padroes.ausentes.join("; ") : "nenhum identificado"}\nCompare somente períodos e amostras equivalentes quando possível; não atribua causalidade à variação sem experimento ou evidência adicional.`)
+    }
+    const linhas = historicoAnalisesIa.map((analise, indice) => {
+      const qualidade = typeof analise.qualidade.nivel === "string" ? `${analise.qualidade.nivel} (${analise.qualidade.percentual ?? "n/d"}%)` : "n/d"
+      const metricas = analise.metricas
+      const alcance = typeof metricas.alcanceTotal === "number" ? metricas.alcanceTotal : "n/d"
+      const engajamento = typeof metricas.engajamentoMedio === "number" ? `${metricas.engajamentoMedio}%` : "n/d"
+      const padroes = Array.isArray(analise.padroes)
+        ? analise.padroes.slice(0, 3).map((padrao) => {
+            if (!padrao || typeof padrao !== "object") return ""
+            const item = padrao as { categoria?: string; padrao?: string; confianca?: string }
+            return item.padrao ? `[${item.categoria ?? "geral"}] ${item.padrao} (${item.confianca ?? "n/d"})` : ""
+          }).filter(Boolean).join("; ")
+        : ""
+      return `- ${indice === 0 ? "Atual" : `Anterior ${indice}`} | analisada em ${new Date(analise.analisadoEm).toLocaleDateString("pt-BR")} | ${analise.postsInstagram} posts Instagram | alcance total ${alcance} | engajamento médio ${engajamento} | qualidade ${qualidade}${padroes ? ` | padrões: ${padroes}` : ""}`
+    }).join("\n")
+    partes.push(`\n## MEMÓRIA ANALÍTICA VERSIONADA (mais recente primeiro)
+${linhas}
+Use este histórico para explicar evolução e persistência de padrões. Não trate análises antigas como estado atual quando houver uma análise mais recente.`)
+  }
+
   if (padroes.length > 0) {
     const linhas = padroes
       .map((p) => {
@@ -204,6 +309,28 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
     )
   }
 
+  // Operações da SIMPLE: testes reais e controlados da agência. São a fonte
+  // mais confiável para decisões (dado real > achismo). Damos prioridade a elas.
+  const operacoesComValor = operacoes.filter(
+    (o) => o.vencedor || o.aprendizados.length > 0 || o.recomendacoes.length > 0,
+  )
+  if (operacoesComValor.length > 0) {
+    const linhas = operacoesComValor
+      .slice(0, 15)
+      .map((o) => {
+        const partesOp = [`### ${o.titulo} (${o.status})`]
+        if (o.objetivo) partesOp.push(`Objetivo: ${o.objetivo}.`)
+        if (o.vencedor) partesOp.push(`VENCEDOR: ${o.vencedor}.`)
+        if (o.aprendizados.length) partesOp.push(`Aprendizados: ${o.aprendizados.join("; ")}.`)
+        if (o.recomendacoes.length) partesOp.push(`Recomendações: ${o.recomendacoes.join("; ")}.`)
+        return partesOp.join("\n")
+      })
+      .join("\n\n")
+    partes.push(
+      `\n## OPERAÇÕES DA SIMPLE (testes controlados da agência — DADO REAL, não achismo; use como base PRIORITÁRIA para roteiros, ganchos e decisões de conteúdo)\n${linhas}`,
+    )
+  }
+
   const resumo: ResumoContexto = {
     nome: cliente.nome,
     segmento: cliente.segmento,
@@ -223,6 +350,8 @@ export async function montarContextoCliente(empresaId: string): Promise<Contexto
       { rotulo: "Performance", itens: performance.length },
       { rotulo: "Experimentos", itens: experimentos.length },
       { rotulo: "Padrões", itens: padroes.length },
+      { rotulo: "Operações", itens: operacoesComValor.length },
+      { rotulo: "Instagram", itens: instaConexao ? instaMidias.length : 0 },
     ],
   }
 

@@ -24,10 +24,10 @@ const estadoInicial: EstadoForm = { ok: false }
 
 const TIPOS: Arquivo["tipo"][] = ["Material", "Branding", "Drive", "Contrato"]
 
-type ArquivoEditavel = { nome: string; tipo: string; url: string }
+type ArquivoEditavel = { nome: string; tipo: string; url: string; data: string }
 
 function mapearLinhas(arquivos: Arquivo[]): ArquivoEditavel[] {
-  return arquivos.map((a) => ({ nome: a.nome, tipo: a.tipo, url: a.url ?? "" }))
+  return arquivos.map((a) => ({ nome: a.nome, tipo: a.tipo, url: a.url ?? "", data: a.dataISO ?? "" }))
 }
 
 function BotaoSalvar({ children }: { children: ReactNode }) {
@@ -70,14 +70,16 @@ export function ArquivosDialog({
   }
 
   const adicionarLinha = () => {
-    setLinhas((prev) => [...prev, { nome: "", tipo: "Material", url: "" }])
+    setLinhas((prev) => [...prev, { nome: "", tipo: "Material", url: "", data: "" }])
   }
 
   const removerLinha = (i: number) => {
     setLinhas((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  const arquivosJson = JSON.stringify(linhas.map((l) => ({ nome: l.nome, tipo: l.tipo, url: l.url })))
+  const arquivosJson = JSON.stringify(
+    linhas.map((l) => ({ nome: l.nome, tipo: l.tipo, url: l.url, data: l.data })),
+  )
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -141,19 +143,30 @@ export function ArquivosDialog({
                       onChange={(e) => atualizarLinha(i, "url", e.target.value)}
                     />
                   </div>
-                  <div className="grid gap-1">
-                    <Label className="text-[11px] text-muted-foreground">Tipo</Label>
-                    <select
-                      value={l.tipo}
-                      onChange={(e) => atualizarLinha(i, "tipo", e.target.value)}
-                      className="h-9 rounded-md border border-input bg-background px-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      {TIPOS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1">
+                      <Label className="text-[11px] text-muted-foreground">Tipo</Label>
+                      <select
+                        value={l.tipo}
+                        onChange={(e) => atualizarLinha(i, "tipo", e.target.value)}
+                        className="h-9 rounded-md border border-input bg-background px-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        {TIPOS.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[11px] text-muted-foreground">Data de postagem</Label>
+                      <Input
+                        type="date"
+                        value={l.data}
+                        onChange={(e) => atualizarLinha(i, "data", e.target.value)}
+                        aria-label="Data de postagem"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

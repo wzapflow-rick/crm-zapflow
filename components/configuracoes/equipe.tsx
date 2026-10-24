@@ -74,6 +74,22 @@ function MembroDialog({ membro, trigger }: { membro?: Membro; trigger: ReactNode
             <Input id="cargo" name="cargo" placeholder="Ex.: Social Media" defaultValue={membro?.cargo} />
           </div>
 
+          <div className="grid gap-1.5">
+            <Label htmlFor="pin">PIN de acesso {membro && <span className="text-muted-foreground">(opcional ao editar)</span>}</Label>
+            <Input
+              id="pin"
+              name="pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={membro ? "Deixe em branco para manter" : "4 a 8 dígitos"}
+              className="tracking-[0.3em]"
+            />
+            <p className="text-xs text-muted-foreground">
+              É com este PIN que {membro ? "a pessoa" : "o membro"} entra no sistema. Use apenas números (4 a 8 dígitos).
+            </p>
+          </div>
+
           {estado.erro && (
             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{estado.erro}</p>
           )}
@@ -116,7 +132,7 @@ function BotaoExcluir({ membro }: { membro: Membro }) {
   )
 }
 
-export function Equipe({ membros }: { membros: Membro[] }) {
+export function Equipe({ membros, children }: { membros: Membro[]; children?: ReactNode }) {
   return (
     <main className="flex-1 overflow-y-auto bg-background">
       <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
@@ -151,6 +167,16 @@ export function Equipe({ membros }: { membros: Membro[] }) {
                     <p className="truncate text-sm font-medium text-foreground">{m.nome}</p>
                     <p className="truncate text-xs text-muted-foreground">{m.cargo || "Sem cargo definido"}</p>
                   </div>
+                  <span
+                    className={cn(
+                      "hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-medium sm:inline-block",
+                      m.temPin
+                        ? "bg-primary/10 text-primary"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {m.temPin ? "PIN definido" : "Sem PIN"}
+                  </span>
                   <MembroDialog
                     membro={m}
                     trigger={
@@ -174,6 +200,8 @@ export function Equipe({ membros }: { membros: Membro[] }) {
             </div>
           )}
         </div>
+
+        {children}
       </div>
     </main>
   )

@@ -6,6 +6,7 @@ import type {
   ConteudoItem,
   Estrategia,
   EventoCliente,
+  LinkConteudo,
   Mensagem,
   MetricaResultado,
   Meta,
@@ -112,6 +113,444 @@ export async function getClientes(): Promise<Cliente[]> {
   return rows.map(mapRow)
 }
 
+// ── Clientes que precisam de atenção (Dashboard) ──────────────────────────
+// Radar operacional: detecta, em uma única query agregada, situações de risco
+// APENAS de clientes com status 'ativo'. Cada situação vira um alerta com um
+// nível de prioridade e uma ação direta ("Ver cliente", "Ver resultados", ...).
+//
+// A estrutura é modular: novos tipos de alerta (financeiro, CRM, calendário...)
+// podem ser adicionados sem mudar o Dashboard — basta empurrar mais itens para
+// a lista de `AlertaCliente` seguindo o mesmo formato.
+export type PrioridadeAlerta = "critico" | "atencao" | "acompanhar"
+
+export type AlertaCliente = {
+  clienteId: string
+  clienteNome: string
+  iniciais: string
+  cor: string
+  // Origem do alerta (permite futuras fontes: financeiro, crm, calendario...)
+  categoria: "conteudo" | "aprovacao" | "renovacao" | "meta" | "tarefa" | "sugestao"
+  prioridade: PrioridadeAlerta
+  texto: string
+  acaoLabel: string
+  acaoUrl: string
+  // Explicação do "porquê" mostrada no card de detalhe da Central de Atenção.
+  motivo?: string
+  severidade: number
+}
+
+const DIAS_SEM_POST_ATENCAO = 5 // avisa já a partir de 5 dias sem publicar no feed
+const DIAS_SEM_POST_CRITICO = 10 // eleva para crítico após 10 dias
+const DIAS_RENOVACAO_CRITICO = 3 // renovação em até 3 dias = crítico
+const DIAS_RENOVACAO_ATENCAO = 15 // até 15 dias = atenção
+const DIAS_RENOVACAO_ACOMPANHAR = 30 // até 30 dias = acompanhar
+
+// Peso base por prioridade para ordenar críticos > atenção > acompanhar.
+const PESO_PRIORIDADE: Record<PrioridadeAlerta, number> = {
+  critico: 300,
+  atencao: 200,
+  acompanhar: 100,
+}
+
+// Sugestões proativas rotativas: garantem que TODO cliente ativo sem pendência
+// ainda apareça na Central de Atenção com uma próxima ação. A escolha é
+// determinística por cliente (hash do id), então cada cliente mantém a mesma
+// sugestão entre recarregamentos, mas clientes diferentes recebem focos
+// diferentes (estratégia, resultados, metas, pauta).
+const SUGESTOES_PROATIVAS: { texto: string; acaoLabel: string; aba: string; motivo: string }[] = [
+  {
+    texto: "Revise a estratégia e planeje o próximo mês de conteúdos.",
+    acaoLabel: "Ver estratégia",
+    aba: "estrategia",
+    motivo:
+      "Nenhuma pendência crítica no radar — é o momento ideal para trabalho de fundo. Revisar a estratégia e planejar o próximo mês mantém o crescimento intencional, e não reativo.",
+  },
+  {
+    texto: "Analise os últimos resultados do Instagram e ajuste a pauta.",
+    acaoLabel: "Ver resultados",
+    aba: "resultados",
+    motivo:
+      "Sem urgências agora. Olhar os últimos resultados do Instagram mostra o que realmente engajou e orienta a próxima pauta com base em dado, não em achismo.",
+  },
+  {
+    texto: "Confira as metas do mês e alinhe as próximas ações.",
+    acaoLabel: "Ver resultados",
+    aba: "resultados",
+    motivo:
+      "Nada crítico no momento. Conferir as metas do mês e alinhar as próximas ações mantém o time inteiro puxando para o mesmo objetivo.",
+  },
+  {
+    texto: "Planeje um conteúdo de destaque para engajar a audiência.",
+    acaoLabel: "Programar conteúdos",
+    aba: "conteudo",
+    motivo:
+      "Momento livre de pendências — a chance perfeita para planejar um conteúdo de destaque que gere pico de engajamento e mais conexão com a audiência.",
+  },
+]
+
+function hashIndice(id: string, mod: number): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % mod
+  return h
+}
+
+type AtencaoRow = {
+  id: string
+  nome: string
+  iniciais: string | null
+  cor: string | null
+  recorrente: boolean | null
+  desde: string | null
+  ultima_data: string | null
+  pior_ratio: string | null
+  tarefas_atrasadas: string | number | null
+  tarefas_amanha: string | number | null
+  conteudos_aprovacao: string | number | null
+  conteudos_semana: string | number | null
+  conteudos_producao: string | number | null
+  conteudos_total: string | number | null
+}
+
+// Calcula quantos dias faltam para o próximo aniversário mensal de `desde`
+// (a "renovação" do contrato recorrente). Retorna null se não houver data.
+function diasParaRenovacao(desdeISO: string | null, hoje: Date): number | null {
+  if (!desdeISO) return null
+  const partes = desdeISO.split("-").map(Number)
+  if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null
+  const diaContrato = partes[2]
+  const base = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate())
+  // Testa este mês e o próximo; usa o último dia do mês quando o dia não existe (ex.: 31).
+  for (let offset = 0; offset <= 1; offset++) {
+    const ano = hoje.getUTCFullYear()
+    const mes = hoje.getUTCMonth() + offset
+    const ultimoDia = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate()
+    const dia = Math.min(diaContrato, ultimoDia)
+    const alvo = Date.UTC(ano, mes, dia)
+    if (alvo >= base) {
+      return Math.round((alvo - base) / 86_400_000)
+    }
+  }
+  return null
+}
+
+function diasDesde(dataISO: string | null, hoje: Date): number | null {
+  if (!dataISO) return null
+  const partes = dataISO.split("-").map(Number)
+  if (partes.length !== 3 || partes.some((n) => Number.isNaN(n))) return null
+  const alvo = Date.UTC(partes[0], partes[1] - 1, partes[2])
+  const base = Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate())
+  return Math.round((base - alvo) / 86_400_000)
+}
+
+export async function getClientesAtencao(): Promise<AlertaCliente[]> {
+  const rows = await query<AtencaoRow>(
+    `with active_empresas as materialized (
+       select id, nome, iniciais, cor, recorrente, desde
+       from public.empresas
+       where status = 'ativo' and recorrente is distinct from false
+     ),
+     ult_post_instagram as (
+       select i.empresa_id::text as empresa_id, to_char(max(i.publicado_em), 'YYYY-MM-DD') as ultima_data
+       from public.instagram_midia i
+       join active_empresas e on e.id::text = i.empresa_id::text
+       where i.publicado_em is not null
+       group by i.empresa_id
+     ),
+     meta_calc as (
+       select m.empresa_id::text as empresa_id,
+              min(coalesce(m.atual, 0)::numeric / nullif(m.alvo, 0)::numeric) as pior_ratio
+       from public.metas m
+       join active_empresas e on e.id::text = m.empresa_id::text
+       where m.alvo is not null and m.alvo::numeric > 0
+       group by m.empresa_id
+     ),
+     tarefa_calc as (
+       select t.empresa_id::text as empresa_id,
+              count(*) filter (where t.prazo < current_date) as atrasadas,
+              count(*) filter (where t.prazo = current_date + 1) as vence_amanha
+       from public.tarefas t
+       join active_empresas e on e.id::text = t.empresa_id::text
+       where t.status <> 'concluido' and t.prazo is not null
+       group by t.empresa_id
+     ),
+     conteudo_calc as (
+       select c.empresa_id::text as empresa_id,
+              count(*) filter (where c.status = 'aprovacao') as aguardando_aprovacao,
+              count(*) filter (
+                where c.data is not null
+                  and c.data::date between current_date + 1 and current_date + 7
+                  and c.status <> 'publicado'
+              ) as programados_semana,
+              count(*) filter (where c.status in ('ideia', 'roteiro', 'gravacao', 'edicao')) as em_producao,
+              count(*) as total_conteudos
+       from public.conteudos c
+       join active_empresas e on e.id::text = c.empresa_id::text
+       group by c.empresa_id
+     )
+     select e.id, e.nome, e.iniciais, e.cor, e.recorrente,
+            to_char(e.desde, 'YYYY-MM-DD') as desde,
+            up.ultima_data,
+            mc.pior_ratio::text as pior_ratio,
+            coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
+            coalesce(tc.vence_amanha, 0) as tarefas_amanha,
+            coalesce(cc.aguardando_aprovacao, 0) as conteudos_aprovacao,
+            coalesce(cc.programados_semana, 0) as conteudos_semana,
+            coalesce(cc.em_producao, 0) as conteudos_producao,
+            coalesce(cc.total_conteudos, 0) as conteudos_total
+     from active_empresas e
+     left join ult_post_instagram up on up.empresa_id = e.id::text
+     left join meta_calc mc on mc.empresa_id = e.id::text
+     left join tarefa_calc tc on tc.empresa_id = e.id::text
+     left join conteudo_calc cc on cc.empresa_id = e.id::text
+     order by e.nome asc`,
+  )
+
+  const hoje = new Date()
+  const alertas: AlertaCliente[] = []
+
+  for (const r of rows) {
+    const base = {
+      clienteId: r.id,
+      clienteNome: r.nome ?? "Sem nome",
+      iniciais: r.iniciais || iniciaisDe(r.nome ?? ""),
+      cor: r.cor || "bg-primary",
+    }
+    const verCliente = { acaoLabel: "Ver cliente", acaoUrl: `/clientes/${r.id}` }
+    // Marca quantos alertas existiam antes deste cliente: se ao final nada foi
+    // detectado, geramos uma sugestão proativa para que ele nunca fique sem ação.
+    const antes = alertas.length
+
+    // 1) Instagram — considera somente publicações sincronizadas pela API oficial.
+    const diasPost = diasDesde(r.ultima_data, hoje)
+    if (diasPost === null) {
+      alertas.push({
+        ...base,
+        ...verCliente,
+        acaoUrl: `/clientes/${r.id}?aba=instagram`,
+        categoria: "conteudo",
+        prioridade: "critico",
+        texto: "Nenhuma publicação sincronizada no Instagram.",
+        motivo:
+          "Sem nenhuma publicação sincronizada, a gente fica sem enxergar alcance, engajamento ou o que está funcionando. Conectar e publicar é o primeiro passo para provar valor e manter a marca viva na timeline.",
+        severidade: PESO_PRIORIDADE.critico + 60,
+      })
+    } else if (diasPost >= DIAS_SEM_POST_CRITICO) {
+      alertas.push({
+        ...base,
+        ...verCliente,
+        acaoUrl: `/clientes/${r.id}?aba=instagram`,
+        categoria: "conteudo",
+        prioridade: "critico",
+        texto: `Sem nova publicação no Instagram há ${diasPost} dias.`,
+        motivo: `Já são ${diasPost} dias sem novidade no feed. Consistência é o que mantém o algoritmo entregando e a audiência lembrando da marca — cada dia parado é alcance e conexão que ficam na mesa.`,
+        severidade: PESO_PRIORIDADE.critico + Math.min(diasPost, 50),
+      })
+    } else if (diasPost >= DIAS_SEM_POST_ATENCAO) {
+      alertas.push({
+        ...base,
+        ...verCliente,
+        acaoUrl: `/clientes/${r.id}?aba=instagram`,
+        categoria: "conteudo",
+        prioridade: "atencao",
+        texto: `Sem nova publicação no Instagram há ${diasPost} dias.`,
+        motivo: `São ${diasPost} dias sem publicar. Antes que a cadência esfrie de vez, vale reativar o feed: a regularidade é o que sustenta alcance e proximidade com quem segue.`,
+        severidade: PESO_PRIORIDADE.atencao + diasPost,
+      })
+    }
+
+    // 2) Renovação (apenas clientes recorrentes com data de início).
+    if (r.recorrente !== false) {
+      const dr = diasParaRenovacao(r.desde, hoje)
+      if (dr !== null) {
+        if (dr === 0) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "critico",
+            texto: "Renovação hoje.",
+            motivo:
+              "O contrato renova hoje. Chegar nessa conversa com os resultados recentes na mão e um próximo passo claro transforma a renovação num sim natural, em vez de uma negociação.",
+            severidade: PESO_PRIORIDADE.critico + 40,
+          })
+        } else if (dr <= DIAS_RENOVACAO_CRITICO) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "critico",
+            texto: `Renovação em ${dr} ${dr === 1 ? "dia" : "dias"}.`,
+            motivo:
+              "Faltam poucos dias para a renovação. É a hora de reunir os resultados entregues e reforçar o valor — antecipar essa conversa evita surpresa e mostra cuidado.",
+            severidade: PESO_PRIORIDADE.critico + (DIAS_RENOVACAO_CRITICO - dr),
+          })
+        } else if (dr <= DIAS_RENOVACAO_ATENCAO) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "atencao",
+            texto: `Renovação em ${dr} dias.`,
+            motivo:
+              "A renovação está chegando. Começar a preparar o balanço de resultados agora dá tempo de fechar o ciclo com uma boa história para contar ao cliente.",
+            severidade: PESO_PRIORIDADE.atencao + (DIAS_RENOVACAO_ATENCAO - dr),
+          })
+        } else if (dr <= DIAS_RENOVACAO_ACOMPANHAR) {
+          alertas.push({
+            ...base,
+            ...verCliente,
+            categoria: "renovacao",
+            prioridade: "acompanhar",
+            texto: `Renovação em ${dr} dias.`,
+            motivo:
+              "A renovação entra no radar. Nada urgente, mas manter o cliente enxergando valor ao longo do mês é o que faz a renovação acontecer sem esforço.",
+            severidade: PESO_PRIORIDADE.acompanhar + (DIAS_RENOVACAO_ACOMPANHAR - dr),
+          })
+        }
+      }
+    }
+
+    // 3) Meta do mês — usa a pior razão (atual/alvo) entre as metas cadastradas.
+    const ratio = r.pior_ratio !== null ? Number(r.pior_ratio) : null
+    if (ratio !== null && Number.isFinite(ratio)) {
+      const pct = Math.round(ratio * 100)
+      const acaoMeta = { acaoLabel: "Ver resultados", acaoUrl: `/clientes/${r.id}?aba=resultados` }
+      if (ratio < 0.3) {
+        alertas.push({
+          ...base,
+          ...acaoMeta,
+          categoria: "meta",
+          prioridade: "critico",
+          texto: `Meta do mês em ${pct}%.`,
+          motivo: `A meta do mês está bem abaixo do esperado (${pct}%). Como o mês ainda está em curso, dá tempo de rever a pauta e concentrar esforço no que gera resultado antes do fechamento.`,
+          severidade: PESO_PRIORIDADE.critico + (30 - pct),
+        })
+      } else if (ratio < 0.5) {
+        alertas.push({
+          ...base,
+          ...acaoMeta,
+          categoria: "meta",
+          prioridade: "atencao",
+          texto: `Meta do mês em ${pct}%.`,
+          motivo: `A meta está em ${pct}% do alvo. Um ajuste de rota agora — foco no que mais engaja — ainda coloca o mês nos trilhos.`,
+          severidade: PESO_PRIORIDADE.atencao + (50 - pct),
+        })
+      } else if (ratio < 0.7) {
+        alertas.push({
+          ...base,
+          ...acaoMeta,
+          categoria: "meta",
+          prioridade: "acompanhar",
+          texto: `Meta do mês em ${pct}%.`,
+          motivo: `A meta está em ${pct}%, no meio do caminho. Vale um empurrão nas ações que mais performam para garantir o fechamento no azul.`,
+          severidade: PESO_PRIORIDADE.acompanhar + (70 - pct),
+        })
+      }
+    }
+
+    // 4) Tarefas — atrasadas (crítico) ou vencendo amanhã (atenção).
+    const atrasadas = Number(r.tarefas_atrasadas ?? 0)
+    const amanha = Number(r.tarefas_amanha ?? 0)
+    const acaoTarefa = { acaoLabel: "Ver tarefas", acaoUrl: "/tarefas" }
+    if (atrasadas > 0) {
+      alertas.push({
+        ...base,
+        ...acaoTarefa,
+        categoria: "tarefa",
+        prioridade: "critico",
+        texto: `${atrasadas} ${atrasadas === 1 ? "tarefa atrasada" : "tarefas atrasadas"}.`,
+        motivo:
+          "Há entregas fora do prazo para este cliente. Tarefa atrasada trava o resto da operação e mexe com a percepção de cuidado — destravar essas é o que libera o fluxo de novo.",
+        severidade: PESO_PRIORIDADE.critico + 50 + Math.min(atrasadas, 20),
+      })
+    } else if (amanha > 0) {
+      alertas.push({
+        ...base,
+        ...acaoTarefa,
+        categoria: "tarefa",
+        prioridade: "atencao",
+        texto: `${amanha} ${amanha === 1 ? "tarefa vencendo amanhã" : "tarefas vencendo amanhã"}.`,
+        motivo:
+          "Há entregas vencendo amanhã. Adiantar hoje tira a operação do corre-corre e mantém tudo previsível para o time e para o cliente.",
+        severidade: PESO_PRIORIDADE.atencao + Math.min(amanha, 20),
+      })
+    }
+
+    // 5) Conteúdos aguardando aprovação (status = 'aprovacao' no pipeline).
+    const aguardandoAprovacao = Number(r.conteudos_aprovacao ?? 0)
+    if (aguardandoAprovacao > 0) {
+      alertas.push({
+        ...base,
+        acaoLabel: "Ver conteúdos",
+        acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+        categoria: "aprovacao",
+        prioridade: "atencao",
+        texto: `${aguardandoAprovacao} ${aguardandoAprovacao === 1 ? "conteúdo aguardando aprovação" : "conteúdos aguardando aprovação"}.`,
+        motivo:
+          "Tem conteúdo pronto parado esperando aprovação. Enquanto não sai, a produção fica represada e a data de publicação escorrega — destravar aqui solta todo o pipeline.",
+        severidade: PESO_PRIORIDADE.atencao + 30 + Math.min(aguardandoAprovacao, 20),
+      })
+    }
+
+    // 6) Programação da próxima semana — sinal proativo de que falta pauta.
+    const programadosSemana = Number(r.conteudos_semana ?? 0)
+    const emProducao = Number(r.conteudos_producao ?? 0)
+    const totalConteudos = Number(r.conteudos_total ?? 0)
+    if (programadosSemana === 0) {
+      alertas.push({
+        ...base,
+        acaoLabel: "Programar conteúdos",
+        acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+        categoria: "conteudo",
+        prioridade: "atencao",
+        texto:
+          totalConteudos === 0
+            ? "Nenhum conteúdo cadastrado — monte o planejamento."
+            : "Nada programado para a próxima semana.",
+        motivo:
+          totalConteudos === 0
+            ? "Não existe nenhum conteúdo cadastrado ainda. Sem pauta planejada a operação vira reação — montar o planejamento agora garante consistência e antecipa as aprovações."
+            : "A próxima semana está sem nada programado. Planejar com antecedência mantém a cadência de publicação e dá folga para aprovar sem aperto.",
+        severidade: PESO_PRIORIDADE.atencao + 25,
+      })
+    }
+
+    // 7) Baseline proativo — nenhum cliente ativo fica sem uma próxima ação.
+    // Só entra se as regras acima não geraram nada para este cliente.
+    if (alertas.length === antes) {
+      if (emProducao > 0) {
+        alertas.push({
+          ...base,
+          acaoLabel: "Ver conteúdos",
+          acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+          categoria: "sugestao",
+          prioridade: "acompanhar",
+          texto: `${emProducao} ${emProducao === 1 ? "conteúdo em produção" : "conteúdos em produção"} — avance o pipeline.`,
+          motivo:
+            "Tem conteúdo em produção parado no meio do caminho. Avançar o pipeline garante que ele chegue à publicação no prazo, sem acúmulo.",
+          severidade: PESO_PRIORIDADE.acompanhar + 20,
+        })
+      } else {
+        const sugestao = SUGESTOES_PROATIVAS[hashIndice(r.id, SUGESTOES_PROATIVAS.length)]
+        alertas.push({
+          ...base,
+          acaoLabel: sugestao.acaoLabel,
+          acaoUrl: `/clientes/${r.id}?aba=${sugestao.aba}`,
+          categoria: "sugestao",
+          prioridade: "acompanhar",
+          texto: sugestao.texto,
+          motivo: sugestao.motivo,
+          severidade: PESO_PRIORIDADE.acompanhar + 5,
+        })
+      }
+    }
+  }
+
+  // Ordena por prioridade (crítico > atenção > acompanhar) e, dentro dela,
+  // pelo alerta mais urgente (maior severidade).
+  return alertas.sort((a, b) => b.severidade - a.severidade)
+}
+
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
     `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
@@ -197,6 +636,24 @@ export async function salvarEstrategia(empresaId: string, input: Estrategia): Pr
      where id = $1`,
     [empresaId, limpar(input.estrategiaAtual), limpar(input.insights), limpar(input.concorrentes)],
   )
+}
+
+// Acrescenta itens à estratégia atual e/ou aos insights do cliente sem
+// sobrescrever o que já existe (usado pelas ações da IA no chat estratégico).
+export async function adicionarItensEstrategia(
+  empresaId: string,
+  itens: { estrategiaAtual?: string[]; insights?: string[] },
+): Promise<number> {
+  const novaEstrategia = (itens.estrategiaAtual ?? []).map((s) => s.trim()).filter(Boolean)
+  const novosInsights = (itens.insights ?? []).map((s) => s.trim()).filter(Boolean)
+  if (novaEstrategia.length === 0 && novosInsights.length === 0) return 0
+  const atual = await getEstrategia(empresaId)
+  await salvarEstrategia(empresaId, {
+    estrategiaAtual: [...atual.estrategiaAtual, ...novaEstrategia],
+    insights: [...atual.insights, ...novosInsights],
+    concorrentes: atual.concorrentes,
+  })
+  return novaEstrategia.length + novosInsights.length
 }
 
 // ── Metas (aba Visão geral) ───────────────────────────────────────────────
@@ -288,7 +745,7 @@ export async function getEventos(empresaId: string): Promise<EventoCliente[]> {
     `select id, titulo, tipo, data, hora
      from public.agenda_compromissos
      where empresa_id = $1
-     order by data asc nulls last, hora asc nulls last, created_at asc`,
+     order by data desc nulls last, hora desc nulls last, created_at desc`,
     [empresaId],
   )
   return rows.map((r) => ({
@@ -354,6 +811,21 @@ export async function salvarEventos(empresaId: string, eventos: EventoInput[]): 
   }
 }
 
+// Acrescenta compromissos ao calendário do cliente sem tocar nos existentes
+// (usado pelas ações da IA no chat estratégico).
+export async function adicionarEventos(empresaId: string, eventos: EventoInput[]): Promise<number> {
+  const validos = eventos.filter((e) => e.titulo?.trim())
+  for (const e of validos) {
+    const tipo = TIPOS_EVENTO.includes(e.tipo as EventoCliente["tipo"]) ? e.tipo : "gravacao"
+    await query(
+      `insert into public.agenda_compromissos (empresa_id, titulo, tipo, data, hora)
+       values ($1, $2, $3, $4, $5)`,
+      [empresaId, e.titulo.trim(), tipo, e.data || null, e.hora?.trim() || null],
+    )
+  }
+  return validos.length
+}
+
 // ── Conteúdos (aba Conteúdo) ──────────────────────────────────────────────
 
 type ConteudoRow = {
@@ -363,17 +835,44 @@ type ConteudoRow = {
   status: string | null
   data: Date | null
   roteiro: string | null
+  legenda: string | null
+  direcionamento: string | null
+  links: unknown
+  referencia: string | null
+}
+
+// Normaliza a lista de links (coluna jsonb) para o shape LinkConteudo[],
+// aceitando tanto array já parseado quanto string JSON, e descartando entradas inválidas.
+function sanitizarLinks(bruto: unknown): LinkConteudo[] {
+  let lista: unknown = bruto
+  if (typeof bruto === "string") {
+    try {
+      lista = JSON.parse(bruto)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(lista)) return []
+  return lista
+    .map((item) => {
+      const obj = (item ?? {}) as Record<string, unknown>
+      return {
+        rotulo: typeof obj.rotulo === "string" ? obj.rotulo.trim() : "",
+        url: typeof obj.url === "string" ? obj.url.trim() : "",
+      }
+    })
+    .filter((l) => l.url)
 }
 
 const FORMATOS_CONTEUDO: ConteudoItem["formato"][] = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"]
-const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edicao", "aprovacao", "publicado"]
+const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edicao", "aprovacao", "aprovado", "publicado"]
 
 export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
   const rows = await query<ConteudoRow>(
-    `select id, titulo, formato, status, data, roteiro
+    `select id, titulo, formato, status, data, roteiro, legenda, direcionamento, links, referencia
      from public.conteudos
      where empresa_id = $1
-     order by data asc nulls last, posicao asc, created_at asc`,
+     order by data desc nulls last, posicao desc, created_at desc`,
     [empresaId],
   )
   return rows.map((r) => ({
@@ -387,10 +886,24 @@ export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
     data: formatarDataCurta(r.data),
     dataISO: r.data ? new Date(r.data).toISOString().slice(0, 10) : "",
     roteiro: r.roteiro ?? "",
+    legenda: r.legenda ?? "",
+    direcionamento: r.direcionamento ?? "",
+    links: sanitizarLinks(r.links),
+    referencia: r.referencia ?? "",
   }))
 }
 
-export type ConteudoInput = { titulo: string; formato: string; status: string; data?: string; roteiro?: string }
+export type ConteudoInput = {
+  titulo: string
+  formato: string
+  status: string
+  data?: string
+  roteiro?: string
+  legenda?: string
+  direcionamento?: string
+  links?: LinkConteudo[]
+  referencia?: string
+}
 
 // Salva a lista de conteúdos do cliente regravando tudo numa transação.
 export async function salvarConteudos(empresaId: string, conteudos: ConteudoInput[]): Promise<void> {
@@ -406,9 +919,21 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
       const formato = FORMATOS_CONTEUDO.includes(c.formato as ConteudoItem["formato"]) ? c.formato : "Reels"
       const status = STATUS_CONTEUDO.includes(c.status as StatusConteudo) ? c.status : "ideia"
       await client.query(
-        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro)
-         values ($1, $2, $3, $4, $5, $6, $7)`,
-        [empresaId, titulo, formato, status, c.data || null, posicao++, c.roteiro?.trim() || null],
+        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro, legenda, direcionamento, links, referencia)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)`,
+        [
+          empresaId,
+          titulo,
+          formato,
+          status,
+          c.data || null,
+          posicao++,
+          c.roteiro?.trim() || null,
+          c.legenda?.trim() || null,
+          c.direcionamento?.trim() || null,
+          JSON.stringify(sanitizarLinks(c.links)),
+          c.referencia?.trim() || null,
+        ],
       )
     }
     await client.query("commit")
@@ -420,44 +945,139 @@ export async function salvarConteudos(empresaId: string, conteudos: ConteudoInpu
   }
 }
 
-// Atualiza apenas o roteiro (e opcionalmente o status) de um conteúdo específico,
-// sem regravar todo o pipeline. Usado ao abrir o roteiro pelo título do conteúdo.
+// Acrescenta novos conteúdos ao pipeline sem apagar os existentes (usado pelas
+// ações da IA no chat estratégico). Continua a numeração de posição atual.
+export async function criarConteudos(empresaId: string, conteudos: ConteudoInput[]): Promise<number> {
+  const validos = conteudos.filter((c) => c.titulo?.trim())
+  if (validos.length === 0) return 0
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query("begin")
+    const posRes = await client.query<{ max: number | null }>(
+      `select max(posicao) as max from public.conteudos where empresa_id = $1`,
+      [empresaId],
+    )
+    let posicao = (posRes.rows[0]?.max ?? -1) + 1
+    for (const c of validos) {
+      const formato = FORMATOS_CONTEUDO.includes(c.formato as ConteudoItem["formato"]) ? c.formato : "Reels"
+      const status = STATUS_CONTEUDO.includes(c.status as StatusConteudo) ? c.status : "ideia"
+      await client.query(
+        `insert into public.conteudos (empresa_id, titulo, formato, status, data, posicao, roteiro, legenda, direcionamento, links, referencia)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)`,
+        [
+          empresaId,
+          c.titulo.trim(),
+          formato,
+          status,
+          c.data || null,
+          posicao++,
+          c.roteiro?.trim() || null,
+          c.legenda?.trim() || null,
+          c.direcionamento?.trim() || null,
+          JSON.stringify(sanitizarLinks(c.links)),
+          c.referencia?.trim() || null,
+        ],
+      )
+    }
+    await client.query("commit")
+  } catch (err) {
+    await client.query("rollback")
+    throw err
+  } finally {
+    client.release()
+  }
+  return validos.length
+}
+
+// Atualiza o roteiro, a sugestão de legenda, o direcionamento interno, os links
+// do drive e o link de referência de um conteúdo do pipeline (edição individual
+// aberta pelo título).
 export async function atualizarRoteiroConteudo(
   empresaId: string,
   conteudoId: string,
-  roteiro: string,
-  status?: string,
+  dados: {
+    roteiro: string
+    legenda: string
+    direcionamento: string
+    links: LinkConteudo[]
+    referencia: string
+  },
 ): Promise<void> {
-  if (status && STATUS_CONTEUDO.includes(status as StatusConteudo)) {
-    await query(
-      `update public.conteudos set roteiro = $1, status = $2 where id = $3 and empresa_id = $4`,
-      [roteiro.trim() || null, status, conteudoId, empresaId],
-    )
-  } else {
-    await query(
-      `update public.conteudos set roteiro = $1 where id = $2 and empresa_id = $3`,
-      [roteiro.trim() || null, conteudoId, empresaId],
-    )
-  }
+  await query(
+    `update public.conteudos
+       set roteiro = $1, legenda = $2, direcionamento = $3, links = $4::jsonb, referencia = $5
+     where id = $6 and empresa_id = $7`,
+    [
+      dados.roteiro.trim() || null,
+      dados.legenda.trim() || null,
+      dados.direcionamento.trim() || null,
+      JSON.stringify(sanitizarLinks(dados.links)),
+      dados.referencia.trim() || null,
+      conteudoId,
+      empresaId,
+    ],
+  )
 }
 
-// ── Arquivos (aba Arquivos · por link) ────────────────────────────────────
+// Atualiza os dados básicos de um único conteúdo do pipeline (título, formato,
+// status e data) sem tocar em roteiro/legenda/links. Usado pelo botão "Editar"
+// ao lado de cada item.
+export async function atualizarDadosConteudo(
+  empresaId: string,
+  conteudoId: string,
+  dados: { titulo: string; formato: string; status: string; data?: string },
+): Promise<void> {
+  const titulo = dados.titulo.trim()
+  if (!titulo) return
+  const formato = FORMATOS_CONTEUDO.includes(dados.formato as ConteudoItem["formato"]) ? dados.formato : "Reels"
+  const status = STATUS_CONTEUDO.includes(dados.status as StatusConteudo) ? dados.status : "ideia"
+  await query(
+    `update public.conteudos
+       set titulo = $1, formato = $2, status = $3, data = $4
+     where id = $5 and empresa_id = $6`,
+    [titulo, formato, status, dados.data || null, conteudoId, empresaId],
+  )
+}
+
+// Exclui um único conteúdo do pipeline.
+export async function excluirConteudo(empresaId: string, conteudoId: string): Promise<void> {
+  await query(`delete from public.conteudos where id = $1 and empresa_id = $2`, [conteudoId, empresaId])
+}
+
+// Atualiza apenas o status de um conteúdo do pipeline. Usado quando o cliente
+// aprova uma peça pelo portal (status → "aprovado").
+export async function atualizarStatusConteudo(
+  empresaId: string,
+  conteudoId: string,
+  status: StatusConteudo,
+): Promise<void> {
+  const novoStatus = STATUS_CONTEUDO.includes(status) ? status : "aprovacao"
+  await query(`update public.conteudos set status = $1 where id = $2 and empresa_id = $3`, [
+    novoStatus,
+    conteudoId,
+    empresaId,
+  ])
+}
+
+// ── Arquivos (aba Arquivos · por link) ─────────────────────���──────────────
 
 type ArquivoRow = {
   id: string
   nome: string
   tipo: string | null
   url: string | null
+  data_postagem: Date | null
 }
 
 const TIPOS_ARQUIVO: Arquivo["tipo"][] = ["Branding", "Material", "Drive", "Contrato"]
 
 export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
   const rows = await query<ArquivoRow>(
-    `select id, nome, tipo, url
+    `select id, nome, tipo, url, data_postagem
      from public.arquivos
      where empresa_id = $1
-     order by posicao asc, created_at asc`,
+     order by data_postagem asc nulls last, posicao asc, created_at asc`,
     [empresaId],
   )
   return rows.map((r) => ({
@@ -467,10 +1087,12 @@ export async function getArquivos(empresaId: string): Promise<Arquivo[]> {
     tipo: (TIPOS_ARQUIVO.includes(r.tipo as Arquivo["tipo"]) ? r.tipo : "Material") as Arquivo["tipo"],
     tamanho: "",
     url: r.url ?? "",
+    data: formatarDataCurta(r.data_postagem),
+    dataISO: r.data_postagem ? new Date(r.data_postagem).toISOString().slice(0, 10) : "",
   }))
 }
 
-export type ArquivoInput = { nome: string; tipo: string; url?: string }
+export type ArquivoInput = { nome: string; tipo: string; url?: string; data?: string }
 
 export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]): Promise<void> {
   const pool = getPool()
@@ -484,9 +1106,9 @@ export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]
       if (!nome) continue
       const tipo = TIPOS_ARQUIVO.includes(a.tipo as Arquivo["tipo"]) ? a.tipo : "Material"
       await client.query(
-        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao)
-         values ($1, $2, $3, $4, $5)`,
-        [empresaId, nome, tipo, a.url?.trim() || null, posicao++],
+        `insert into public.arquivos (empresa_id, nome, tipo, url, posicao, data_postagem)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [empresaId, nome, tipo, a.url?.trim() || null, posicao++, a.data || null],
       )
     }
     await client.query("commit")
@@ -498,7 +1120,7 @@ export async function salvarArquivos(empresaId: string, arquivos: ArquivoInput[]
   }
 }
 
-// ─�� Mensagens (aba Comunicação) ───────────────────��───────────────────────
+// ─�� Mensagens (aba Comunicação) ───────────────────��────────────────────��──
 
 type MensagemRow = {
   id: string
@@ -580,6 +1202,54 @@ export async function adicionarMensagemCliente(
        true, $4)`,
     [empresaId, limpo, data, autorNome.trim() || "Cliente"],
   )
+}
+
+// Mensagens escritas pelos CLIENTES no portal (de_cliente = true), de todos os
+// clientes, mais recentes primeiro. Usado para o sino de notificações da equipe.
+export type NotificacaoMensagem = {
+  id: string
+  clienteId: string
+  clienteNome: string
+  iniciais: string
+  cor: string
+  autorNome: string
+  texto: string
+  data: string
+  createdAt: string
+}
+
+export async function getMensagensClientesRecentes(limite = 20): Promise<NotificacaoMensagem[]> {
+  const rows = await query<{
+    id: string
+    empresa_id: string
+    empresa_nome: string
+    iniciais: string | null
+    cor: string | null
+    autor_nome: string | null
+    texto: string
+    data: string | null
+    created_at: string
+  }>(
+    `select c.id, c.empresa_id, e.nome as empresa_nome, e.iniciais, e.cor,
+            c.autor_nome, c.texto, c.data, c.created_at
+     from public.comunicacoes c
+     join public.empresas e on e.id = c.empresa_id
+     where c.de_cliente = true
+     order by c.created_at desc
+     limit $1`,
+    [limite],
+  )
+  return rows.map((r) => ({
+    id: r.id,
+    clienteId: r.empresa_id,
+    clienteNome: r.empresa_nome,
+    iniciais: r.iniciais ?? "?",
+    cor: r.cor ?? "bg-primary",
+    autorNome: r.autor_nome ?? "Cliente",
+    texto: r.texto,
+    data: r.data ?? "",
+    createdAt: r.created_at,
+  }))
 }
 
 // Mensagem enviada pela EQUIPE (chat do painel interno) — append-only, aparece no portal

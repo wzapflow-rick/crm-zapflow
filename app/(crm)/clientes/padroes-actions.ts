@@ -8,7 +8,7 @@ import { PERSONA } from "@/lib/persona"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { substituirPadroes } from "@/lib/padroes-db"
 
-const MODELO = "gpt-4o"
+const MODELO = "gpt-5"
 
 export type EstadoPadroes = { ok: boolean; erro?: string; quantidade?: number }
 

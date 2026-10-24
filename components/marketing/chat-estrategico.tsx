@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { carregarChatClienteAction, limparChatAction } from "@/app/(crm)/marketing/chat-actions"
 import type { ResumoContexto } from "@/lib/contexto-cliente"
+import { limparFormatacaoChat } from "@/lib/texto-chat"
+import { AcoesResposta } from "@/components/marketing/acoes-resposta"
+import { AtalhoRoteiro, mencionaRoteiro } from "@/components/marketing/atalho-roteiro"
+import { FeedbackResposta } from "@/components/marketing/feedback-resposta"
+import type { TipoFeedback } from "@/lib/feedback-ia-db"
 
 export type ClienteOpcao = {
   id: string
@@ -32,6 +37,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
   const [resumo, setResumo] = useState<ResumoContexto | null>(null)
   const [carregandoCtx, setCarregandoCtx] = useState(false)
   const [input, setInput] = useState("")
+  const [feedbackInicial, setFeedbackInicial] = useState<Record<string, TipoFeedback | null>>({})
   const clienteIdRef = useRef(clienteId)
   clienteIdRef.current = clienteId
 
@@ -52,6 +58,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
     if (!clienteId) {
       setResumo(null)
       setMessages([])
+      setFeedbackInicial({})
       return
     }
     let ativo = true
@@ -59,6 +66,11 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
     carregarChatClienteAction(clienteId).then((dados) => {
       if (!ativo) return
       setResumo(dados.resumo)
+      const feedbacks: Record<string, TipoFeedback | null> = {}
+      for (const m of dados.mensagens) {
+        if (m.papel === "assistant") feedbacks[m.id] = m.feedback ?? null
+      }
+      setFeedbackInicial(feedbacks)
       setMessages(
         dados.mensagens.map(
           (m): UIMessage => ({
@@ -178,11 +190,40 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
                 </div>
               )}
 
-              {messages.map((m) => (
-                <Bolha key={m.id} papel={m.role}>
-                  {textoDe(m)}
-                </Bolha>
-              ))}
+              {messages.map((m, indice) => {
+                const conteudo = textoDe(m)
+                const ultima = indice === messages.length - 1
+                const mostrarExtras =
+                  m.role === "assistant" && conteudo.trim().length > 0 && !(ultima && ocupado)
+                let perguntaAnterior = ""
+                if (mostrarExtras) {
+                  for (let i = indice - 1; i >= 0; i--) {
+                    if (messages[i].role === "user") {
+                      perguntaAnterior = textoDe(messages[i])
+                      break
+                    }
+                  }
+                }
+                return (
+                  <div key={m.id} className="grid gap-1.5">
+                    <Bolha papel={m.role}>{conteudo}</Bolha>
+                    {mostrarExtras && (
+                      <>
+                        <AcoesResposta texto={conteudo} empresaId={clienteId} />
+                        {(mencionaRoteiro(conteudo) || mencionaRoteiro(perguntaAnterior)) && (
+                          <AtalhoRoteiro texto={conteudo} pergunta={perguntaAnterior} empresaId={clienteId} />
+                        )}
+                        <FeedbackResposta
+                          empresaId={clienteId}
+                          resposta={conteudo}
+                          pergunta={perguntaAnterior}
+                          valorInicial={feedbackInicial[m.id] ?? null}
+                        />
+                      </>
+                    )}
+                  </div>
+                )
+              })}
 
               {status === "submitted" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -193,7 +234,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
 
               {error && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  Ocorreu um erro ao gerar a resposta. Verifique a chave da OpenAI e tente novamente.
+                  {error.message || "Ocorreu um erro ao gerar a resposta. Tente novamente em alguns instantes."}
                 </div>
               )}
             </div>
@@ -212,6 +253,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
+                      if (e.nativeEvent.isComposing || e.keyCode === 229) return
                       e.preventDefault()
                       enviar(input)
                     }
@@ -298,10 +340,11 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
 }
 
 function textoDe(m: UIMessage): string {
-  return (m.parts ?? [])
+  const texto = (m.parts ?? [])
     .filter((p): p is { type: "text"; text: string } => p.type === "text")
     .map((p) => p.text)
     .join("")
+  return m.role === "assistant" ? limparFormatacaoChat(texto) : texto
 }
 
 function Bolha({ papel, children }: { papel: string; children: React.ReactNode }) {

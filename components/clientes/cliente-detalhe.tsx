@@ -1,6 +1,8 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   ArrowLeft,
   ArrowDownRight,
@@ -8,17 +10,17 @@ import {
   BarChart3,
   Brain,
   CalendarDays,
-  Download,
-  ExternalLink,
   FileText,
   FlaskConical,
   FolderOpen,
+  Camera as Instagram,
   LineChart,
   LinkIcon,
   MessageSquare,
   Network,
   Pencil,
   Phone,
+  Plus,
   Sparkles,
   Target,
   TrendingUp,
@@ -43,26 +45,39 @@ import {
 } from "@/lib/simple-data"
 import type { Membro } from "@/lib/membros-db"
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
-import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
-import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
-import { ConteudoDialog } from "@/components/clientes/conteudo-dialog"
-import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
-import { ArquivosDialog } from "@/components/clientes/arquivos-dialog"
-import { ChatEquipe } from "@/components/clientes/chat-equipe"
 import { BannerUploader } from "@/components/clientes/banner-uploader"
-import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
-import { HistoricoDialog } from "@/components/clientes/historico-dialog"
 import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-button"
+import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
+import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
+import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
+import { EnvioEditavel } from "@/components/clientes/envio-editavel"
+import { AvisarPendenciasButton } from "@/components/clientes/avisar-pendencias-button"
+import { MesesSelector } from "@/components/simple/meses-selector"
+import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
+
+// Estes componentes eram carregados via next/dynamic, mas como cada aba (Base UI
+// Tabs) desmonta o painel inativo, trocar de aba montava um componente ainda não
+// baixado e ele "suspendia" durante a transição — deixando a aba em branco até um
+// segundo clique. Imports estáticos eliminam o suspense na troca de aba.
+import { VisaoGeralDialog } from "@/components/clientes/visao-geral-dialog"
+import { CalendarioDialog } from "@/components/clientes/calendario-dialog"
+import { RoteiroConteudoDialog } from "@/components/clientes/roteiro-conteudo-dialog"
+import { EstrategiaDialog } from "@/components/clientes/estrategia-dialog"
+import { CriarConteudoDialog, EditarConteudoDialog } from "@/components/clientes/conteudo-item-dialog"
+import { ChatEquipe } from "@/components/clientes/chat-equipe"
+import { ResultadosDialog } from "@/components/clientes/resultados-dialog"
+import { HistoricoDialog } from "@/components/clientes/historico-dialog"
+import { GerarEvolucaoButton } from "@/components/clientes/gerar-evolucao-button"
 import { MemoriaSecao } from "@/components/clientes/memoria-secao"
 import { ReuniaoDialog } from "@/components/clientes/reuniao-dialog"
-import { ExcluirReuniaoButton } from "@/components/clientes/excluir-reuniao-button"
-import { PerformanceDialog } from "@/components/clientes/performance-dialog"
-import { ExcluirPerformanceButton } from "@/components/clientes/excluir-performance-button"
+import { VincularInstagramDialog, ImportarInstagramDialog } from "@/components/clientes/instagram-metricas-dialog"
 import { ExperimentoDialog } from "@/components/clientes/experimento-dialog"
-import { ExcluirExperimentoButton } from "@/components/clientes/excluir-experimento-button"
 import { PadroesPanel } from "@/components/clientes/padroes-panel"
+import { EstrategiaMensalPanel } from "@/components/clientes/estrategia-mensal-panel"
+import { InstagramPanel } from "@/components/clientes/instagram-panel"
+import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
 import { atualizarClienteAction } from "@/app/(crm)/clientes/actions"
 import type { RegistroHistorico } from "@/lib/historico-db"
 import type { MemoriaCliente } from "@/lib/memoria-db"
@@ -72,6 +87,7 @@ import type { ConteudoPerformance } from "@/lib/performance-db"
 import type { Experimento, StatusExperimento } from "@/lib/experimentos-db"
 import type { Padrao } from "@/lib/padroes-db"
 import type { EnvioCliente } from "@/lib/envios-db"
+import type { EstrategiaMensal } from "@/lib/estrategia-mensal-db"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -88,6 +104,7 @@ const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = 
   gravacao: { label: "Gravação", classe: "bg-chart-2/15 text-chart-2" },
   edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
   aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
+  aprovado: { label: "Aprovado", classe: "bg-success/15 text-success" },
   publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
 }
 
@@ -123,6 +140,10 @@ export function ClienteDetalhe({
   padroes,
   ultimaAnalisePadroes,
   envios,
+  estrategiasMensais,
+  instagramConexao,
+  instagramMidias,
+  instagramConfigurado,
 }: {
   cliente: Cliente
   membros: Membro[]
@@ -141,6 +162,10 @@ export function ClienteDetalhe({
   padroes: Padrao[]
   ultimaAnalisePadroes: string | null
   envios: EnvioCliente[]
+  estrategiasMensais: EstrategiaMensal[]
+  instagramConexao: ConexaoInstagram | null
+  instagramMidias: MidiaInstagram[]
+  instagramConfigurado: boolean
 }) {
   const responsaveis = (cliente.responsaveisIds ?? [])
     .map((rid) => membros.find((m) => m.id === rid))
@@ -151,8 +176,37 @@ export function ClienteDetalhe({
   // Usa dados reais do banco; sem dados ainda, mostra estado vazio editável.
   const resumo = cliente.resumoEstrategico?.trim() || ""
 
+  // Aba inicial: permite abrir direto numa aba via ?aba=... (ex.: notificações → comunicação).
+  const searchParams = useSearchParams()
+  const abaInicial = searchParams.get("aba") || "visao"
+
+  // Conteúdo separado por mês: pílulas de competência + filtro do mês selecionado.
+  const mesesConteudo = useMemo(
+    () => mesesOrdenados(conteudos.map((c) => competenciaDeISO(c.dataISO))),
+    [conteudos],
+  )
+  const [mesConteudoSel, setMesConteudoSel] = useState("")
+  const mesConteudoAtivo = mesConteudoSel || mesesConteudo[0] || ""
+  const conteudosDoMes = useMemo(
+    () => conteudos.filter((c) => competenciaDeISO(c.dataISO) === mesConteudoAtivo),
+    [conteudos, mesConteudoAtivo],
+  )
+
+  // Conteúdos aguardando aprovação do cliente (status "aprovacao") — habilita o
+  // aviso manual por WhatsApp na aba Conteúdo.
+  const pendentesAprovacao = useMemo(
+    () => conteudos.filter((c) => c.status === "aprovacao").length,
+    [conteudos],
+  )
+  const temTelefone = Boolean((cliente.telefone ?? "").replace(/\D/g, ""))
+
+  // Feedback do retorno do OAuth do Instagram (?ig_ok=1 / ?ig_erro=...).
+  const igErro = searchParams.get("ig_erro") || undefined
+  const igOk = searchParams.get("ig_ok") === "1"
+  const instagramAviso = igErro || igOk ? { erro: igErro, ok: igOk } : undefined
+
   return (
-    <main className="flex-1 overflow-y-auto bg-background">
+    <main className="flex-1 bg-background">
       <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
         <Link
           href="/clientes"
@@ -256,18 +310,19 @@ export function ClienteDetalhe({
         </div>
 
         {/* Abas */}
-        <Tabs defaultValue="visao" className="mt-6">
+        <Tabs defaultValue={abaInicial} className="mt-6">
           <TabsList className="-mx-4 flex h-auto w-[calc(100%+2rem)] justify-start gap-1 overflow-x-auto whitespace-nowrap bg-transparent px-4 py-0 [scrollbar-width:none] group-data-horizontal/tabs:h-auto md:mx-0 md:w-full md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden">
             <TabTrigger value="visao" icon={Target} label="Visão geral" />
             <TabTrigger value="calendario" icon={CalendarDays} label="Calendário" />
             <TabTrigger value="conteudo" icon={Video} label="Conteúdo" />
             <TabTrigger value="estrategia" icon={LineChart} label="Estratégia" />
-            <TabTrigger value="arquivos" icon={FolderOpen} label="Arquivos" />
+            <TabTrigger value="arquivos" icon={FolderOpen} label="Materiais" />
             <TabTrigger value="comunicacao" icon={MessageSquare} label="Comunicação" />
             <TabTrigger value="resultados" icon={ArrowUpRight} label="Resultados" />
             <TabTrigger value="evolucao" icon={TrendingUp} label="Evolução" />
             <TabTrigger value="reunioes" icon={Users} label="Reuniões" />
             <TabTrigger value="performance" icon={BarChart3} label="Performance" />
+            <TabTrigger value="instagram" icon={Instagram} label="Instagram" />
             <TabTrigger value="experimentos" icon={FlaskConical} label="Experimentos" />
             <TabTrigger value="padroes" icon={Network} label="Padrões" />
             <TabTrigger value="memoria" icon={Brain} label="Memória" />
@@ -291,7 +346,7 @@ export function ClienteDetalhe({
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <Card titulo="Resumo estratégico" className="lg:col-span-2">
                 {resumo ? (
-                  <p className="text-pretty text-sm leading-relaxed text-foreground">{resumo}</p>
+                  <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground">{resumo}</p>
                 ) : (
                   <Vazio texto="Nenhum resumo estratégico definido. Clique em Editar visão geral para adicionar." />
                 )}
@@ -374,30 +429,95 @@ export function ClienteDetalhe({
 
           {/* Conteúdo */}
           <TabsContent value="conteudo" className="mt-5">
-            <div className="mb-3 flex justify-end">
-              <ConteudoDialog
+            <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+              <AvisarPendenciasButton
                 clienteId={cliente.id}
-                conteudos={conteudos}
+                pendentes={pendentesAprovacao}
+                temTelefone={temTelefone}
+              />
+              <CriarConteudoDialog
+                clienteId={cliente.id}
                 trigger={
                   <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar conteúdo
+                    <Plus className="h-3.5 w-3.5" />
+                    Criar conteúdo
                   </Button>
                 }
               />
             </div>
+            <MesesSelector meses={mesesConteudo} ativo={mesConteudoAtivo} onSelecionar={setMesConteudoSel} />
             <Card titulo="Pipeline de conteúdo">
-              {conteudos.length > 0 ? (
+              {conteudosDoMes.length > 0 ? (
                 <ul className="divide-y divide-border">
-                  {conteudos.map((c) => (
+                  {conteudosDoMes.map((c) => (
                     <li key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{c.titulo}</p>
-                        <p className="text-xs text-muted-foreground">{c.formato} · {c.data}</p>
+                        <RoteiroConteudoDialog
+                          clienteId={cliente.id}
+                          conteudoId={c.id}
+                          titulo={c.titulo}
+                          formato={c.formato}
+                          roteiro={c.roteiro ?? ""}
+                          legenda={c.legenda ?? ""}
+                          direcionamento={c.direcionamento ?? ""}
+                          links={c.links ?? []}
+                          referencia={c.referencia ?? ""}
+                          trigger={
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-1.5 truncate text-left text-sm font-medium text-foreground hover:text-primary hover:underline"
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <span className="truncate">{c.titulo}</span>
+                            </button>
+                          }
+                        />
+                        <p className="mt-0.5 flex items-center gap-2 pl-5 text-xs text-muted-foreground">
+                          <span>{c.formato} · {c.data}</span>
+                          {((c.links?.length ?? 0) > 0 || c.referencia) && (
+                            <span className="inline-flex items-center gap-1 text-primary">
+                              <LinkIcon className="h-3 w-3" />
+                              {(c.links?.length ?? 0) + (c.referencia ? 1 : 0)}
+                            </span>
+                          )}
+                        </p>
                       </div>
+                      {c.status === "publicado" && (
+                        <VincularInstagramDialog
+                          clienteId={cliente.id}
+                          conteudo={{
+                            id: c.id,
+                            titulo: c.titulo,
+                            formato: c.formato,
+                            dataISO: c.dataISO,
+                            roteiro: c.roteiro,
+                            legenda: c.legenda,
+                          }}
+                          trigger={
+                            <Button variant="outline" size="sm" className="h-7 shrink-0 gap-1 text-xs">
+                              <BarChart3 className="h-3.5 w-3.5" />
+                              Puxar do Instagram
+                            </Button>
+                          }
+                        />
+                      )}
                       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", conteudoInfo[c.status].classe)}>
                         {conteudoInfo[c.status].label}
                       </span>
+                      <EditarConteudoDialog
+                        clienteId={cliente.id}
+                        conteudo={c}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-primary"
+                            aria-label={`Editar ${c.titulo}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        }
+                      />
                     </li>
                   ))}
                 </ul>
@@ -409,7 +529,17 @@ export function ClienteDetalhe({
 
           {/* Estratégia */}
           <TabsContent value="estrategia" className="mt-5">
-            <div className="mb-3 flex justify-end">
+            {/* Estratégia mensal versionada: plano do mês + comparação planejado x executado */}
+            <section className="mb-8">
+              <div className="mb-3 flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Estratégia mensal</h3>
+              </div>
+              <EstrategiaMensalPanel clienteId={cliente.id} estrategias={estrategiasMensais} />
+            </section>
+
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Estratégia geral</h3>
               <EstrategiaDialog
                 clienteId={cliente.id}
                 estrategia={estrategia}
@@ -469,87 +599,24 @@ export function ClienteDetalhe({
             </div>
           </TabsContent>
 
-          {/* Arquivos */}
+          {/* Materiais — materiais gerais da equipe + envios do cliente pelo portal */}
           <TabsContent value="arquivos" className="mt-5">
-            <div className="mb-3 flex justify-end">
-              <ArquivosDialog
-                clienteId={cliente.id}
-                arquivos={arquivos}
-                trigger={
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editar arquivos
-                  </Button>
-                }
-              />
-            </div>
-            <Card titulo="Materiais e arquivos">
-              {arquivos.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {arquivos.map((a) => (
-                    <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                        <FolderOpen className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                        <p className="text-xs text-muted-foreground">{a.tipo}</p>
-                      </div>
-                      {a.url ? (
-                        <a
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Baixar / Abrir
-                        </a>
-                      ) : (
-                        <span className="shrink-0 text-xs text-muted-foreground">Sem link</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <Vazio texto="Nenhum arquivo. Clique em Editar arquivos para adicionar um link." />
-              )}
-            </Card>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Aqui ficam os vídeos e fotos que o cliente captou e enviou pelo portal. Os links de cada conteúdo
+              (drive e referência) ficam dentro do próprio conteúdo, na aba Conteúdo.
+            </p>
 
-            {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) */}
-            <Card titulo="Enviados pelo cliente" className="mt-4">
+            {/* Enviados pelo cliente via portal (links de Drive/WeTransfer/etc.) — editáveis pela equipe */}
+            <Card titulo="Enviados pelo cliente">
               <p className="-mt-1 mb-3 flex items-center gap-2 text-xs text-muted-foreground">
                 <LinkIcon className="h-3.5 w-3.5 text-primary" />
-                Links de vídeos e fotos que o cliente enviou pelo portal.
+                Links de vídeos e fotos que o cliente enviou pelo portal. Você pode renomear, substituir o link ou
+                excluir.
               </p>
               {envios.length > 0 ? (
                 <ul className="divide-y divide-border">
                   {envios.map((e) => (
-                    <li key={e.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <LinkIcon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{e.titulo}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {e.descricao ||
-                            new Date(e.criadoEm).toLocaleDateString("pt-BR", {
-                              day: "2-digit",
-                              month: "long",
-                              year: "numeric",
-                            })}
-                        </p>
-                      </div>
-                      <a
-                        href={e.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Abrir
-                      </a>
-                    </li>
+                    <EnvioEditavel key={e.id} envio={e} clienteId={cliente.id} />
                   ))}
                 </ul>
               ) : (
@@ -620,17 +687,20 @@ export function ClienteDetalhe({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Sparkles className="h-4 w-4 text-primary" />
-                Linha do tempo do cliente, organizada pela IA. Visível só para a equipe.
+                Linha do tempo do cliente, analisada pela IA a partir de todos os dados. Visível só para a equipe.
               </div>
-              <HistoricoDialog
-                clienteId={cliente.id}
-                trigger={
-                  <Button size="sm" className="gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Novo registro
-                  </Button>
-                }
-              />
+              <div className="flex flex-wrap items-start justify-end gap-2">
+                <GerarEvolucaoButton clienteId={cliente.id} />
+                <HistoricoDialog
+                  clienteId={cliente.id}
+                  trigger={
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Registro manual
+                    </Button>
+                  }
+                />
+              </div>
             </div>
 
             {historico.length > 0 ? (
@@ -688,7 +758,7 @@ export function ClienteDetalhe({
               </ol>
             ) : (
               <Card titulo="Linha do tempo">
-                <Vazio texto='Nenhum registro ainda. Clique em "Novo registro" e escreva como foi o período — a IA organiza.' />
+                <Vazio texto='Nenhum registro ainda. Clique em "Gerar análise automática" e a IA analisa todos os dados do cliente (Instagram, posts, estratégia, resultados) sozinha.' />
               </Card>
             )}
           </TabsContent>
@@ -765,14 +835,14 @@ export function ClienteDetalhe({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <BarChart3 className="h-4 w-4 text-primary" />
-                Conteúdos publicados com métricas. A IA gera aprendizados e usa tudo nas recomendações.
+                Métricas puxadas direto do Instagram. A IA gera aprendizados e usa tudo nas recomendações.
               </div>
-              <PerformanceDialog
+              <ImportarInstagramDialog
                 clienteId={cliente.id}
                 trigger={
                   <Button size="sm" className="gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Novo conteúdo
+                    <Instagram className="h-3.5 w-3.5" />
+                    Importar do Instagram
                   </Button>
                 }
               />
@@ -860,6 +930,18 @@ export function ClienteDetalhe({
             )}
           </TabsContent>
 
+          {/* Instagram (conexão com a conta profissional via Meta) */}
+          <TabsContent value="instagram" className="mt-5">
+            <InstagramPanel
+              clienteId={cliente.id}
+              clienteNome={cliente.nome}
+              conexao={instagramConexao}
+              midias={instagramMidias}
+              configurado={instagramConfigurado}
+              avisoUrl={instagramAviso}
+            />
+          </TabsContent>
+
           {/* Experimentos (banco de testes — a IA consulta antes de sugerir estratégia) */}
           <TabsContent value="experimentos" className="mt-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -925,7 +1007,7 @@ export function ClienteDetalhe({
               </div>
             ) : (
               <Card titulo="Banco de experimentos">
-                <Vazio texto='Nenhum experimento ainda. Clique em "Novo experimento", descreva a hipótese e o resultado — a IA conclui e classifica.' />
+                <Vazio texto='Nenhum experimento ainda. Clique em "Novo experimento", descreva a hipótese e o resultado �� a IA conclui e classifica.' />
               </Card>
             )}
           </TabsContent>

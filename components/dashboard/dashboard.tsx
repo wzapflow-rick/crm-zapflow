@@ -11,20 +11,20 @@ import {
   TrendingUp,
   Users,
   Flame,
-  Lightbulb,
-  CircleDot,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useApp } from "@/components/simple/providers"
 import { RevenueChart } from "@/components/dashboard/revenue-chart"
+import { CentralAtencao } from "@/components/dashboard/alertas-atencao"
 import type { ResumoCrm } from "@/lib/crm-db"
 import type { ResumoTarefas } from "@/lib/tarefas-db"
 import type { ResumoFinanceiro } from "@/lib/financeiro-db"
 import type { ProximaGravacao } from "@/lib/eventos-db"
 import type { Membro } from "@/lib/membros-db"
-import { insightsSemana, receitaMensal } from "@/lib/simple-data"
+import type { AlertaCliente } from "@/lib/clientes-db"
+import { receitaMensal } from "@/lib/simple-data"
 
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
@@ -66,6 +66,7 @@ export function Dashboard({
   clientesAtivos,
   proximasGravacoes,
   membros,
+  alertasAtencao,
 }: {
   resumoCrm: ResumoCrm
   resumoTarefas: ResumoTarefas
@@ -74,6 +75,7 @@ export function Dashboard({
   clientesAtivos: number
   proximasGravacoes: ProximaGravacao[]
   membros: Membro[]
+  alertasAtencao: AlertaCliente[]
 }) {
   const { usuario } = useApp()
   // Dados financeiros reais do mês (com fallback seguro caso o módulo não carregue)
@@ -81,7 +83,6 @@ export function Dashboard({
   const receitaMrr = resumoFinanceiro?.receitaMrr ?? 0
   const meta = resumoFinanceiro?.meta ?? 0
   const progresso = resumoFinanceiro?.progressoMeta ?? 0
-  const leadsAbertos = resumoCrm.leadsEmAberto
   const totalLeads = resumoCrm.valorEmAberto
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
 
@@ -164,50 +165,34 @@ export function Dashboard({
           />
         </div>
 
-        {/* Receita + Insights */}
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Evolução da receita
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  MRR nos últimos 7 meses
-                </p>
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                <ArrowUpRight className="h-3 w-3" />
-                Crescendo
-              </span>
-            </div>
-            <div className="mt-4">
-              <RevenueChart dados={receitaMensal} />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-primary" />
+        {/* Evolução da receita — o que está acontecendo */}
+        <div className="mt-4 rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
               <h3 className="text-sm font-semibold text-foreground">
-                Insights da semana
+                Evolução da receita
               </h3>
+              <p className="text-xs text-muted-foreground">
+                MRR nos últimos 7 meses
+              </p>
             </div>
-            <ul className="mt-4 space-y-3">
-              {insightsSemana.map((insight, i) => (
-                <li key={i} className="flex gap-2.5">
-                  <CircleDot className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                  <span className="text-sm leading-snug text-foreground">
-                    {insight}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+              <ArrowUpRight className="h-3 w-3" />
+              Crescendo
+            </span>
+          </div>
+          <div className="mt-4">
+            <RevenueChart dados={receitaMensal} />
           </div>
         </div>
 
-        {/* Gravações + Tarefas + Leads */}
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Central de Atenção — o que precisa da minha atenção agora */}
+        <div className="mt-4">
+          <CentralAtencao alertas={alertasAtencao} />
+        </div>
+
+        {/* Próximas gravações + Tarefas urgentes */}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Próximas gravações */}
           <Painel titulo="Próximas gravações" icon={Video}>
             {proximasGravacoes.length > 0 ? (
@@ -273,37 +258,6 @@ export function Dashboard({
             ) : (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 Nenhuma tarefa pendente. Crie tarefas no módulo Tarefas.
-              </p>
-            )}
-          </Painel>
-
-          {/* Leads em aberto (dados reais do CRM) */}
-          <Painel titulo="Leads em aberto" icon={Target}>
-            {leadsAbertos.length > 0 ? (
-              <ul className="divide-y divide-border">
-                {leadsAbertos.slice(0, 6).map((l) => {
-                  const resp = membroPorId(l.responsavelId)
-                  return (
-                    <li key={l.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">
-                          {l.empresa}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {l.etapaLabel}
-                          {resp ? ` · ${resp.nome}` : ""}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-medium text-foreground">
-                        {brl(l.valor)}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                Nenhum lead em aberto no funil. Adicione negócios no CRM.
               </p>
             )}
           </Painel>

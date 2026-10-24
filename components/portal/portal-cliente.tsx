@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useEffect, useRef, type ReactNode } from "react"
+import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
 import useSWR, { useSWRConfig } from "swr"
@@ -10,14 +10,15 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
-  Download,
   ExternalLink,
   FileText,
   FolderOpen,
   LineChart,
   LinkIcon,
   MessageSquare,
+  Quote,
   Send,
   Sparkles,
   Target,
@@ -46,8 +47,13 @@ import type { EnvioCliente } from "@/lib/envios-db"
 import {
   enviarMensagemPortalAction,
   enviarMaterialPortalAction,
+  aprovarConteudoPortalAction,
   type EstadoPortal,
 } from "@/app/portal/[token]/actions"
+import { MesesSelector } from "@/components/simple/meses-selector"
+import { competenciaDeISO, mesesOrdenados } from "@/lib/meses"
+import { EstrategiaMensalPortal } from "@/components/portal/estrategia-mensal-portal"
+import type { EstrategiaMensal } from "@/lib/estrategia-mensal-db"
 
 // Chave SWR compartilhada entre a lista de mensagens e o formulário de envio do portal.
 const chaveMensagensPortal = (token: string) => ["mensagens-portal", token] as const
@@ -66,6 +72,7 @@ const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = 
   gravacao: { label: "Gravação", classe: "bg-chart-2/15 text-chart-2" },
   edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
   aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
+  aprovado: { label: "Aprovado", classe: "bg-success/15 text-success" },
   publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
 }
 
@@ -140,6 +147,7 @@ export function PortalCliente({
   mensagens,
   resultados,
   envios,
+  estrategiasMensais,
 }: {
   token: string
   cliente: Cliente
@@ -152,6 +160,7 @@ export function PortalCliente({
   mensagens: Mensagem[]
   resultados: MetricaResultado[]
   envios: EnvioCliente[]
+  estrategiasMensais: EstrategiaMensal[]
 }) {
   const membroPorId = (id: string) => membros.find((m) => m.id === id)
   const primeiroNome = cliente.nome.trim().split(/\s+/)[0]
@@ -163,13 +172,27 @@ export function PortalCliente({
     () => buscarMensagensPortal(token),
     {
       fallbackData: mensagens,
-      refreshInterval: 4000,
+      refreshInterval: 12_000,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 2000,
+      dedupingInterval: 5_000,
     },
   )
   const listaMensagens = mensagensLive ?? mensagens
+
+  // Conteúdo separado por mês: pílulas de competência + filtro do mês selecionado.
+  const mesesConteudo = useMemo(
+    () => mesesOrdenados(conteudos.map((c) => competenciaDeISO(c.dataISO))),
+    [conteudos],
+  )
+  const [mesConteudoSel, setMesConteudoSel] = useState("")
+  const mesConteudoAtivo = mesConteudoSel || mesesConteudo[0] || ""
+  const conteudosDoMes = useMemo(
+    () => conteudos.filter((c) => competenciaDeISO(c.dataISO) === mesConteudoAtivo),
+    [conteudos, mesConteudoAtivo],
+  )
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -343,26 +366,12 @@ export function PortalCliente({
               value="conteudo"
               className="mt-6 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
+              <MesesSelector meses={mesesConteudo} ativo={mesConteudoAtivo} onSelecionar={setMesConteudoSel} />
               <Card titulo="Conteúdo em produção" subtitulo="Acompanhe cada peça saindo do papel.">
-                {conteudos.length > 0 ? (
+                {conteudosDoMes.length > 0 ? (
                   <ul className="divide-y divide-border">
-                    {conteudos.map((c) => (
-                      <li key={c.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{c.titulo}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {c.formato} · {c.data}
-                          </p>
-                        </div>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                            conteudoInfo[c.status].classe,
-                          )}
-                        >
-                          {conteudoInfo[c.status].label}
-                        </span>
-                      </li>
+                    {conteudosDoMes.map((c) => (
+                      <ConteudoPortalItem key={c.id} conteudo={c} token={token} />
                     ))}
                   </ul>
                 ) : (
@@ -448,7 +457,10 @@ export function PortalCliente({
               value="materiais"
               className="mt-6 space-y-4 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
-              <Card titulo="Enviar vídeos e fotos" subtitulo="Cole o link do seu material — sem limite de tamanho.">
+              <Card
+                titulo="Enviar vídeos e fotos"
+                subtitulo="Cole aqui os links dos materiais que você captou — sem limite de tamanho."
+              >
                 <FormEnvio token={token} />
                 {envios.length > 0 && (
                   <ul className="mt-6 divide-y divide-border">
@@ -475,48 +487,34 @@ export function PortalCliente({
                   </ul>
                 )}
               </Card>
-
-              <Card titulo="Materiais e arquivos" subtitulo="Tudo o que a SIMPLE preparou para você.">
-                {arquivos.length > 0 ? (
-                  <ul className="divide-y divide-border">
-                    {arquivos.map((a) => (
-                      <li key={a.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                          <FolderOpen className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">{a.nome}</p>
-                          <p className="text-xs text-muted-foreground">{a.tipo}</p>
-                        </div>
-                        {a.url ? (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                            Baixar / Abrir
-                          </a>
-                        ) : (
-                          <span className="shrink-0 text-xs text-muted-foreground">Em breve</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <Vazio texto="Nenhum material disponível ainda." />
-                )}
-              </Card>
             </TabsContent>
 
             {/* Estratégia */}
             <TabsContent
               value="estrategia"
-              className="mt-6 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
+              className="mt-6 space-y-4 animate-in fade-in-50 slide-in-from-bottom-1 duration-300"
             >
+              {estrategiasMensais.length > 0 && (
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold text-foreground">Estratégia mensal</h3>
+                  </div>
+                  <EstrategiaMensalPortal estrategias={estrategiasMensais} />
+                </div>
+              )}
+              {cliente.resumoEstrategico?.trim() && (
+                <Card
+                  titulo="Resumo estratégico"
+                  subtitulo="O panorama da sua marca e o caminho que estamos trilhando."
+                >
+                  <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                    {cliente.resumoEstrategico}
+                  </p>
+                </Card>
+              )}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Card titulo="Plano atual" subtitulo="A direç��o que estamos seguindo juntos.">
+                <Card titulo="Plano atual" subtitulo="A direção que estamos seguindo juntos.">
                   {estrategia.estrategiaAtual.length > 0 ? (
                     <ul className="space-y-2.5">
                       {estrategia.estrategiaAtual.map((item, i) => (
@@ -929,4 +927,267 @@ function Card({
 
 function Vazio({ texto }: { texto: string }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{texto}</p>
+}
+
+// Transforma URLs presentes em um texto livre (como o roteiro) em links clicáveis,
+// mantendo o restante do conteúdo — incluindo quebras de linha — intacto.
+function textoComLinks(texto: string): ReactNode[] {
+  const regexUrl = /(https?:\/\/[^\s]+)/g
+  const partes = texto.split(regexUrl)
+
+  return partes.map((parte, indice) => {
+    if (/^https?:\/\//.test(parte)) {
+      // Remove pontuação final comum que costuma "grudar" no fim de uma URL.
+      const match = parte.match(/^(.*?)([.,;:!?)\]]*)$/)
+      const url = match ? match[1] : parte
+      const sufixo = match ? match[2] : ""
+      return (
+        <span key={indice}>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 break-all font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+          >
+            {url}
+            <ExternalLink className="h-3 w-3 shrink-0" />
+          </a>
+          {sufixo}
+        </span>
+      )
+    }
+    return <span key={indice}>{parte}</span>
+  })
+}
+
+// Item da pipeline de conteúdo no portal: o título é clicável e expande o roteiro completo,
+// permitindo que o cliente leia tudo antes de aprovar.
+function ConteudoPortalItem({ conteudo, token }: { conteudo: ConteudoItem; token: string }) {
+  const [aberto, setAberto] = useState(false)
+  const temRoteiro = Boolean(conteudo.roteiro?.trim())
+  const temLegenda = Boolean(conteudo.legenda?.trim())
+  const linksValidos = (conteudo.links ?? []).filter((l) => l.url?.trim())
+  const temLinks = linksValidos.length > 0
+  const temReferencia = Boolean(conteudo.referencia?.trim())
+  const expansivel = temRoteiro || temLegenda || temLinks || temReferencia
+  const emAprovacao = conteudo.status === "aprovacao"
+
+  return (
+    <li className="py-3 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => expansivel && setAberto((v) => !v)}
+          disabled={!expansivel}
+          aria-expanded={expansivel ? aberto : undefined}
+          className={cn(
+            "group flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors",
+            expansivel
+              ? "cursor-pointer hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              : "cursor-default",
+          )}
+        >
+          {expansivel && (
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-primary",
+                aberto && "rotate-180",
+              )}
+            />
+          )}
+          <span className="min-w-0 flex-1">
+            <span
+              className={cn(
+                "block truncate text-sm font-medium text-foreground",
+                expansivel && "group-hover:text-primary group-hover:underline",
+              )}
+            >
+              {conteudo.titulo}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {conteudo.formato} · {conteudo.data}
+              {expansivel && !aberto && (temRoteiro ? " · toque para ver os detalhes" : " · toque para ver mais")}
+            </span>
+          </span>
+        </button>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+            conteudoInfo[conteudo.status].classe,
+          )}
+        >
+          {conteudoInfo[conteudo.status].label}
+        </span>
+      </div>
+
+      {expansivel && aberto && (
+        <div className="mt-3 grid gap-3 animate-in fade-in-50 slide-in-from-top-1 duration-200">
+          {temRoteiro && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Roteiro</span>
+              </div>
+              <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                {textoComLinks(conteudo.roteiro ?? "")}
+              </p>
+            </div>
+          )}
+          {temLegenda && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <Quote className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Sugestão de legenda</span>
+              </div>
+              <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                {textoComLinks(conteudo.legenda ?? "")}
+              </p>
+            </div>
+          )}
+          {temLinks && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Links do conteúdo</span>
+              </div>
+              <ul className="grid gap-1.5">
+                {linksValidos.map((l, i) => (
+                  <li key={i}>
+                    <a
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 break-all text-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      {l.rotulo?.trim() || l.url}
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {temReferencia && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <div className="mb-2 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">Referência</span>
+              </div>
+              <a
+                href={conteudo.referencia}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 break-all text-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                {conteudo.referencia}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Aprovação do cliente: aparece quando a peça está aguardando aprovação. */}
+      {emAprovacao && <BlocoAprovacaoConteudo token={token} conteudo={conteudo} />}
+    </li>
+  )
+}
+
+// Bloco de aprovação exibido no portal para conteúdos em "aprovação".
+// O cliente escolhe entre "Aprovar" ou "Pedir ajuste" — este último abre uma
+// caixinha de texto para descrever o ajuste desejado.
+function BlocoAprovacaoConteudo({ token, conteudo }: { token: string; conteudo: ConteudoItem }) {
+  const [estado, formAction] = useActionState(aprovarConteudoPortalAction, estadoInicial)
+  const [modoAjuste, setModoAjuste] = useState(false)
+
+  if (estado.ok) {
+    return (
+      <div className="mt-3 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success animate-in fade-in-50 duration-200">
+        <CheckCircle2 className="h-4 w-4 shrink-0" />
+        <span className="text-pretty">{estado.mensagem ?? "Recebemos sua resposta. Obrigado!"}</span>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4 animate-in fade-in-50 duration-200"
+    >
+      <input type="hidden" name="token" value={token} />
+      <input type="hidden" name="conteudoId" value={conteudo.id} />
+
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <Clock className="h-3.5 w-3.5 text-primary" />
+        Aguardando sua aprovação
+      </p>
+
+      {!modoAjuste ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <BotaoAprovarConteudo />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setModoAjuste(true)}
+            className="gap-1.5"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Pedir ajuste
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-3 grid gap-2 animate-in fade-in-50 slide-in-from-top-1 duration-200">
+          <Textarea
+            name="feedback"
+            required
+            rows={3}
+            autoFocus
+            placeholder="Descreva o ajuste que você gostaria de fazer..."
+            className="resize-none bg-background text-sm"
+          />
+          <div className="flex flex-wrap gap-2">
+            <BotaoEnviarAjuste />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setModoAjuste(false)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {estado.erro && <p className="mt-2 text-xs font-medium text-destructive">{estado.erro}</p>}
+    </form>
+  )
+}
+
+function BotaoAprovarConteudo() {
+  const { pending } = useFormStatus()
+  return (
+    <Button
+      type="submit"
+      name="decisao"
+      value="aprovado"
+      size="sm"
+      disabled={pending}
+      className="gap-1.5 bg-success text-success-foreground hover:bg-success/90"
+    >
+      <Check className="h-4 w-4" />
+      {pending ? "Aprovando..." : "Aprovar"}
+    </Button>
+  )
+}
+
+function BotaoEnviarAjuste() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" name="decisao" value="ajuste" size="sm" disabled={pending} className="gap-1.5">
+      <Send className="h-4 w-4" />
+      {pending ? "Enviando..." : "Enviar ajuste"}
+    </Button>
+  )
 }

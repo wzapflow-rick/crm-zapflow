@@ -67,6 +67,20 @@ export async function adicionarEnvio(
   )
 }
 
+// Edição pela equipe: renomear (título/descrição) e/ou substituir o link.
+export async function atualizarEnvio(
+  id: string,
+  empresaId: string,
+  dados: { titulo: string; link: string; descricao: string },
+): Promise<void> {
+  await query(
+    `UPDATE public.cliente_envio
+        SET titulo = $3, link = $4, descricao = $5
+      WHERE id = $1 AND empresa_id = $2`,
+    [id, empresaId, dados.titulo.trim() || "Material enviado", dados.link, dados.descricao.trim() || null],
+  )
+}
+
 // Exclusão pela equipe (uso interno).
 export async function excluirEnvio(id: string, empresaId: string): Promise<void> {
   await query(`DELETE FROM public.cliente_envio WHERE id = $1 AND empresa_id = $2`, [id, empresaId])

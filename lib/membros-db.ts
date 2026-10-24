@@ -7,6 +7,7 @@ export type Membro = {
   iniciais: string
   cor: string
   cargo: string
+  temPin: boolean
 }
 
 type MembroRow = {
@@ -15,6 +16,7 @@ type MembroRow = {
   iniciais: string | null
   cor: string | null
   cargo: string | null
+  tem_pin: boolean | null
 }
 
 const CORES = ["bg-primary", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"]
@@ -39,7 +41,7 @@ function iniciaisDe(nome: string) {
 export async function getMembros(): Promise<Membro[]> {
   try {
     const rows = await query<MembroRow>(
-      `select id, nome, iniciais, cor, cargo
+      `select id, nome, iniciais, cor, cargo, (pin is not null) as tem_pin
        from public.equipe
        order by nome asc`,
     )
@@ -51,6 +53,7 @@ export async function getMembros(): Promise<Membro[]> {
         iniciais: r.iniciais || iniciaisDe(nome),
         cor: r.cor || corPara(nome),
         cargo: r.cargo ?? "",
+        temPin: r.tem_pin ?? false,
       }
     })
   } catch {
@@ -64,23 +67,65 @@ export async function getMembroPorId(id: string | null | undefined): Promise<Mem
   return membros.find((m) => m.id === id) ?? null
 }
 
-export async function criarMembro(input: { nome: string; cargo?: string }): Promise<void> {
+/** Busca o membro cujo PIN de acesso corresponde ao informado (usado no login). */
+export async function getMembroPorPin(pin: string): Promise<Membro | null> {
+  const limpo = pin.trim()
+  if (!limpo) return null
+  try {
+    const rows = await query<MembroRow>(
+      `select id, nome, iniciais, cor, cargo, (pin is not null) as tem_pin
+       from public.equipe
+       where pin = $1
+       limit 1`,
+      [limpo],
+    )
+    const r = rows[0]
+    if (!r) return null
+    const nome = r.nome ?? "Sem nome"
+    return {
+      id: r.id,
+      nome,
+      iniciais: r.iniciais || iniciaisDe(nome),
+      cor: r.cor || corPara(nome),
+      cargo: r.cargo ?? "",
+      temPin: r.tem_pin ?? true,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function criarMembro(input: { nome: string; cargo?: string; pin?: string }): Promise<void> {
   const nome = input.nome.trim()
   await query(
-    `insert into public.equipe (nome, cargo, iniciais, cor)
-     values ($1, $2, $3, $4)`,
-    [nome, input.cargo?.trim() || null, iniciaisDe(nome), corPara(nome)],
+    `insert into public.equipe (nome, cargo, iniciais, cor, pin)
+     values ($1, $2, $3, $4, $5)`,
+    [nome, input.cargo?.trim() || null, iniciaisDe(nome), corPara(nome), input.pin?.trim() || null],
   )
 }
 
-export async function atualizarMembro(id: string, input: { nome: string; cargo?: string }): Promise<void> {
+export async function atualizarMembro(
+  id: string,
+  input: { nome: string; cargo?: string; pin?: string },
+): Promise<void> {
   const nome = input.nome.trim()
-  await query(
-    `update public.equipe
-     set nome = $2, cargo = $3, iniciais = $4
-     where id = $1`,
-    [id, nome, input.cargo?.trim() || null, iniciaisDe(nome)],
-  )
+  const pin = input.pin?.trim()
+  // Só sobrescreve o PIN quando um novo valor é informado; deixar em branco mantém o atual.
+  if (pin) {
+    await query(
+      `update public.equipe
+       set nome = $2, cargo = $3, iniciais = $4, pin = $5
+       where id = $1`,
+      [id, nome, input.cargo?.trim() || null, iniciaisDe(nome), pin],
+    )
+  } else {
+    await query(
+      `update public.equipe
+       set nome = $2, cargo = $3, iniciais = $4
+       where id = $1`,
+      [id, nome, input.cargo?.trim() || null, iniciaisDe(nome)],
+    )
+  }
 }
 
 export async function excluirMembro(id: string): Promise<void> {

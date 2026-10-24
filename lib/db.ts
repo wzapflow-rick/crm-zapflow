@@ -8,16 +8,34 @@ function makePool() {
   if (!connectionString) {
     throw new Error("CRM_DATABASE_URL não configurada no ambiente.")
   }
-  // O Postgres self-hosted da SIMPLE não usa TLS por padrão.
-  // Se a string de conexão pedir SSL, habilitamos sem validar o certificado.
-  const querSsl = /sslmode=require|ssl=true/i.test(connectionString)
+  // Remove parâmetros de SSL da URL para que o pg-connection-string não
+  // sobrescreva a configuração explícita nem emita avisos de compatibilidade.
+  const url = new URL(connectionString)
+  const sslMode = url.searchParams.get("sslmode")?.toLowerCase()
+  const sslParam = url.searchParams.get("ssl")?.toLowerCase()
+  const querSsl =
+    sslParam === "true" ||
+    (sslMode !== undefined && !["disable", "allow"].includes(sslMode))
+
+  url.searchParams.delete("sslmode")
+  url.searchParams.delete("ssl")
+  url.searchParams.delete("uselibpqcompat")
+
   const pool = new Pool({
-    connectionString,
+    connectionString: url.toString(),
     ssl: querSsl ? { rejectUnauthorized: false } : false,
-    // 10 conexões: as páginas agora disparam muitas queries em paralelo (Promise.all).
-    max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 8_000,
+    // Limita o fan-out por instância serverless para não saturar o Postgres.
+    max: 5,
+    min: 0,
+    idleTimeoutMillis: 20_000,
+    // Páginas como /clientes/[id] enfileiram ~20 consultas em 5 conexões;
+    // 5s de espera pela conexão estourava sob carga e derrubava a página.
+    connectionTimeoutMillis: 15_000,
+    // O limite é aplicado no cliente. Proxies como PgBouncer não aceitam
+    // statement_timeout como parâmetro de inicialização da conexão.
+    query_timeout: 10_000,
+    allowExitOnIdle: true,
+    application_name: "simple-crm",
   })
   // Sem este handler, uma conexão ociosa derrubada pela VPS vira exceção
   // não tratada e mata o processo serverless inteiro.
@@ -50,6 +68,19 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   params?: unknown[],
 ): Promise<T[]> {
   const pool = getPool()
-  const result = await pool.query<T>(text, params as never)
-  return result.rows
+  const inicio = performance.now()
+
+  try {
+    const result = await pool.query<T>(text, params as never)
+    const duracaoMs = Math.round(performance.now() - inicio)
+    if (duracaoMs >= 500) {
+      const operacao = text.trim().split(/\s+/, 1)[0]?.toUpperCase() ?? "QUERY"
+      console.warn(`[db] consulta lenta: ${operacao} em ${duracaoMs}ms (${result.rowCount ?? 0} linhas)`)
+    }
+    return result.rows
+  } catch (error) {
+    const duracaoMs = Math.round(performance.now() - inicio)
+    console.error(`[db] consulta falhou após ${duracaoMs}ms:`, error instanceof Error ? error.message : error)
+    throw error
+  }
 }

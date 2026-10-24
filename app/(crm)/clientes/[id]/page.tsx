@@ -20,6 +20,14 @@ import { getPerformance, type ConteudoPerformance } from "@/lib/performance-db"
 import { getExperimentos, type Experimento } from "@/lib/experimentos-db"
 import { getPadroes, getUltimaAnalise, type Padrao } from "@/lib/padroes-db"
 import { getEnvios, type EnvioCliente } from "@/lib/envios-db"
+import { getEstrategiasMensais, type EstrategiaMensal } from "@/lib/estrategia-mensal-db"
+import {
+  getConexaoInstagram,
+  getMidiasInstagram,
+  type ConexaoInstagram,
+  type MidiaInstagram,
+} from "@/lib/instagram-db"
+import { instagramConfigurado } from "@/lib/instagram-api"
 import type {
   Arquivo,
   Cliente,
@@ -40,10 +48,15 @@ export default async function ClientePage({
 }) {
   const { id } = await params
 
-  // Todas as buscas disparam EM PARALELO (uma ida ao banco em vez de ~16 em série).
-  // Cada uma tem fallback próprio via `seguro`: se uma tabela não existir, a página não quebra.
+  // Busca o cliente primeiro e SEM fallback: uma falha de banco (timeout, pool
+  // cheio) precisa cair no error.tsx com "Tentar novamente", e não virar 404.
+  const cliente = await getClientePorId(id)
+  if (!cliente) {
+    notFound()
+  }
+
+  // As demais buscas disparam em paralelo, cada uma com fallback próprio via `seguro`.
   const [
-    cliente,
     membros,
     metas,
     eventos,
@@ -60,8 +73,10 @@ export default async function ClientePage({
     padroes,
     ultimaAnalisePadroes,
     envios,
+    estrategiasMensais,
+    instagramConexao,
+    instagramMidias,
   ] = await Promise.all([
-    seguro<Cliente | null>(getClientePorId(id), null),
     seguro<Membro[]>(getMembros(), []),
     seguro<Meta[]>(getMetas(id), []),
     seguro<EventoCliente[]>(getEventos(id), []),
@@ -78,11 +93,10 @@ export default async function ClientePage({
     seguro<Padrao[]>(getPadroes(id), []),
     seguro<string | null>(getUltimaAnalise(id), null),
     seguro<EnvioCliente[]>(getEnvios(id), []),
+    seguro<EstrategiaMensal[]>(getEstrategiasMensais(id), []),
+    seguro<ConexaoInstagram | null>(getConexaoInstagram(id), null),
+    seguro<MidiaInstagram[]>(getMidiasInstagram(id), []),
   ])
-
-  if (!cliente) {
-    notFound()
-  }
 
   return (
     <>
@@ -105,6 +119,10 @@ export default async function ClientePage({
         padroes={padroes}
         ultimaAnalisePadroes={ultimaAnalisePadroes}
         envios={envios}
+        estrategiasMensais={estrategiasMensais}
+        instagramConexao={instagramConexao}
+        instagramMidias={instagramMidias}
+        instagramConfigurado={instagramConfigurado()}
       />
     </>
   )
