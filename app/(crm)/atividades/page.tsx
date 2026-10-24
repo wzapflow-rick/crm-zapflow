@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { AtividadesView } from "@/components/atividades/atividades-view"
 import { getAtividades, type Atividade } from "@/lib/atividades-db"
 import { getMembros, type Membro } from "@/lib/membros-db"
@@ -10,6 +11,7 @@ export default async function AtividadesPage({
 }: {
   searchParams: Promise<{ membro?: string; modulo?: string }>
 }) {
+  await exigirUsuario()
   const { membro, modulo } = await searchParams
 
   const [atividades, membros] = await Promise.all([

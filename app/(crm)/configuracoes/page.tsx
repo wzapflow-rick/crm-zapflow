@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { Topbar } from "@/components/simple/topbar"
 import { Equipe } from "@/components/configuracoes/equipe"
 import { WhatsAppDiagnostico } from "@/components/configuracoes/whatsapp-diagnostico"
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic"
 export const maxDuration = 30
 
 export default async function ConfiguracoesPage() {
+  await exigirUsuario()
   let membros: Membro[] = []
   try {
     membros = await getMembros()

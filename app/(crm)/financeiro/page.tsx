@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { FinanceiroView } from "@/components/financeiro/financeiro-view"
 import { seguro } from "@/lib/db"
 import {
@@ -17,6 +18,7 @@ export default async function FinanceiroPage({
 }: {
   searchParams: Promise<{ mes?: string }>
 }) {
+  await exigirUsuario()
   const { mes: mesParam } = await searchParams
   const mes = /^\d{4}-\d{2}$/.test(mesParam ?? "") ? (mesParam as string) : mesAtual()
 

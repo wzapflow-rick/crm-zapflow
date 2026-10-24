@@ -11,6 +11,12 @@ import { adicionarEnvio, normalizarLink } from "@/lib/envios-db"
 
 export type EstadoPortal = { ok: boolean; erro?: string; mensagem?: string }
 
+// O portal é público (acesso por link): limites evitam que um link vazado
+// seja usado para encher o banco com textos gigantes.
+const LIMITE_TEXTO = 4000
+const LIMITE_CURTO = 200
+const ERRO_TAMANHO = { ok: false, erro: "Texto muito longo. Resuma e tente novamente." } as const
+
 export async function enviarMensagemPortalAction(
   _prev: EstadoPortal,
   formData: FormData,
@@ -25,6 +31,7 @@ export async function enviarMensagemPortalAction(
   if (!texto) {
     return { ok: false, erro: "Escreva uma mensagem antes de enviar." }
   }
+  if (texto.length > LIMITE_TEXTO || autorNome.length > LIMITE_CURTO) return ERRO_TAMANHO
 
   // Valida o token: só envia se ele corresponder a um cliente real.
   let cliente
@@ -64,6 +71,9 @@ export async function enviarMaterialPortalAction(
   }
   if (!linkBruto) {
     return { ok: false, erro: "Cole o link do material (Google Drive, WeTransfer, etc.)." }
+  }
+  if (linkBruto.length > 2048 || titulo.length > LIMITE_CURTO || descricao.length > LIMITE_TEXTO) {
+    return ERRO_TAMANHO
   }
 
   const link = normalizarLink(linkBruto)
@@ -113,6 +123,7 @@ export async function aprovarConteudoPortalAction(
   if (decisao === "ajuste" && !feedback) {
     return { ok: false, erro: "Descreva o ajuste que você gostaria de fazer." }
   }
+  if (feedback.length > LIMITE_TEXTO) return ERRO_TAMANHO
 
   let cliente
   try {

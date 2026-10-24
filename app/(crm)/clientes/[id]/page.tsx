@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { notFound } from "next/navigation"
 import { Topbar } from "@/components/simple/topbar"
 import { ClienteDetalhe } from "@/components/clientes/cliente-detalhe"
@@ -46,6 +47,7 @@ export default async function ClientePage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  await exigirUsuario()
   const { id } = await params
 
   // Busca o cliente primeiro e SEM fallback: uma falha de banco (timeout, pool

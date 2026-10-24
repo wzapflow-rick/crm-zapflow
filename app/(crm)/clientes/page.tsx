@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { Topbar } from "@/components/simple/topbar"
 import { ClientesLista } from "@/components/clientes/clientes-lista"
 import { getClientes } from "@/lib/clientes-db"
@@ -7,6 +8,7 @@ import type { Cliente } from "@/lib/simple-data"
 export const dynamic = "force-dynamic"
 
 export default async function ClientesPage() {
+  await exigirUsuario()
   let clientes: Cliente[] = []
   let membros: Membro[] = []
   let erro: string | null = null

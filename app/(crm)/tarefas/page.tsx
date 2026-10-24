@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { TarefasView } from "@/components/tarefas/tarefas-view"
 import type { ClienteOpcao } from "@/components/tarefas/tarefa-dialog"
 import { getTarefas, type Tarefa } from "@/lib/tarefas-db"
@@ -8,6 +9,7 @@ import { getMembros, type Membro } from "@/lib/membros-db"
 export const dynamic = "force-dynamic"
 
 export default async function TarefasPage() {
+  await exigirUsuario()
   let tarefas: Tarefa[] = []
   let eventos: Evento[] = []
   let clientes: ClienteOpcao[] = []

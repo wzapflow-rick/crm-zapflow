@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { CalendarioView } from "@/components/calendario/calendario-view"
 import type { ClienteOpcao } from "@/components/calendario/evento-dialog"
 import { getEventos, type Evento } from "@/lib/eventos-db"
@@ -8,6 +9,7 @@ import { getMembros, type Membro } from "@/lib/membros-db"
 export const dynamic = "force-dynamic"
 
 export default async function CalendarioPage() {
+  await exigirUsuario()
   let eventos: Evento[] = []
   let tarefas: Tarefa[] = []
   let clientes: ClienteOpcao[] = []

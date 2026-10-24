@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { Topbar } from "@/components/simple/topbar"
 import { CrmKanban } from "@/components/crm/crm-kanban"
 import { getNegocios, type Negocio } from "@/lib/crm-db"
@@ -6,6 +7,7 @@ import { getMembros, type Membro } from "@/lib/membros-db"
 export const dynamic = "force-dynamic"
 
 export default async function CrmPage() {
+  await exigirUsuario()
   let negocios: Negocio[] = []
   let membros: Membro[] = []
   let erro: string | null = null

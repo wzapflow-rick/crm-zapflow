@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { Topbar } from "@/components/simple/topbar"
 import { Dashboard } from "@/components/dashboard/dashboard"
 import { seguro } from "@/lib/db"
@@ -12,6 +13,7 @@ import type { Cliente } from "@/lib/simple-data"
 export const dynamic = "force-dynamic"
 
 export default async function DashboardPage() {
+  await exigirUsuario()
   // Todas as buscas em paralelo: uma ida ao banco em vez de 6 em série.
   const [resumo, resumoTarefas, resumoFinanceiro, clientes, proximasGravacoes, membros, alertasAtencao] =
     await Promise.all([

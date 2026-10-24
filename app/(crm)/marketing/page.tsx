@@ -1,3 +1,4 @@
+import { exigirUsuario } from "@/lib/auth"
 import { MarketingView } from "@/components/marketing/marketing-view"
 import { seguro } from "@/lib/db"
 import { getClientes } from "@/lib/clientes-db"
@@ -9,6 +10,7 @@ import { getOperacoes, type Operacao } from "@/lib/operacoes-db"
 export const dynamic = "force-dynamic"
 
 export default async function MarketingPage() {
+  await exigirUsuario()
   // Todas as buscas em paralelo: uma ida ao banco em vez de 2 em série.
   const [clientes, aprendizadosGlobais, ultimaAnaliseGlobal, operacoes] = await Promise.all([
     seguro<Cliente[]>(getClientes(), []),
