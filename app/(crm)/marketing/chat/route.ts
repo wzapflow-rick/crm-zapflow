@@ -7,6 +7,7 @@ import {
 } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { PERSONA } from "@/lib/persona"
+import { exigirUsuarioApi } from "@/lib/auth"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { salvarChatMensagem } from "@/lib/chat-db"
 import { avaliarECorrigirResposta, MODELO_CHAT } from "@/lib/avaliacao-resposta-ia"
@@ -22,9 +23,12 @@ function textoDaMensagem(msg: UIMessage | undefined): string {
 }
 
 export async function POST(req: Request) {
+  const usuario = await exigirUsuarioApi()
+  if (usuario instanceof Response) return usuario
+
   const { messages, empresaId }: { messages: UIMessage[]; empresaId?: string } = await req.json()
 
-  if (!empresaId) {
+  if (typeof empresaId !== "string" || !empresaId.trim() || !Array.isArray(messages)) {
     return new Response("Cliente não informado.", { status: 400 })
   }
 

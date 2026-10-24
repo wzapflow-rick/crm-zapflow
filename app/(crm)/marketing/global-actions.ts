@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -60,6 +62,7 @@ function resumoAgregado(base: Awaited<ReturnType<typeof agregarBaseAnonima>>): s
 }
 
 export async function analisarInteligenciaGlobalAction(): Promise<EstadoGlobal> {
+  await exigirUsuario()
   try {
     const base = await agregarBaseAnonima()
 

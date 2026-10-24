@@ -40,8 +40,8 @@ export async function enviarMensagemPortalAction(
   try {
     await adicionarMensagemCliente(cliente.id, texto, autorNome || cliente.nome)
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido."
-    return { ok: false, erro: `Não foi possível enviar: ${msg}` }
+    console.error("[portal] falha:", e instanceof Error ? e.message : e)
+    return { ok: false, erro: "Não foi possível enviar agora. Tente novamente em instantes." }
   }
 
   // Sem revalidatePath: o chat atualiza via polling/mutate (SWR), evitando recarregar a página.
@@ -84,8 +84,8 @@ export async function enviarMaterialPortalAction(
   try {
     await adicionarEnvio(cliente.id, { titulo, link, descricao })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido."
-    return { ok: false, erro: `Não foi possível enviar: ${msg}` }
+    console.error("[portal] falha:", e instanceof Error ? e.message : e)
+    return { ok: false, erro: "Não foi possível enviar agora. Tente novamente em instantes." }
   }
 
   revalidatePath(`/portal/${token}`)
@@ -153,8 +153,8 @@ export async function aprovarConteudoPortalAction(
       )
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido."
-    return { ok: false, erro: `Não foi possível registrar: ${msg}` }
+    console.error("[portal] falha:", e instanceof Error ? e.message : e)
+    return { ok: false, erro: "Não foi possível registrar agora. Tente novamente em instantes." }
   }
 
   revalidatePath(`/portal/${token}`)

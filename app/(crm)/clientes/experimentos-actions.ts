@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { generateText, Output } from "ai"
 import { openai } from "@ai-sdk/openai"
@@ -31,6 +33,7 @@ export async function criarExperimentoAction(
   _prev: EstadoExperimento,
   formData: FormData,
 ): Promise<EstadoExperimento> {
+  await exigirUsuario()
   const empresaId = String(formData.get("clienteId") ?? "")
   const hipotese = String(formData.get("hipotese") ?? "").trim()
   const oQueFoiTestado = String(formData.get("oQueFoiTestado") ?? "").trim()
@@ -76,6 +79,7 @@ RESULTADO OBSERVADO: ${resultado}`,
 }
 
 export async function excluirExperimentoAction(id: string, empresaId: string): Promise<void> {
+  await exigirUsuario()
   try {
     await excluirExperimento(id, empresaId)
     agendarAtualizacaoInteligencia(empresaId)

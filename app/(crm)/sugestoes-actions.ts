@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { carregarSugestoesAtivos } from "@/lib/sugestoes-ia"
 import type { AlertaCliente } from "@/lib/clientes-db"
 
@@ -10,6 +12,7 @@ export type EstadoSugestoes =
 // Carrega as sugestões da Central de Atenção enriquecidas por IA.
 // `forcar` ignora o cache e regenera para todos os clientes ativos.
 export async function carregarSugestoesAction(forcar = false): Promise<EstadoSugestoes> {
+  await exigirUsuario()
   try {
     const sugestoes = await carregarSugestoesAtivos({ forcar })
     return { ok: true, sugestoes }

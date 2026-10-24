@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -42,6 +44,7 @@ export async function criarOperacaoAction(
   _prev: EstadoOperacao,
   formData: FormData,
 ): Promise<EstadoOperacao> {
+  await exigirUsuario()
   const tituloManual = String(formData.get("titulo") ?? "").trim()
   const texto = String(formData.get("dados") ?? "").trim()
 
@@ -99,6 +102,7 @@ Regras rígidas:
 }
 
 export async function excluirOperacaoAction(id: string): Promise<EstadoOperacao> {
+  await exigirUsuario()
   try {
     await excluirOperacao(id)
     revalidatePath("/marketing")

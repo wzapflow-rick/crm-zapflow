@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirAdmin } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { criarMembro, atualizarMembro, excluirMembro } from "@/lib/membros-db"
 import { registrarAtividade } from "@/lib/atividades-db"
@@ -10,6 +12,7 @@ export async function salvarMembroAction(
   _prev: EstadoEquipe,
   formData: FormData,
 ): Promise<EstadoEquipe> {
+  await exigirAdmin()
   const id = String(formData.get("id") ?? "").trim()
   const nome = String(formData.get("nome") ?? "").trim()
   const cargo = String(formData.get("cargo") ?? "").trim()
@@ -50,6 +53,7 @@ export async function excluirMembroAction(
   _prev: EstadoEquipe,
   formData: FormData,
 ): Promise<EstadoEquipe> {
+  await exigirAdmin()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Membro não identificado." }

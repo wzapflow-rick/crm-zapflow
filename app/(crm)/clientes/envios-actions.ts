@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { atualizarEnvio, excluirEnvio, normalizarLink } from "@/lib/envios-db"
 
@@ -10,6 +12,7 @@ export async function atualizarEnvioAction(
   _prev: EstadoEnvio,
   formData: FormData,
 ): Promise<EstadoEnvio> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   const clienteId = String(formData.get("clienteId") ?? "").trim()
   if (!id || !clienteId) {
@@ -41,6 +44,7 @@ export async function atualizarEnvioAction(
 
 // Exclui um envio do cliente (uso interno da equipe).
 export async function excluirEnvioAction(id: string, clienteId: string): Promise<EstadoEnvio> {
+  await exigirUsuario()
   const envioId = id.trim()
   const empresaId = clienteId.trim()
   if (!envioId || !empresaId) {

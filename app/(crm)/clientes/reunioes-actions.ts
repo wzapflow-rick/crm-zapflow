@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { generateText, Output } from "ai"
 import { openai } from "@ai-sdk/openai"
@@ -25,6 +27,7 @@ const schemaReuniao = z.object({
 export type EstadoReuniao = { ok: boolean; erro?: string }
 
 export async function salvarReuniaoAction(_prev: EstadoReuniao, formData: FormData): Promise<EstadoReuniao> {
+  await exigirUsuario()
   const empresaId = String(formData.get("empresaId") ?? "").trim()
   const data = String(formData.get("data") ?? "").trim()
   const notas = String(formData.get("notas") ?? "").trim()
@@ -86,6 +89,7 @@ export async function salvarReuniaoAction(_prev: EstadoReuniao, formData: FormDa
 }
 
 export async function excluirReuniaoAction(_prev: EstadoReuniao, formData: FormData): Promise<EstadoReuniao> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   const empresaId = String(formData.get("empresaId") ?? "").trim()
   if (!id || !empresaId) return { ok: false, erro: "Reunião inválida." }

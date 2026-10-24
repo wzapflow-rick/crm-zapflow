@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -71,6 +73,7 @@ export async function salvarRoteiroGeradoAction(input: {
   formato: string
   roteiro: RoteiroGerado
 }): Promise<{ ok: boolean; erro?: string }> {
+  await exigirUsuario()
   const clienteId = input.clienteId.trim()
   const titulo = input.titulo.trim()
   if (!clienteId) return { ok: false, erro: "Cliente não identificado." }
@@ -102,6 +105,7 @@ export async function gerarRoteiroConteudoAction(input: {
   formato: string
   instrucao?: string
 }): Promise<EstadoRoteiroIa> {
+  await exigirUsuario()
   const clienteId = input.clienteId.trim()
   const titulo = input.titulo.trim()
   if (!clienteId) return { ok: false, erro: "Cliente não identificado." }

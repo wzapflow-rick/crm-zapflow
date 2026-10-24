@@ -1,5 +1,6 @@
 import "server-only"
 import { query, getPool } from "@/lib/db"
+import { tokenPortalValido } from "@/lib/seguranca"
 import type {
   Arquivo,
   Cliente,
@@ -565,7 +566,7 @@ export async function getClientePorId(id: string): Promise<Cliente | null> {
 // Busca o cliente pelo token secreto do portal (link enviado ao cliente).
 export async function getClientePorToken(token: string): Promise<Cliente | null> {
   const limpo = token.trim()
-  if (!limpo) return null
+  if (!tokenPortalValido(limpo)) return null
   const rows = await query<EmpresaRow>(
     `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas

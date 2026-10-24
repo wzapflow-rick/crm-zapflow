@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { excluirPerformance } from "@/lib/performance-db"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
@@ -10,6 +12,7 @@ export async function excluirPerformanceAction(
   _prev: EstadoPerformance,
   formData: FormData,
 ): Promise<EstadoPerformance> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   const empresaId = String(formData.get("empresaId") ?? "").trim()
   if (!id || !empresaId) return { ok: false, erro: "Conteúdo inválido." }

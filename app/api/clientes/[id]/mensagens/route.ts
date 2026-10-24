@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server"
 import { getMensagens } from "@/lib/clientes-db"
+import { exigirUsuarioApi } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
 // Endpoint de polling do chat no painel da equipe (por id do cliente).
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const usuario = await exigirUsuarioApi()
+  if (usuario instanceof Response) return usuario
   const { id } = await params
   const clienteId = (id ?? "").trim()
   if (!clienteId) {

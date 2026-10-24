@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import {
   alternarConclusaoEvento,
@@ -31,6 +33,7 @@ function lerEvento(formData: FormData): EventoInput {
 }
 
 export async function criarEventoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const dados = lerEvento(formData)
   if (!dados.titulo.trim()) return { ok: false, erro: "Informe o título do compromisso." }
   if (!dados.data) return { ok: false, erro: "Informe a data do compromisso." }
@@ -54,6 +57,7 @@ export async function criarEventoAction(_prev: EstadoForm, formData: FormData): 
 }
 
 export async function atualizarEventoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) return { ok: false, erro: "Compromisso não identificado." }
   const dados = lerEvento(formData)
@@ -80,6 +84,7 @@ export async function atualizarEventoAction(_prev: EstadoForm, formData: FormDat
 }
 
 export async function excluirEventoAction(id: string): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Compromisso não identificado." }
   try {
     await excluirEvento(id)
@@ -102,6 +107,7 @@ export async function excluirEventoAction(id: string): Promise<EstadoForm> {
 
 // Usada pelo checkbox do checklist de Tarefas: marca/desmarca o compromisso.
 export async function alternarConclusaoEventoAction(id: string, concluido: boolean): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Compromisso não identificado." }
   try {
     await alternarConclusaoEvento(id, concluido)

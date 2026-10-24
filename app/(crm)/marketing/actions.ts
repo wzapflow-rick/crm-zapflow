@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { generateText, Output } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -38,6 +40,7 @@ export async function gerarInsightsAction(
   _prev: EstadoInsights,
   formData: FormData,
 ): Promise<EstadoInsights> {
+  await exigirUsuario()
   const perfil = String(formData.get("perfil") ?? "").trim()
   const nicho = String(formData.get("nicho") ?? "").trim()
   const seguidores = String(formData.get("seguidores") ?? "").trim()

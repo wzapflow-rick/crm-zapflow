@@ -64,11 +64,13 @@ export default async function PortalPage({
   // Segurança: o direcionamento é interno da equipe e nunca deve ser
   // enviado ao portal do cliente. Removemos o campo antes de renderizar.
   const conteudosPortal = conteudos.map(({ direcionamento: _direcionamento, ...resto }) => resto)
+  // Receita (MRR), tipo de contrato e o próprio token são dados internos.
+  const clientePortal = { ...cliente, mrr: 0, recorrente: false, portalToken: undefined }
 
   return (
     <PortalCliente
       token={token}
-      cliente={cliente}
+      cliente={clientePortal}
       membros={membros}
       metas={metas}
       eventos={eventos}

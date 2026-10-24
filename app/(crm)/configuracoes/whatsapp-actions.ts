@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import {
   estadoInstancia,
   enviarTextoWhatsApp,
@@ -20,6 +22,7 @@ export type DiagnosticoWhatsApp = {
 // Verifica a configuração, o estado da conexão da instância e monta uma prévia
 // da mensagem de "bom dia" com os dados de hoje (sem enviar).
 export async function diagnosticarWhatsAppAction(): Promise<DiagnosticoWhatsApp> {
+  await exigirUsuario()
   const estado = await estadoInstancia()
 
   let previa: string | undefined
@@ -40,6 +43,7 @@ export type EnvioManual = { ok: boolean; erro?: string; enviado?: boolean }
 
 // Dispara a mensagem de "bom dia" agora, no grupo, para testar o envio de ponta a ponta.
 export async function enviarResumoAgoraAction(): Promise<EnvioManual> {
+  await exigirUsuario()
   const grupo = process.env.SOCIOS_GROUP_ID
   if (!grupo) {
     return { ok: false, erro: "SOCIOS_GROUP_ID não configurado." }
@@ -62,5 +66,6 @@ export async function enviarResumoAgoraAction(): Promise<EnvioManual> {
 
 // Gera o QR code para reconectar a sessão do WhatsApp direto pelo CRM.
 export async function reconectarWhatsAppAction(): Promise<ReconexaoWhatsApp> {
+  await exigirUsuario()
   return reconectarInstancia()
 }

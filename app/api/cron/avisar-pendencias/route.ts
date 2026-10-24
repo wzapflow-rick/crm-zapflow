@@ -1,23 +1,13 @@
 import { NextResponse } from "next/server"
 import { getClientesComPendencias, enviarAvisosPendencias } from "@/lib/aviso-pendencias"
+import { cronAutorizado } from "@/lib/seguranca"
 
 export const dynamic = "force-dynamic"
 // Dá folga para a query + envios sequenciais na Evolution.
 export const maxDuration = 60
 
-// Aceita a chamada do Vercel Cron (Authorization: Bearer <CRON_SECRET>)
-// e também uma chamada manual passando ?key=<CRON_SECRET> (útil para testar).
-function autorizado(req: Request): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const auth = req.headers.get("authorization")
-  if (auth === `Bearer ${secret}`) return true
-  const url = new URL(req.url)
-  return url.searchParams.get("key") === secret
-}
-
 export async function GET(req: Request) {
-  if (!autorizado(req)) {
+  if (!cronAutorizado(req)) {
     return NextResponse.json({ ok: false, erro: "Não autorizado." }, { status: 401 })
   }
 
@@ -43,7 +33,7 @@ export async function GET(req: Request) {
     const falhas = resultados.filter((r) => !r.ok || !r.enviado).length
     return NextResponse.json({ ok: true, total: resultados.length, enviados, falhas, resultados })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erro desconhecido."
-    return NextResponse.json({ ok: false, erro: msg }, { status: 500 })
+    console.error("[cron] avisar-pendencias falhou:", e instanceof Error ? e.message : e)
+    return NextResponse.json({ ok: false, erro: "Falha ao processar os avisos." }, { status: 500 })
   }
 }

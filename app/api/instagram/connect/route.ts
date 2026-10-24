@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { buildAuthUrl, getRedirectUri, instagramConfigurado } from "@/lib/instagram-api"
+import { usuarioAutenticado } from "@/lib/auth"
 
 // Inicia o OAuth do Instagram: redireciona para a tela de autorização da Meta.
 export async function GET(req: NextRequest) {
+  if (!(await usuarioAutenticado())) {
+    return NextResponse.redirect(new URL("/login", req.nextUrl.origin))
+  }
   const empresaId = req.nextUrl.searchParams.get("empresa")?.trim()
-  if (!empresaId) {
+  if (!empresaId || !/^[\w-]{1,64}$/.test(empresaId)) {
     return NextResponse.json({ erro: "Cliente não informado." }, { status: 400 })
   }
 

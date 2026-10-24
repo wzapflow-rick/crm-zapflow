@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { generateText, Output } from "ai"
 import { openai } from "@ai-sdk/openai"
@@ -37,6 +39,7 @@ export async function analisarPadroesAction(
   _prev: EstadoPadroes,
   formData: FormData,
 ): Promise<EstadoPadroes> {
+  await exigirUsuario()
   const empresaId = String(formData.get("clienteId") ?? "")
   if (!empresaId) return { ok: false, erro: "Cliente não identificado." }
 

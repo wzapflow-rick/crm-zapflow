@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { getClientePorId } from "@/lib/clientes-db"
 import {
@@ -24,6 +26,7 @@ export type EstadoInstagram = { ok: boolean; erro?: string; mensagem?: string }
 
 // Conecta em MODO DEMONSTRAÇÃO: gera perfil e mídias de exemplo (nunca chama a Meta).
 export async function conectarDemoAction(empresaId: string): Promise<EstadoInstagram> {
+  await exigirUsuario()
   const id = empresaId.trim()
   if (!id) return { ok: false, erro: "Cliente não identificado." }
   try {
@@ -57,6 +60,7 @@ export async function conectarDemoAction(empresaId: string): Promise<EstadoInsta
 
 // Sincroniza dados da conta. No modo demo, regenera métricas de exemplo.
 export async function sincronizarInstagramAction(empresaId: string): Promise<EstadoInstagram> {
+  await exigirUsuario()
   const id = empresaId.trim()
   if (!id) return { ok: false, erro: "Cliente não identificado." }
 
@@ -138,6 +142,7 @@ export async function sincronizarInstagramAction(empresaId: string): Promise<Est
 }
 
 export async function desconectarInstagramAction(empresaId: string): Promise<EstadoInstagram> {
+  await exigirUsuario()
   const id = empresaId.trim()
   if (!id) return { ok: false, erro: "Cliente não identificado." }
   try {

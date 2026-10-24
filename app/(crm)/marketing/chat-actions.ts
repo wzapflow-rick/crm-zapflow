@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { montarContextoCliente, type ResumoContexto } from "@/lib/contexto-cliente"
 import { getChatMensagens, limparChat, type ChatMensagem } from "@/lib/chat-db"
 import {
@@ -20,6 +22,7 @@ export type DadosClienteChat = {
 // Carrega o resumo de contexto + o histórico salvo do chat de um cliente,
 // já anexando o feedback humano registrado em cada resposta da IA.
 export async function carregarChatClienteAction(empresaId: string): Promise<DadosClienteChat> {
+  await exigirUsuario()
   try {
     const [contexto, mensagens, feedbacks] = await Promise.all([
       montarContextoCliente(empresaId),
@@ -44,6 +47,7 @@ export async function registrarFeedbackAction(input: {
   pergunta: string
   avaliacao: TipoFeedback | null
 }): Promise<{ ok: boolean }> {
+  await exigirUsuario()
   try {
     if (!input.empresaId || !input.resposta.trim()) return { ok: false }
     if (input.avaliacao === null) {
@@ -60,6 +64,7 @@ export async function registrarFeedbackAction(input: {
 }
 
 export async function limparChatAction(empresaId: string): Promise<{ ok: boolean }> {
+  await exigirUsuario()
   try {
     await limparChat(empresaId)
     return { ok: true }

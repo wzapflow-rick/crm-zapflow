@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import {
   alternarConclusao,
@@ -25,6 +27,7 @@ function lerTarefa(formData: FormData): TarefaInput {
 }
 
 export async function criarTarefaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const dados = lerTarefa(formData)
   if (!dados.titulo.trim()) {
     return { ok: false, erro: "Informe o título da tarefa." }
@@ -49,6 +52,7 @@ export async function criarTarefaAction(_prev: EstadoForm, formData: FormData): 
 }
 
 export async function atualizarTarefaAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) return { ok: false, erro: "Tarefa não identificada." }
   const dados = lerTarefa(formData)
@@ -77,6 +81,7 @@ export async function atualizarTarefaAction(_prev: EstadoForm, formData: FormDat
 
 // Usada pelo checkbox da lista: marca/desmarca como concluída.
 export async function alternarConclusaoAction(id: string, concluida: boolean): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Tarefa não identificada." }
   try {
     await alternarConclusao(id, concluida)
@@ -98,6 +103,7 @@ export async function alternarConclusaoAction(id: string, concluida: boolean): P
 }
 
 export async function excluirTarefaAction(id: string): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Tarefa não identificada." }
   try {
     await excluirTarefa(id)

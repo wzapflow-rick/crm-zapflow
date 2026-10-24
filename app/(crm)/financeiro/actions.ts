@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import {
   atualizarLancamento,
@@ -35,6 +37,7 @@ function lerLancamento(formData: FormData): LancamentoInput {
 }
 
 export async function criarLancamentoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const dados = lerLancamento(formData)
   if (!dados.descricao.trim()) return { ok: false, erro: "Informe a descrição do lançamento." }
   if (!Number.isFinite(dados.valor) || dados.valor <= 0) return { ok: false, erro: "Informe um valor válido." }
@@ -58,6 +61,7 @@ export async function criarLancamentoAction(_prev: EstadoForm, formData: FormDat
 }
 
 export async function atualizarLancamentoAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) return { ok: false, erro: "Lançamento não identificado." }
   const dados = lerLancamento(formData)
@@ -84,6 +88,7 @@ export async function atualizarLancamentoAction(_prev: EstadoForm, formData: For
 }
 
 export async function excluirLancamentoAction(id: string): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Lançamento não identificado." }
   try {
     await excluirLancamento(id)
@@ -105,6 +110,7 @@ export async function excluirLancamentoAction(id: string): Promise<EstadoForm> {
 
 // Salva a meta de um mês ("YYYY-MM")
 export async function salvarMetaAction(mes: string, valor: number): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!mes) return { ok: false, erro: "Mês não identificado." }
   if (!Number.isFinite(valor) || valor < 0) return { ok: false, erro: "Informe um valor de meta válido." }
   try {

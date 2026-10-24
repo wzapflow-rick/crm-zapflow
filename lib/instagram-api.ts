@@ -1,5 +1,6 @@
 import "server-only"
 import { createHmac } from "node:crypto"
+import { segredoIgual } from "@/lib/seguranca"
 import type { MidiaUpsert } from "@/lib/instagram-db"
 
 // ── Instagram API with Instagram Login (Meta Graph API) ────────────────────
@@ -26,8 +27,12 @@ export function getRedirectUri(origin: string): string {
 }
 
 // ── Proteção do parâmetro state (evita CSRF/adulteração do empresaId) ──────
+const STATE_VALIDADE_MS = 15 * 60 * 1000
+
 function stateSecret(): string {
-  return process.env.INSTAGRAM_TOKEN_SECRET || process.env.INSTAGRAM_APP_SECRET || "simple-os-instagram"
+  const segredo = process.env.INSTAGRAM_TOKEN_SECRET || process.env.INSTAGRAM_APP_SECRET
+  if (!segredo) throw new Error("INSTAGRAM_TOKEN_SECRET não configurado.")
+  return segredo
 }
 
 export function assinarState(empresaId: string): string {
@@ -41,8 +46,16 @@ export function verificarState(state: string): string | null {
   const partes = state.split(".")
   if (partes.length !== 3) return null
   const [empresaId, nonce, sig] = partes
-  const esperado = createHmac("sha256", stateSecret()).update(`${empresaId}.${nonce}`).digest("base64url")
-  return sig === esperado ? empresaId : null
+  let esperado: string
+  try {
+    esperado = createHmac("sha256", stateSecret()).update(`${empresaId}.${nonce}`).digest("base64url")
+  } catch {
+    return null
+  }
+  if (!segredoIgual(sig, esperado)) return null
+  const emitidoEm = Number.parseInt(nonce, 36)
+  if (!Number.isFinite(emitidoEm) || Date.now() - emitidoEm > STATE_VALIDADE_MS) return null
+  return empresaId
 }
 
 export function buildAuthUrl(empresaId: string, redirectUri: string): string {

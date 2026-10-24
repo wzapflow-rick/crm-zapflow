@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { generateText, Output } from "ai"
 import { openai } from "@ai-sdk/openai"
@@ -32,6 +34,7 @@ export async function salvarRegistroHistoricoAction(
   _prev: EstadoHistorico,
   formData: FormData,
 ): Promise<EstadoHistorico> {
+  await exigirUsuario()
   const empresaId = String(formData.get("empresaId") ?? "").trim()
   const periodo = String(formData.get("periodo") ?? "").trim()
   const notas = String(formData.get("notas") ?? "").trim()
@@ -100,6 +103,7 @@ export async function gerarEvolucaoAutomaticaAction(
   _prev: EstadoHistorico,
   formData: FormData,
 ): Promise<EstadoHistorico> {
+  await exigirUsuario()
   const empresaId = String(formData.get("empresaId") ?? "").trim()
   if (!empresaId) return { ok: false, erro: "Cliente não identificado." }
 
@@ -187,6 +191,7 @@ export async function excluirRegistroHistoricoAction(
   _prev: EstadoHistorico,
   formData: FormData,
 ): Promise<EstadoHistorico> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   const empresaId = String(formData.get("empresaId") ?? "").trim()
   if (!id || !empresaId) return { ok: false, erro: "Registro inválido." }

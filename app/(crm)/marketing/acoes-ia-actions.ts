@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -110,6 +112,7 @@ export async function extrairAcaoIA(
   tipo: TipoAcaoIA,
   textoResposta: string,
 ): Promise<EstadoExtracao> {
+  await exigirUsuario()
   const texto = textoResposta?.trim()
   if (!texto || texto.length < 10) {
     return { ok: false, erro: "A resposta é muito curta para gerar esta ação." }
@@ -152,6 +155,7 @@ export async function aplicarAcaoIA(
   empresaId: string,
   dados: unknown,
 ): Promise<EstadoAplicacao> {
+  await exigirUsuario()
   if (!empresaId) return { ok: false, erro: "Cliente não informado." }
   try {
     switch (tipo) {

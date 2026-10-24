@@ -2,10 +2,10 @@ import type { ReactNode } from "react"
 import { redirect } from "next/navigation"
 import { Providers } from "@/components/simple/providers"
 import { Sidebar } from "@/components/simple/sidebar"
-import { getUsuarioAtual } from "@/lib/sessao"
+import { usuarioAutenticado } from "@/lib/auth"
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const usuario = await getUsuarioAtual()
+  const usuario = await usuarioAutenticado()
   if (!usuario) redirect("/login")
 
   return (

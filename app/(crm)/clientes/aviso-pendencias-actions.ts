@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import {
   getPendenciaCliente,
   enviarAvisoCliente,
@@ -11,6 +13,7 @@ export type EnvioAvisoCliente = { ok: boolean; enviado?: boolean; erro?: string;
 
 // Botão manual no detalhe do cliente: avisa só aquele cliente na hora.
 export async function avisarPendenciasClienteAction(clienteId: string): Promise<EnvioAvisoCliente> {
+  await exigirUsuario()
   const id = clienteId.trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -42,6 +45,7 @@ export type EnvioAvisoTodos = {
 
 // Botão manual em Configurações: checa todos os clientes e avisa os que têm pendências.
 export async function avisarTodasPendenciasAction(): Promise<EnvioAvisoTodos> {
+  await exigirUsuario()
   try {
     const resultados = await enviarAvisosPendencias()
     const enviados = resultados.filter((r) => r.enviado).length

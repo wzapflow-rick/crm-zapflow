@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { salvarSecaoMemoria } from "@/lib/memoria-db"
 import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
@@ -7,6 +9,7 @@ import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 export type EstadoMemoria = { ok: boolean; erro?: string }
 
 export async function salvarMemoriaAction(_prev: EstadoMemoria, formData: FormData): Promise<EstadoMemoria> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   const secao = String(formData.get("secao") ?? "").trim()
   if (!id || !secao) {

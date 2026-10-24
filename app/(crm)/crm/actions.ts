@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import {
   atualizarNegocio,
@@ -25,6 +27,7 @@ function lerNegocio(formData: FormData): NegocioInput {
 }
 
 export async function criarNegocioAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const dados = lerNegocio(formData)
   if (!dados.titulo.trim()) {
     return { ok: false, erro: "Informe o nome do negócio." }
@@ -47,6 +50,7 @@ export async function criarNegocioAction(_prev: EstadoForm, formData: FormData):
 }
 
 export async function atualizarNegocioAction(_prev: EstadoForm, formData: FormData): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) return { ok: false, erro: "Negócio não identificado." }
   const dados = lerNegocio(formData)
@@ -73,6 +77,7 @@ export async function atualizarNegocioAction(_prev: EstadoForm, formData: FormDa
 
 // Usada pelo arrastar-e-soltar: move o negócio para outra etapa do funil.
 export async function moverNegocioAction(id: string, etapa: string): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Negócio não identificado." }
   try {
     await moverNegocio(id, etapa)
@@ -92,6 +97,7 @@ export async function moverNegocioAction(id: string, etapa: string): Promise<Est
 }
 
 export async function excluirNegocioAction(id: string): Promise<EstadoForm> {
+  await exigirUsuario()
   if (!id) return { ok: false, erro: "Negócio não identificado." }
   try {
     await excluirNegocio(id)

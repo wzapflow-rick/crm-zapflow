@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import {
@@ -36,6 +38,7 @@ export type EstadoForm = { ok: boolean; erro?: string }
 
 // Salva/remove o banner (capa) do cliente. Chamada direto do perfil do cliente.
 export async function atualizarBannerAction(clienteId: string, bannerUrl: string): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = clienteId.trim()
   if (!id) return { ok: false, erro: "Cliente não identificado." }
   try {
@@ -58,6 +61,7 @@ export async function criarClienteAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const nome = String(formData.get("nome") ?? "").trim()
   if (!nome) {
     return { ok: false, erro: "Informe o nome do cliente." }
@@ -101,6 +105,7 @@ export async function atualizarClienteAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -147,6 +152,7 @@ export async function atualizarClienteAction(
 }
 
 export async function excluirClienteAction(id: string, redirectTo?: string): Promise<EstadoForm> {
+  await exigirUsuario()
   const clienteId = id.trim()
   if (!clienteId) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -180,6 +186,7 @@ export async function salvarVisaoGeralAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -223,6 +230,7 @@ export async function salvarEventosAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -265,6 +273,7 @@ export async function salvarConteudosAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -313,6 +322,7 @@ export async function criarConteudoAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -354,6 +364,7 @@ export async function atualizarDadosConteudoAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const clienteId = String(formData.get("clienteId") ?? "").trim()
   const conteudoId = String(formData.get("conteudoId") ?? "").trim()
   if (!clienteId || !conteudoId) {
@@ -392,6 +403,7 @@ export async function atualizarDadosConteudoAction(
 
 // Exclui um único conteúdo do pipeline.
 export async function excluirConteudoAction(clienteId: string, conteudoId: string): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = clienteId.trim()
   const cId = conteudoId.trim()
   if (!id || !cId) {
@@ -422,6 +434,7 @@ export async function salvarRoteiroConteudoAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const clienteId = String(formData.get("clienteId") ?? "").trim()
   const conteudoId = String(formData.get("conteudoId") ?? "").trim()
   if (!clienteId || !conteudoId) {
@@ -477,6 +490,7 @@ export async function salvarEstrategiaAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -511,6 +525,7 @@ export async function salvarArquivosAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -551,6 +566,7 @@ export async function salvarMensagensAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -592,6 +608,7 @@ export async function enviarMensagemEquipeAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }
@@ -617,6 +634,7 @@ export async function salvarResultadosAction(
   _prev: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  await exigirUsuario()
   const id = String(formData.get("id") ?? "").trim()
   if (!id) {
     return { ok: false, erro: "Cliente não identificado." }

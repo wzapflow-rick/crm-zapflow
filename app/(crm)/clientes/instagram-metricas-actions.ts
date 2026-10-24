@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { getMidiasInstagram, type MidiaInstagram } from "@/lib/instagram-db"
 import { getPerformance, inserirPerformance } from "@/lib/performance-db"
@@ -54,6 +56,7 @@ export async function sugerirMetricasAction(
   clienteId: string,
   conteudo: ConteudoParaMatch,
 ): Promise<{ temInstagram: boolean; candidatos: CandidatoMetrica[] }> {
+  await exigirUsuario()
   const id = clienteId.trim()
   if (!id) return { temInstagram: false, candidatos: [] }
 
@@ -79,6 +82,7 @@ export async function sugerirMetricasAction(
 export async function listarPostsImportaveisAction(
   clienteId: string,
 ): Promise<{ temInstagram: boolean; posts: CandidatoMetrica[] }> {
+  await exigirUsuario()
   const id = clienteId.trim()
   if (!id) return { temInstagram: false, posts: [] }
 
@@ -110,6 +114,7 @@ export async function importarMidiaAction(
   mediaId: string,
   contexto: { titulo?: string; formato?: string; roteiro?: string; objetivo?: string; publico?: string } = {},
 ): Promise<ResultadoImportacao> {
+  await exigirUsuario()
   const id = clienteId.trim()
   const mId = mediaId.trim()
   if (!id || !mId) return { ok: false, erro: "Post não identificado." }

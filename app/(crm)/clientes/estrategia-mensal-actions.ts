@@ -1,5 +1,7 @@
 "use server"
 
+
+import { exigirUsuario } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
@@ -36,6 +38,7 @@ export async function salvarEstrategiaMensalAction(input: {
   retrospectiva: string
   status: string
 }): Promise<EstadoEstrategiaMensal> {
+  await exigirUsuario()
   const clienteId = input.clienteId.trim()
   if (!clienteId) return { ok: false, erro: "Cliente não identificado." }
   if (!competenciaValida(input.competencia)) return { ok: false, erro: "Selecione um mês válido." }
@@ -70,6 +73,7 @@ export async function excluirEstrategiaMensalAction(
   id: string,
   clienteId: string,
 ): Promise<EstadoEstrategiaMensal> {
+  await exigirUsuario()
   const idLimpo = id.trim()
   const clienteLimpo = clienteId.trim()
   if (!idLimpo || !clienteLimpo) return { ok: false, erro: "Registro não identificado." }
@@ -137,6 +141,7 @@ export async function gerarEstrategiaMensalAction(input: {
   competencia: string
   instrucao?: string
 }): Promise<EstadoGerarEstrategia> {
+  await exigirUsuario()
   const clienteId = input.clienteId.trim()
   if (!clienteId) return { ok: false, erro: "Cliente não identificado." }
 
