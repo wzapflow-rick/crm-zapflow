@@ -19,11 +19,22 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { ConexaoInstagram, MidiaInstagram } from "@/lib/instagram-db"
+import { estadoConexao, ROTULO_ESTADO, type EstadoConexao } from "@/lib/instagram-estado"
 import {
   conectarDemoAction,
   desconectarInstagramAction,
   sincronizarInstagramAction,
 } from "@/app/(crm)/clientes/instagram-actions"
+
+const CLASSE_ESTADO: Record<EstadoConexao, string> = {
+  demo: "bg-chart-3/15 text-chart-3",
+  sincronizada: "bg-success/15 text-success",
+  em_andamento: "bg-primary/15 text-primary",
+  atrasada: "bg-chart-3/15 text-chart-3",
+  erro_temporario: "bg-chart-3/15 text-chart-3",
+  erro: "bg-destructive/15 text-destructive",
+  precisa_reconectar: "bg-destructive/15 text-destructive",
+}
 
 const nf = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("pt-BR"))
 
@@ -58,6 +69,7 @@ export function InstagramPanel({
   configurado: boolean
   avisoUrl?: { erro?: string; ok?: boolean }
 }) {
+  const [agora] = useState(() => Date.now())
   const [pending, startTransition] = useTransition()
   const [acao, setAcao] = useState<"demo" | "sync" | "desconectar" | null>(null)
   const [msg, setMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null)
@@ -133,6 +145,7 @@ export function InstagramPanel({
   }
 
   // ── Estado: conectado ───────────────────────────────────────────────────
+  const estado = estadoConexao(conexao, agora)
   const totalAlcance = midias.reduce((s, m) => s + (m.alcance ?? 0), 0)
   const totalInteracoes = midias.reduce(
     (s, m) => s + (m.curtidas ?? 0) + (m.comentarios ?? 0) + (m.salvamentos ?? 0) + (m.compartilhamentos ?? 0),
@@ -159,15 +172,14 @@ export function InstagramPanel({
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-foreground">@{conexao.username ?? "conta"}</p>
-                {conexao.modo === "demo" ? (
-                  <span className="rounded-full bg-chart-3/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-chart-3">
-                    Demonstração
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
-                    Conectado
-                  </span>
-                )}
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    CLASSE_ESTADO[estado],
+                  )}
+                >
+                  {ROTULO_ESTADO[estado]}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">
                 {conexao.accountType ? `${conexao.accountType} · ` : ""}
@@ -211,10 +223,30 @@ export function InstagramPanel({
           <Metrica rotulo="Interações (posts sync.)" valor={nf(totalInteracoes)} />
         </div>
 
-        {conexao.status === "erro" && conexao.ultimoErro && (
+        {estado === "precisa_reconectar" && (
+          <div
+            role="alert"
+            className="mt-4 flex flex-col gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p className="flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              O acesso a esta conta expirou ou foi revogado. A coleta automática está parada até reconectar.
+            </p>
+            {configurado && (
+              <a
+                href={`/api/instagram/connect?empresa=${clienteId}`}
+                className={cn(buttonVariants({ size: "sm", variant: "outline" }), "shrink-0")}
+              >
+                Reconectar
+              </a>
+            )}
+          </div>
+        )}
+        {(estado === "erro" || estado === "erro_temporario" || estado === "atrasada") && conexao.ultimoErro && (
           <p className="mt-4 flex items-center gap-1.5 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            <AlertTriangle className="h-3.5 w-3.5" />
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             {conexao.ultimoErro}
+            {estado === "erro_temporario" && " Uma nova tentativa acontece na próxima execução."}
           </p>
         )}
       </div>

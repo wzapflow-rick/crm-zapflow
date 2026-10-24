@@ -21,6 +21,10 @@ export type ConexaoInstagram = {
   ultimoErro: string | null
   conectadoEm: string
   ultimaSync: string | null
+  ultimaTentativa: string | null
+  syncBloqueadaAte: string | null
+  erroCodigo: string | null
+  erroTemporario: boolean
 }
 
 export type MidiaInstagram = {
@@ -59,6 +63,10 @@ type ConexaoRow = {
   ultimo_erro: string | null
   conectado_em: Date
   ultima_sync: Date | null
+  ultima_tentativa: Date | null
+  sync_bloqueada_ate: Date | null
+  erro_codigo: string | null
+  erro_temporario: boolean | null
 }
 
 type MidiaRow = {
@@ -98,6 +106,10 @@ function mapConexao(r: ConexaoRow): ConexaoInstagram {
     ultimoErro: r.ultimo_erro,
     conectadoEm: new Date(r.conectado_em).toISOString(),
     ultimaSync: r.ultima_sync ? new Date(r.ultima_sync).toISOString() : null,
+    ultimaTentativa: r.ultima_tentativa ? new Date(r.ultima_tentativa).toISOString() : null,
+    syncBloqueadaAte: r.sync_bloqueada_ate ? new Date(r.sync_bloqueada_ate).toISOString() : null,
+    erroCodigo: r.erro_codigo,
+    erroTemporario: r.erro_temporario === true,
   }
 }
 
@@ -105,7 +117,8 @@ function mapConexao(r: ConexaoRow): ConexaoInstagram {
 export async function getConexaoInstagram(empresaId: string): Promise<ConexaoInstagram | null> {
   const rows = await query<ConexaoRow>(
     `select empresa_id, modo, ig_user_id, username, nome, account_type, profile_picture_url,
-            seguidores, segue, midia_count, token_expira_em, status, ultimo_erro, conectado_em, ultima_sync
+            seguidores, segue, midia_count, token_expira_em, status, ultimo_erro, conectado_em, ultima_sync,
+            ultima_tentativa, sync_bloqueada_ate, erro_codigo, erro_temporario
        from public.instagram_conexao
       where empresa_id = $1`,
     [empresaId],
@@ -168,6 +181,8 @@ export async function salvarConexaoInstagram(dados: SalvarConexaoInput): Promise
        token_expira_em = excluded.token_expira_em,
        status = 'conectado',
        ultimo_erro = null,
+       erro_codigo = null,
+       erro_temporario = false,
        conectado_em = now()`,
     [
       dados.empresaId,
@@ -198,7 +213,9 @@ export async function marcarSyncInstagram(
             midia_count = coalesce($4, midia_count),
             ultima_sync = now(),
             status = 'conectado',
-            ultimo_erro = null
+            ultimo_erro = null,
+            erro_codigo = null,
+            erro_temporario = false
       where empresa_id = $1`,
     [empresaId, perfil.seguidores ?? null, perfil.segue ?? null, perfil.midiaCount ?? null],
   )
@@ -234,13 +251,19 @@ export async function excluirDadosPorIgUserId(igUserId: string): Promise<string[
   return empresaIds
 }
 
-export async function getMidiasInstagram(empresaId: string): Promise<MidiaInstagram[]> {
+// Posts de demonstração têm id "demo-…" (ids reais da Meta são numéricos).
+// A inteligência do cliente passa excluirDemo para nunca analisar dados fictícios.
+export async function getMidiasInstagram(
+  empresaId: string,
+  opcoes: { excluirDemo?: boolean } = {},
+): Promise<MidiaInstagram[]> {
   const rows = await query<MidiaRow>(
     `select id, tipo, legenda, permalink, thumbnail_url, media_url, publicado_em, curtidas,
             comentarios, alcance, impressoes, salvamentos, compartilhamentos, visualizacoes,
             visitas_perfil, seguidores, reposts
        from public.instagram_midia
       where empresa_id = $1
+        ${opcoes.excluirDemo ? "and id not like 'demo-%'" : ""}
       order by publicado_em desc nulls last`,
     [empresaId],
   )
@@ -285,7 +308,8 @@ export type MidiaUpsert = {
   reposts?: number | null
 }
 
-// Grava/atualiza as mídias sincronizadas (upsert por id da mídia).
+// Grava/atualiza mídias completas (upsert por id). Hoje usado só pelo modo
+// demonstração; a sincronização real usa lib/instagram-sync-repo.ts.
 export async function salvarMidiasInstagram(empresaId: string, midias: MidiaUpsert[]): Promise<void> {
   if (midias.length === 0) return
   const pool = getPool()
@@ -297,8 +321,8 @@ export async function salvarMidiasInstagram(empresaId: string, midias: MidiaUpse
         `insert into public.instagram_midia
            (id, empresa_id, tipo, legenda, permalink, thumbnail_url, media_url, publicado_em,
             curtidas, comentarios, alcance, impressoes, salvamentos, compartilhamentos, visualizacoes,
-            visitas_perfil, seguidores, reposts, atualizado_em)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, now())
+            visitas_perfil, seguidores, reposts, atualizado_em, metricas_status, metricas_atualizadas_em)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, now(), 'ok', now())
          on conflict (id) do update set
            tipo = excluded.tipo,
            legenda = excluded.legenda,
@@ -316,7 +340,10 @@ export async function salvarMidiasInstagram(empresaId: string, midias: MidiaUpse
            visitas_perfil = excluded.visitas_perfil,
            seguidores = excluded.seguidores,
            reposts = excluded.reposts,
-           atualizado_em = now()`,
+           atualizado_em = now(),
+           metricas_status = 'ok',
+           metricas_atualizadas_em = now()
+         where public.instagram_midia.empresa_id = excluded.empresa_id`,
         [
           m.id,
           empresaId,

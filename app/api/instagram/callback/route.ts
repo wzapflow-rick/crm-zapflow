@@ -1,14 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server"
 import {
-  buscarMidias,
   buscarPerfil,
   getRedirectUri,
   trocarCodePorToken,
   trocarPorTokenLongo,
   verificarState,
 } from "@/lib/instagram-api"
-import { marcarSyncInstagram, salvarConexaoInstagram, salvarMidiasInstagram } from "@/lib/instagram-db"
+import { salvarConexaoInstagram } from "@/lib/instagram-db"
+import { sincronizarConta } from "@/lib/instagram-sync"
+import { depsSyncPadrao } from "@/lib/instagram-sync-repo"
 import { atualizarInteligenciaConfiavel } from "@/lib/atualizacao-inteligencia"
+
+export const maxDuration = 120
+const PRAZO_PRIMEIRA_COLETA_MS = 60_000
 
 // Callback do OAuth: troca o código por token, busca perfil + mídias e salva.
 export async function GET(req: NextRequest) {
@@ -54,25 +58,25 @@ export async function GET(req: NextRequest) {
       tokenExpiraEm: expiraEm,
     })
 
-    // Primeira sincronização de mídias (não bloqueia a conexão se falhar).
+    // Primeira coleta com prazo curto. Se não terminar, o estado fica
+    // registrado e a rotina diária ou o botão continuam de onde parou.
     try {
-      const midias = await buscarMidias(longToken)
-      await salvarMidiasInstagram(empresaId, midias)
-      await marcarSyncInstagram(empresaId, {
-        seguidores: perfil.seguidores,
-        segue: perfil.segue,
-        midiaCount: perfil.midiaCount,
-      })
-      const resultado = await atualizarInteligenciaConfiavel(empresaId)
-      if (!resultado.ok) console.warn("[inteligencia] OAuth concluído sem atualização analítica:", { empresaId, erro: resultado.erro })
+      const resultado = await sincronizarConta(
+        empresaId,
+        { origem: "oauth", prazo: Date.now() + PRAZO_PRIMEIRA_COLETA_MS },
+        depsSyncPadrao(),
+      )
+      if (resultado.estado === "concluida") {
+        const analise = await atualizarInteligenciaConfiavel(empresaId)
+        if (!analise.ok) console.warn("[inteligencia] OAuth concluído sem atualização analítica:", { empresaId })
+      }
     } catch {
-      // ignora: a conexão foi criada e o usuário pode sincronizar manualmente depois.
+      // A conexão foi criada; a coleta pode ser refeita depois.
     }
 
     return voltar()
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "erro"
-    console.log("[v0] instagram callback erro:", msg)
+  } catch {
+    console.warn("[instagram] falha ao concluir a conexão OAuth", { empresaId })
     return voltar("falha_token")
   }
 }

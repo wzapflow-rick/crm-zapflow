@@ -150,135 +150,6 @@ export async function buscarPerfil(token: string): Promise<PerfilInstagram> {
   }
 }
 
-type MediaApiItem = {
-  id: string
-  caption?: string
-  media_type?: string
-  media_product_type?: string
-  media_url?: string
-  thumbnail_url?: string
-  permalink?: string
-  timestamp?: string
-  like_count?: number
-  comments_count?: number
-}
-
-// Busca todo o histórico paginado e, para cada mídia, os insights disponíveis.
-export async function buscarMidias(token: string, limite = 25): Promise<MidiaUpsert[]> {
-  const fields =
-    "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count"
-  const itens: MediaApiItem[] = []
-  const ids = new Set<string>()
-  let proximaUrl: string | null = `${GRAPH}/${API_VERSION}/me/media?fields=${fields}&limit=${limite}&access_token=${encodeURIComponent(token)}`
-  let paginas = 0
-
-  while (proximaUrl && paginas < 100) {
-    const res = await fetch(proximaUrl)
-    const json = (await res.json()) as {
-      data?: MediaApiItem[]
-      paging?: { next?: string }
-      error?: { message?: string }
-    }
-    if (!res.ok) throw new Error(json.error?.message || "Falha ao buscar as mídias.")
-    for (const item of json.data ?? []) {
-      if (!ids.has(item.id)) {
-        ids.add(item.id)
-        itens.push(item)
-      }
-    }
-    proximaUrl = json.paging?.next ?? null
-    paginas += 1
-  }
-
-  const resultado: MidiaUpsert[] = []
-  for (let inicio = 0; inicio < itens.length; inicio += 6) {
-    const lote = itens.slice(inicio, inicio + 6)
-    const processados = await Promise.all(
-      lote.map(async (item) => {
-        const tipo = item.media_product_type === "REELS" ? "REELS" : item.media_type ?? "IMAGE"
-        const insights = await buscarInsightsMidia(token, item.id, tipo).catch(() => ({}))
-        return {
-          id: item.id,
-          tipo,
-          legenda: item.caption ?? "",
-          permalink: item.permalink ?? "",
-          thumbnailUrl: item.thumbnail_url ?? item.media_url ?? "",
-          mediaUrl: item.media_url ?? "",
-          publicadoEm: item.timestamp ?? null,
-          curtidas: item.like_count ?? null,
-          comentarios: item.comments_count ?? null,
-          ...insights,
-        }
-      }),
-    )
-    resultado.push(...processados)
-  }
-  return resultado
-}
-
-type InsightsMidia = Pick<
-  MidiaUpsert,
-  | "alcance"
-  | "impressoes"
-  | "salvamentos"
-  | "compartilhamentos"
-  | "visualizacoes"
-  | "visitasPerfil"
-  | "seguidores"
-  | "reposts"
->
-
-type MapaInsights = Record<string, number>
-
-async function pedirInsights(token: string, mediaId: string, metricas: string): Promise<MapaInsights | null> {
-  const res = await fetch(
-    `${GRAPH}/${API_VERSION}/${mediaId}/insights?metric=${metricas}&access_token=${token}`,
-  )
-  if (!res.ok) return null
-  const json = (await res.json()) as { data?: { name: string; values?: { value: number }[] }[] }
-  const mapa: MapaInsights = {}
-  for (const m of json.data ?? []) {
-    mapa[m.name] = m.values?.[0]?.value ?? 0
-  }
-  return mapa
-}
-
-// A API recusa a chamada inteira se uma métrica não for suportada pelo tipo
-// de mídia. Por isso as métricas de conversão (visitas ao perfil, seguidores,
-// reposts) vão numa chamada separada; se ela falhar, tentamos uma a uma para
-// aproveitar o que estiver disponível sem perder as métricas básicas.
-async function pedirInsightsExtras(token: string, mediaId: string, metricas: string[]): Promise<MapaInsights> {
-  if (metricas.length === 0) return {}
-  const juntas = await pedirInsights(token, mediaId, metricas.join(","))
-  if (juntas) return juntas
-  const separadas = await Promise.all(metricas.map((m) => pedirInsights(token, mediaId, m)))
-  return Object.assign({}, ...separadas.filter(Boolean))
-}
-
-// profile_visits e follows não existem para Reels; reposts vale para todos.
-async function buscarInsightsMidia(token: string, mediaId: string, tipo: string): Promise<InsightsMidia> {
-  const ehVideo = tipo === "REELS" || tipo === "VIDEO"
-  const basicas = ehVideo ? "reach,saved,shares,views,comments,likes" : "reach,saved,shares,views"
-  const extras = ehVideo ? ["reposts"] : ["profile_visits", "follows", "reposts"]
-
-  const [mapa, mapaExtras] = await Promise.all([
-    pedirInsights(token, mediaId, basicas),
-    pedirInsightsExtras(token, mediaId, extras),
-  ])
-  const tudo = { ...(mapa ?? {}), ...mapaExtras }
-
-  return {
-    alcance: tudo.reach ?? null,
-    impressoes: tudo.impressions ?? null,
-    salvamentos: tudo.saved ?? null,
-    compartilhamentos: tudo.shares ?? null,
-    visualizacoes: tudo.views ?? null,
-    visitasPerfil: tudo.profile_visits ?? null,
-    seguidores: tudo.follows ?? null,
-    reposts: tudo.reposts ?? null,
-  }
-}
-
 // ── Modo demonstração ────────────────────────────────────────────────────────
 // Gera um perfil e mídias de EXEMPLO, claramente marcados. Nunca chamam a Meta.
 export function gerarPerfilDemo(nomeCliente: string): PerfilInstagram {
@@ -330,7 +201,7 @@ export function gerarMidiasDemo(): MidiaUpsert[] {
       visitasPerfil,
       seguidores,
       reposts,
-      id: `demo-${i}-${hoje}`,
+      id: `demo-${i}`,
       tipo,
       legenda,
       permalink: "",

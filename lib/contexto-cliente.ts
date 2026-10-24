@@ -64,7 +64,7 @@ export async function montarContextoCliente(empresaId: string, consulta = ""): P
       getAprendizadosGlobais().catch(() => []),
       getOperacoes().catch(() => []),
       getConexaoInstagram(empresaId).catch(() => null),
-      getMidiasInstagram(empresaId).catch(() => []),
+      getMidiasInstagram(empresaId, { excluirDemo: true }).catch(() => []),
       getHistoricoAnalisesIa(empresaId, 5).catch(() => []),
     ])
 

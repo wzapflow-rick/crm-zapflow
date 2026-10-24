@@ -229,7 +229,7 @@ export async function atualizarInteligenciaCliente(empresaId: string): Promise<v
   if (anterior) return anterior
 
   const execucao = (async () => {
-    const [midias, conteudos] = await Promise.all([getMidiasInstagram(id), getConteudos(id)])
+    const [midias, conteudos] = await Promise.all([getMidiasInstagram(id, { excluirDemo: true }), getConteudos(id)])
     const resumo = analisarMidiasInstagram(midias)
     resumo.conteudosSIMPLE = conteudos.length
     const payload = montarEvidencias(conteudos, resumo)

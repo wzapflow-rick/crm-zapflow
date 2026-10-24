@@ -61,7 +61,7 @@ export async function atualizarInteligenciaConfiavel(empresaId: string): Promise
 
     const embeddings = await tentar("embeddings", id, async () => {
       const [midias, conteudos, reunioes, experimentos, performance, memoriaMapa] = await Promise.all([
-        getMidiasInstagram(id),
+        getMidiasInstagram(id, { excluirDemo: true }),
         getConteudos(id),
         getReunioes(id),
         getExperimentos(id),
