@@ -571,6 +571,7 @@ export async function getClientePorToken(token: string): Promise<Cliente | null>
     `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
      from public.empresas
      where portal_token = $1
+       and (portal_token_expira_em is null or portal_token_expira_em > now())
      limit 1`,
     [limpo],
   )
