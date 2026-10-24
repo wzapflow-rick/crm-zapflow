@@ -5,6 +5,8 @@ import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { PERSONA } from "@/lib/persona"
+import { PLAYBOOK_ROTEIRO, ESTRUTURAS_ROTEIRO } from "@/lib/playbook-conteudo"
+import { montarTextoRoteiro, type RoteiroGerado } from "@/lib/roteiro-texto"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
 import { criarConteudos } from "@/lib/clientes-db"
@@ -12,55 +14,54 @@ import { agendarAtualizacaoInteligencia } from "@/lib/atualizacao-inteligencia"
 
 const MODELO = "gpt-5"
 
-export type RoteiroGerado = {
-  gancho: string
-  cenas: { descricao: string }[]
-  cta: string
-  legenda: string
-  direcionamento: string
-  variacoesGancho: string[]
-}
+export type { RoteiroGerado } from "@/lib/roteiro-texto"
 
 export type EstadoRoteiroIa =
   | { ok: true; roteiro: RoteiroGerado }
   | { ok: false; erro: string }
 
 const schema = z.object({
+  estrutura: z
+    .enum(ESTRUTURAS_ROTEIRO)
+    .describe("Estrutura narrativa escolhida para este conteúdo, conforme o playbook."),
   gancho: z
     .string()
-    .describe("Gancho de abertura dos primeiros 3 segundos. Precisa impedir a pessoa de passar o vídeo."),
+    .describe("Gancho falado (ou capa, no carrossel) dos primeiros 3 segundos. Específico do cliente, nunca genérico."),
+  ganchoVisual: z
+    .string()
+    .describe("O que aparece na tela no primeiro segundo para parar a rolagem. Vazio se não se aplicar."),
+  textoTelaGancho: z
+    .string()
+    .describe("Texto na tela que acompanha o gancho: no máximo 2 linhas curtas. Vazio se não se aplicar."),
   cenas: z
     .array(
       z.object({
+        tempo: z
+          .string()
+          .describe("Marcação de tempo da cena no vídeo (ex.: '3-10s') ou 'Slide 2' no carrossel. Vazio em estático."),
         descricao: z.string().describe("O que acontece e o que é dito nesta cena, em 1 a 3 frases."),
+        textoTela: z
+          .string()
+          .describe("Texto na tela desta cena: até 2 linhas de 3 a 5 palavras. Vazio se não houver."),
       }),
     )
     .min(3)
-    .describe("Sequência de cenas do conteúdo, na ordem de gravação, conduzindo do gancho até o CTA."),
-  cta: z.string().describe("Chamada para ação final, alinhada a uma meta de negócio do cliente."),
+    .describe("Sequência de cenas (ou slides) na ordem de gravação, do gancho até o CTA."),
+  cta: z.string().describe("Chamada para ação final, específica e ligada a uma meta de negócio do cliente."),
   legenda: z
     .string()
-    .describe("Legenda pronta para publicação: primeira linha forte, corpo curto, CTA e hashtags relevantes."),
+    .describe("Legenda pronta: primeira linha forte que funciona sozinha, corpo curto, CTA e até 5 hashtags específicas."),
   direcionamento: z
     .string()
     .describe(
-      "Orientação interna de gravação e edição para o videomaker e o design: enquadramentos, ritmo, textos na tela, referências visuais. Nunca aparece para o cliente.",
+      "Orientação interna de gravação e edição para videomaker e design: enquadramento, luz, áudio, ritmo de cortes, B-roll e referências. Nunca aparece para o cliente.",
     ),
   variacoesGancho: z
     .array(z.string())
     .min(3)
     .max(5)
-    .describe("Variações alternativas do gancho para testar (ângulos diferentes: curiosidade, promessa, contraste...)."),
+    .describe("Variações do gancho para teste A/B, cada uma com uma fórmula diferente (curiosidade, história, valor, contraste)."),
 })
-
-// Monta o texto final do roteiro (gancho + cenas numeradas + CTA) para gravar
-// no campo "roteiro" do conteúdo. Mesmo formato usado no editor do pipeline.
-function montarTextoRoteiro(r: RoteiroGerado): string {
-  const linhas: string[] = [`GANCHO: ${r.gancho}`, ""]
-  r.cenas.forEach((c, i) => linhas.push(`${i + 1}. ${c.descricao}`))
-  if (r.cta) linhas.push("", `CTA: ${r.cta}`)
-  return linhas.join("\n")
-}
 
 // Atalho do chat estratégico: grava o roteiro estruturado como um novo conteúdo
 // no pipeline do cliente (status "ideia"), pronto para editar depois.
@@ -123,15 +124,17 @@ export async function gerarRoteiroConteudoAction(input: {
 # TAREFA: CRIAR O ROTEIRO DE UM CONTEÚDO
 Você vai escrever o roteiro completo de um único conteúdo do pipeline do cliente, no formato indicado.
 Use o contexto do cliente abaixo como direção estratégica: segmento, objetivo, estratégia, memória, resultados e conteúdos anteriores.
+Se o contexto mostrar ganchos, formatos ou temas que performaram melhor, prefira esses padrões e diga no direcionamento qual padrão foi reaproveitado.
 
 Regras:
-- O gancho precisa ser forte nos primeiros 3 segundos e coerente com o público do cliente.
-- As cenas devem ser gravláveis por uma equipe pequena, sem sair do escritório quando possível.
+- Escolha a estrutura do playbook que melhor serve ao tema e ao formato.
+- Reels: 15 a 30 segundos no total, com marcação de tempo por cena. Carrossel: cada cena é um slide. Story: sequência com interação. Estático: poucas cenas descrevendo a peça.
+- As cenas devem ser gravláveis por uma equipe pequena, de preferência no próprio local do cliente.
 - O CTA precisa apontar para uma meta de negócio, não apenas para curtidas.
-- A legenda deve estar pronta para publicar.
-- O direcionamento é interno (equipe), com orientações práticas de gravação e edição.
 - Use os poucos dados disponíveis quando o contexto for escasso; nunca invente métricas do cliente.
 - Escreva tudo em português do Brasil, em texto simples, sem markdown.
+
+${PLAYBOOK_ROTEIRO}
 
 # CONTEXTO DO CLIENTE
 ${contextoTexto || "Sem contexto estruturado disponível. Use boas práticas para o formato e segmento informados."}`,
@@ -145,8 +148,13 @@ ${input.instrucao?.trim() ? `Instruções adicionais da equipe: ${input.instruca
     return {
       ok: true,
       roteiro: {
+        estrutura: object.estrutura,
         gancho: limpar(object.gancho),
-        cenas: object.cenas.map((c) => ({ descricao: limpar(c.descricao) })).filter((c) => c.descricao),
+        ganchoVisual: limpar(object.ganchoVisual),
+        textoTelaGancho: limpar(object.textoTelaGancho),
+        cenas: object.cenas
+          .map((c) => ({ tempo: limpar(c.tempo), descricao: limpar(c.descricao), textoTela: limpar(c.textoTela) }))
+          .filter((c) => c.descricao),
         cta: limpar(object.cta),
         legenda: limpar(object.legenda),
         direcionamento: limpar(object.direcionamento),

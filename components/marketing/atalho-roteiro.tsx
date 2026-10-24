@@ -19,6 +19,7 @@ import {
   salvarRoteiroGeradoAction,
   type RoteiroGerado,
 } from "@/app/(crm)/clientes/gerar-roteiro-actions"
+import { ROTULO_ESTRUTURA } from "@/lib/playbook-conteudo"
 
 const FORMATOS = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"] as const
 
@@ -195,14 +196,29 @@ export function AtalhoRoteiro({
 
               {roteiro && (
                 <div className="grid gap-3 rounded-lg border border-border bg-background p-3">
+                  {roteiro.estrutura && (
+                    <Secao rotulo="Estrutura">{ROTULO_ESTRUTURA[roteiro.estrutura]}</Secao>
+                  )}
                   <Secao rotulo="Gancho">{roteiro.gancho}</Secao>
+                  {roteiro.ganchoVisual && <Secao rotulo="Gancho visual">{roteiro.ganchoVisual}</Secao>}
+                  {roteiro.textoTelaGancho && <Secao rotulo="Texto na tela (abertura)">{roteiro.textoTelaGancho}</Secao>}
                   <div>
                     <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Cenas</p>
-                    <ol className="grid gap-1.5">
+                    <ol className="grid gap-2">
                       {roteiro.cenas.map((c, i) => (
                         <li key={i} className="flex gap-2 text-sm text-foreground">
                           <span className="font-semibold text-primary">{i + 1}.</span>
-                          <span className="text-pretty">{c.descricao}</span>
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            {c.tempo && (
+                              <span className="text-[11px] font-medium text-muted-foreground">{c.tempo}</span>
+                            )}
+                            <span className="text-pretty">{c.descricao}</span>
+                            {c.textoTela && (
+                              <span className="text-xs text-pretty text-muted-foreground">
+                                Texto na tela: {c.textoTela}
+                              </span>
+                            )}
+                          </div>
                         </li>
                       ))}
                     </ol>

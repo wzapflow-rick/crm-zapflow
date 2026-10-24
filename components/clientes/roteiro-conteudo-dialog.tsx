@@ -19,24 +19,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { salvarRoteiroConteudoAction, type EstadoForm } from "@/app/(crm)/clientes/actions"
-import { gerarRoteiroConteudoAction, type RoteiroGerado } from "@/app/(crm)/clientes/gerar-roteiro-actions"
+import { gerarRoteiroConteudoAction } from "@/app/(crm)/clientes/gerar-roteiro-actions"
+import { montarTextoRoteiro } from "@/lib/roteiro-texto"
 import type { LinkConteudo } from "@/lib/simple-data"
 
 const estadoInicial: EstadoForm = { ok: false }
-
-// Monta o texto final do roteiro a partir da estrutura gerada pela IA
-// (gancho + cenas numeradas + CTA), pronto para editar no textarea.
-function montarTextoRoteiro(r: RoteiroGerado): string {
-  const linhas: string[] = []
-  linhas.push(`GANCHO: ${r.gancho}`)
-  linhas.push("")
-  r.cenas.forEach((c, i) => linhas.push(`${i + 1}. ${c.descricao}`))
-  if (r.cta) {
-    linhas.push("")
-    linhas.push(`CTA: ${r.cta}`)
-  }
-  return linhas.join("\n")
-}
 
 function BotaoSalvar() {
   const { pending } = useFormStatus()

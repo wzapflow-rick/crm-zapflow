@@ -10,7 +10,7 @@ export type ModuloAtividade =
   | "calendario"
   | "equipe"
 
-export type AcaoAtividade = "criar" | "atualizar" | "excluir"
+export type AcaoAtividade = "criar" | "atualizar" | "excluir" | "mover" | "concluir" | "reabrir"
 
 export type Atividade = {
   id: string

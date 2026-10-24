@@ -5,6 +5,7 @@ import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 import { PERSONA } from "@/lib/persona"
+import { PLAYBOOK_ESTRATEGIA } from "@/lib/playbook-conteudo"
 import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { limparFormatacaoChat } from "@/lib/texto-chat"
 import {
@@ -160,8 +161,14 @@ Use o contexto abaixo como direção: segmento, objetivo, estratégia atual, ins
 Regras:
 - O objetivo do mês precisa apontar para uma meta de negócio real do cliente.
 - Os pilares e campanhas devem ser executáveis por uma equipe pequena.
+- Cada pilar deve vir no formato "Nome (peso%): o que cobre", com os pesos somando 100%.
+- Pelo menos uma campanha deve ser uma série recorrente e uma deve ser um experimento com hipótese clara.
+- O resumo do calendário deve explicitar o mix descoberta/compartilhável/experimento, a frequência por formato e qual conteúdo principal da semana será desdobrado em outros formatos.
+- Inclua entre os KPIs ao menos um indicador de valor (salvamentos ou compartilhamentos) e um de intenção (visitas ao perfil, mensagens ou novos seguidores), além do que mais importar para o negócio.
 - Os KPIs precisam ser mensuráveis e com metas realistas com base no histórico; se os dados forem escassos, proponha metas conservadoras e coerentes, sem inventar números do passado.
 - Escreva tudo em português do Brasil, em texto simples, sem markdown.
+
+${PLAYBOOK_ESTRATEGIA}
 
 # CONTEXTO DO CLIENTE
 ${contextoTexto || "Sem contexto estruturado disponível. Use boas práticas para o segmento informado e proponha metas conservadoras."}`,
