@@ -46,6 +46,8 @@ import {
 import type { Membro } from "@/lib/membros-db"
 import { ClienteFormDialog } from "@/components/clientes/cliente-form-dialog"
 import { BannerUploader } from "@/components/clientes/banner-uploader"
+import { ObservacoesInternas } from "@/components/clientes/observacoes-internas"
+import { ContratoCliente } from "@/components/clientes/contrato-cliente"
 import { PortalLink } from "@/components/clientes/portal-link"
 import { ExcluirClienteButton } from "@/components/clientes/excluir-cliente-button"
 import { ExcluirRegistroButton } from "@/components/clientes/excluir-registro-button"
@@ -104,6 +106,7 @@ const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = 
   gravacao: { label: "Gravação", classe: "bg-chart-2/15 text-chart-2" },
   edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
   aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
+  ajuste: { label: "Ajustar", classe: "bg-warning/15 text-warning" },
   aprovado: { label: "Aprovado", classe: "bg-success/15 text-success" },
   publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
 }
@@ -374,6 +377,19 @@ export function ClienteDetalhe({
                 )}
               </Card>
             </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <Card titulo="Observações internas">
+                <ObservacoesInternas clienteId={cliente.id} valorInicial={cliente.observacoesInternas} />
+              </Card>
+              <Card titulo="Contrato">
+                <ContratoCliente
+                  clienteId={cliente.id}
+                  url={cliente.contratoUrl}
+                  resumo={cliente.contratoResumo}
+                  atualizadoEm={cliente.contratoAtualizadoEm}
+                />
+              </Card>
+            </div>
             <div className="mt-4">
               <Card titulo="Banner do portal">
                 <p className="mb-3 text-sm text-muted-foreground">
@@ -481,6 +497,12 @@ export function ClienteDetalhe({
                             </span>
                           )}
                         </p>
+                        {c.status === "ajuste" && c.ajustePedido && (
+                          <p className="ml-5 mt-1.5 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs leading-relaxed text-foreground">
+                            <span className="font-medium text-warning">Cliente pediu: </span>
+                            {c.ajustePedido}
+                          </p>
+                        )}
                       </div>
                       {c.status === "publicado" && (
                         <VincularInstagramDialog

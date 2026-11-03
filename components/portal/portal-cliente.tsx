@@ -26,7 +26,7 @@ import {
   Video,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -72,6 +72,7 @@ const conteudoInfo: Record<StatusConteudo, { label: string; classe: string }> = 
   gravacao: { label: "Gravação", classe: "bg-chart-2/15 text-chart-2" },
   edicao: { label: "Edição", classe: "bg-chart-5/15 text-chart-5" },
   aprovacao: { label: "Aprovação", classe: "bg-primary/10 text-primary" },
+  ajuste: { label: "Em ajuste", classe: "bg-warning/15 text-warning" },
   aprovado: { label: "Aprovado", classe: "bg-success/15 text-success" },
   publicado: { label: "Publicado", classe: "bg-chart-4/15 text-chart-4" },
 }
@@ -502,6 +503,28 @@ export function PortalCliente({
                   </div>
                   <EstrategiaMensalPortal estrategias={estrategiasMensais} />
                 </div>
+              )}
+              {(cliente.contratoUrl || cliente.contratoResumo?.trim()) && (
+                <Card titulo="Seu contrato" subtitulo="O que combinamos juntos, sempre à mão.">
+                  <div className="flex flex-col gap-3">
+                    {cliente.contratoResumo?.trim() && (
+                      <p className="whitespace-pre-wrap text-pretty text-sm leading-relaxed text-foreground/90">
+                        {cliente.contratoResumo}
+                      </p>
+                    )}
+                    {cliente.contratoUrl && (
+                      <a
+                        href={cliente.contratoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-fit gap-1.5")}
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                        Abrir contrato
+                      </a>
+                    )}
+                  </div>
+                </Card>
               )}
               {cliente.resumoEstrategico?.trim() && (
                 <Card
@@ -1019,6 +1042,13 @@ function ConteudoPortalItem({ conteudo, token }: { conteudo: ConteudoItem; token
           {conteudoInfo[conteudo.status].label}
         </span>
       </div>
+
+      {conteudo.status === "ajuste" && (
+        <p className="mt-2 rounded-lg bg-warning/10 px-3 py-2 text-xs leading-relaxed text-foreground">
+          Você pediu ajuste{conteudo.ajustePedido ? `: "${conteudo.ajustePedido}"` : ""}. A equipe SIMPLE já foi
+          avisada e reenvia para aprovação quando estiver pronto.
+        </p>
+      )}
 
       {expansivel && aberto && (
         <div className="mt-3 grid gap-3 animate-in fade-in-50 slide-in-from-top-1 duration-200">

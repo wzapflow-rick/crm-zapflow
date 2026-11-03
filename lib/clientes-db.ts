@@ -35,6 +35,10 @@ type EmpresaRow = {
   desde: Date | null
   resumo_estrategico?: string | null
   portal_token?: string | null
+  observacoes_internas?: string | null
+  contrato_url?: string | null
+  contrato_resumo?: string | null
+  contrato_atualizado_em?: string | null
 }
 
 // Paleta de cores de avatar usada quando o cliente não tem cor definida.
@@ -102,8 +106,18 @@ function mapRow(r: EmpresaRow): Cliente {
     desdeISO: r.desde ? new Date(r.desde).toISOString().slice(0, 10) : "",
     resumoEstrategico: r.resumo_estrategico ?? "",
     portalToken: r.portal_token ?? "",
+    observacoesInternas: r.observacoes_internas ?? "",
+    contratoUrl: r.contrato_url ?? "",
+    contratoResumo: r.contrato_resumo ?? "",
+    contratoAtualizadoEm: r.contrato_atualizado_em ?? "",
   }
 }
+
+// Lidas via to_jsonb para não quebrar a leitura antes de o script 023 rodar:
+// se a coluna ainda não existir, o valor volta vazio em vez de erro.
+const COLUNAS_CONTRATO = `to_jsonb(e)->>'contrato_url' as contrato_url,
+            to_jsonb(e)->>'contrato_resumo' as contrato_resumo,
+            to_jsonb(e)->>'contrato_atualizado_em' as contrato_atualizado_em`
 
 export async function getClientes(): Promise<Cliente[]> {
   const rows = await query<EmpresaRow>(
@@ -207,6 +221,7 @@ type AtencaoRow = {
   tarefas_atrasadas: string | number | null
   tarefas_amanha: string | number | null
   conteudos_aprovacao: string | number | null
+  conteudos_ajuste: string | number | null
   conteudos_semana: string | number | null
   conteudos_producao: string | number | null
   conteudos_total: string | number | null
@@ -277,6 +292,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
      conteudo_calc as (
        select c.empresa_id::text as empresa_id,
               count(*) filter (where c.status = 'aprovacao') as aguardando_aprovacao,
+              count(*) filter (where c.status = 'ajuste') as pedidos_ajuste,
               count(*) filter (
                 where c.data is not null
                   and c.data::date between current_date + 1 and current_date + 7
@@ -295,6 +311,7 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
             coalesce(tc.atrasadas, 0) as tarefas_atrasadas,
             coalesce(tc.vence_amanha, 0) as tarefas_amanha,
             coalesce(cc.aguardando_aprovacao, 0) as conteudos_aprovacao,
+            coalesce(cc.pedidos_ajuste, 0) as conteudos_ajuste,
             coalesce(cc.programados_semana, 0) as conteudos_semana,
             coalesce(cc.em_producao, 0) as conteudos_producao,
             coalesce(cc.total_conteudos, 0) as conteudos_total
@@ -477,6 +494,23 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
       })
     }
 
+    // 4b) Cliente pediu ajuste pelo portal: prioridade crítica, porque o cliente
+    // está esperando a equipe.
+    const pedidosAjuste = Number(r.conteudos_ajuste ?? 0)
+    if (pedidosAjuste > 0) {
+      alertas.push({
+        ...base,
+        acaoLabel: "Ver ajustes",
+        acaoUrl: `/clientes/${r.id}?aba=conteudo`,
+        categoria: "aprovacao",
+        prioridade: "critico",
+        texto: `${pedidosAjuste} ${pedidosAjuste === 1 ? "conteúdo com ajuste pedido pelo cliente" : "conteúdos com ajuste pedido pelo cliente"}.`,
+        motivo:
+          "O cliente revisou e pediu mudanças. Ajustar e reenviar para aprovação mantém a confiança e destrava a publicação.",
+        severidade: PESO_PRIORIDADE.critico + 20 + Math.min(pedidosAjuste, 20),
+      })
+    }
+
     // 5) Conteúdos aguardando aprovação (status = 'aprovacao' no pipeline).
     const aguardandoAprovacao = Number(r.conteudos_aprovacao ?? 0)
     if (aguardandoAprovacao > 0) {
@@ -554,8 +588,10 @@ export async function getClientesAtencao(): Promise<AlertaCliente[]> {
 
 export async function getClientePorId(id: string): Promise<Cliente | null> {
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
-     from public.empresas
+    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token,
+            to_jsonb(e)->>'observacoes_internas' as observacoes_internas,
+            ${COLUNAS_CONTRATO}
+     from public.empresas e
      where id = $1
      limit 1`,
     [id],
@@ -568,8 +604,9 @@ export async function getClientePorToken(token: string): Promise<Cliente | null>
   const limpo = token.trim()
   if (!tokenPortalValido(limpo)) return null
   const rows = await query<EmpresaRow>(
-    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token
-     from public.empresas
+    `select id, nome, slug, segmento, status, responsavel_id, responsaveis_ids, mrr, recorrente, logo_url, banner_url, iniciais, cor, objetivo, contato, telefone, desde, resumo_estrategico, portal_token,
+            ${COLUNAS_CONTRATO}
+     from public.empresas e
      where portal_token = $1
        and (portal_token_expira_em is null or portal_token_expira_em > now())
      limit 1`,
@@ -841,6 +878,8 @@ type ConteudoRow = {
   direcionamento: string | null
   links: unknown
   referencia: string | null
+  ajuste_pedido: string | null
+  ajuste_pedido_em: string | null
 }
 
 // Normaliza a lista de links (coluna jsonb) para o shape LinkConteudo[],
@@ -867,12 +906,23 @@ function sanitizarLinks(bruto: unknown): LinkConteudo[] {
 }
 
 const FORMATOS_CONTEUDO: ConteudoItem["formato"][] = ["Reels", "Carrossel", "Story", "Vídeo", "Estático"]
-const STATUS_CONTEUDO: StatusConteudo[] = ["ideia", "roteiro", "gravacao", "edicao", "aprovacao", "aprovado", "publicado"]
+const STATUS_CONTEUDO: StatusConteudo[] = [
+  "ideia",
+  "roteiro",
+  "gravacao",
+  "edicao",
+  "aprovacao",
+  "ajuste",
+  "aprovado",
+  "publicado",
+]
 
 export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
   const rows = await query<ConteudoRow>(
-    `select id, titulo, formato, status, data, roteiro, legenda, direcionamento, links, referencia
-     from public.conteudos
+    `select id, titulo, formato, status, data, roteiro, legenda, direcionamento, links, referencia,
+            to_jsonb(c)->>'ajuste_pedido' as ajuste_pedido,
+            to_jsonb(c)->>'ajuste_pedido_em' as ajuste_pedido_em
+     from public.conteudos c
      where empresa_id = $1
      order by data desc nulls last, posicao desc, created_at desc`,
     [empresaId],
@@ -892,6 +942,8 @@ export async function getConteudos(empresaId: string): Promise<ConteudoItem[]> {
     direcionamento: r.direcionamento ?? "",
     links: sanitizarLinks(r.links),
     referencia: r.referencia ?? "",
+    ajustePedido: r.ajuste_pedido ?? "",
+    ajustePedidoEm: r.ajuste_pedido_em ?? "",
   }))
 }
 
@@ -1060,6 +1112,45 @@ export async function atualizarStatusConteudo(
     conteudoId,
     empresaId,
   ])
+}
+
+// Cliente pediu ajuste no portal: sai de "aprovacao" (para de receber lembretes
+// de aprovação) e entra em "ajuste", guardando o texto do pedido para a equipe.
+// Só muda se o conteúdo ainda estiver em aprovação, para não sobrescrever um
+// status que a equipe já mudou.
+export async function registrarPedidoAjuste(
+  empresaId: string,
+  conteudoId: string,
+  pedido: string,
+): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `update public.conteudos
+        set status = 'ajuste', ajuste_pedido = $3, ajuste_pedido_em = now()
+      where id = $1 and empresa_id = $2 and status = 'aprovacao'
+      returning id`,
+    [conteudoId, empresaId, pedido],
+  )
+  return rows.length > 0
+}
+
+export async function salvarObservacoesInternas(empresaId: string, texto: string): Promise<void> {
+  await query(`update public.empresas set observacoes_internas = $2, updated_at = now() where id = $1`, [
+    empresaId,
+    texto.trim() || null,
+  ])
+}
+
+export async function salvarContrato(empresaId: string, url: string | null, resumo: string): Promise<void> {
+  const limpo = resumo.trim() || null
+  await query(
+    `update public.empresas
+        set contrato_url = $2,
+            contrato_resumo = $3,
+            contrato_atualizado_em = case when $2::text is null and $3::text is null then null else now() end,
+            updated_at = now()
+      where id = $1`,
+    [empresaId, url, limpo],
+  )
 }
 
 // ── Arquivos (aba Arquivos · por link) ─────────────────────���──────────────

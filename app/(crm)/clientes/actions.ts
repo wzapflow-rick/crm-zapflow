@@ -15,6 +15,8 @@ import {
   excluirCliente,
   excluirConteudo,
   salvarArquivos,
+  salvarContrato,
+  salvarObservacoesInternas,
   salvarConteudos,
   salvarEstrategia,
   salvarEventos,
@@ -666,6 +668,54 @@ export async function salvarResultadosAction(
     return { ok: false, erro: `Não foi possível salvar no banco: ${msg}` }
   }
 
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+const LIMITE_OBSERVACOES = 10000
+const LIMITE_RESUMO_CONTRATO = 2000
+
+// Observações internas: só a equipe vê. Nunca são lidas pelo portal.
+export async function salvarObservacoesInternasAction(clienteId: string, texto: string): Promise<EstadoForm> {
+  await exigirUsuario()
+  const id = clienteId.trim()
+  if (!id) return { ok: false, erro: "Cliente não identificado." }
+  if (texto.length > LIMITE_OBSERVACOES) return { ok: false, erro: "Texto muito longo (máx. 10.000 caracteres)." }
+  try {
+    await salvarObservacoesInternas(id, texto)
+  } catch (e) {
+    console.error("[clientes] observações:", e instanceof Error ? e.message : e)
+    return { ok: false, erro: "Não foi possível salvar. Confira se o script 023 já foi rodado no banco." }
+  }
+  revalidatePath(`/clientes/${id}`)
+  return { ok: true }
+}
+
+// Contrato fixado: aparece na ficha do cliente e no portal.
+export async function salvarContratoAction(clienteId: string, url: string, resumo: string): Promise<EstadoForm> {
+  await exigirUsuario()
+  const id = clienteId.trim()
+  if (!id) return { ok: false, erro: "Cliente não identificado." }
+  if (resumo.length > LIMITE_RESUMO_CONTRATO) return { ok: false, erro: "Resumo muito longo (máx. 2.000 caracteres)." }
+
+  let urlLimpa: string | null = null
+  const bruta = url.trim()
+  if (bruta) {
+    try {
+      const u = new URL(bruta)
+      if (u.protocol !== "https:") throw new Error("protocolo")
+      urlLimpa = u.toString()
+    } catch {
+      return { ok: false, erro: "Link do contrato inválido. Use um endereço https://." }
+    }
+  }
+
+  try {
+    await salvarContrato(id, urlLimpa, resumo)
+  } catch (e) {
+    console.error("[clientes] contrato:", e instanceof Error ? e.message : e)
+    return { ok: false, erro: "Não foi possível salvar. Confira se o script 023 já foi rodado no banco." }
+  }
   revalidatePath(`/clientes/${id}`)
   return { ok: true }
 }

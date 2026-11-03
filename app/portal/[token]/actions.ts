@@ -6,8 +6,25 @@ import {
   getConteudos,
   adicionarMensagemCliente,
   atualizarStatusConteudo,
+  registrarPedidoAjuste,
 } from "@/lib/clientes-db"
 import { adicionarEnvio, normalizarLink } from "@/lib/envios-db"
+import { enviarTextoWhatsApp } from "@/lib/whatsapp"
+
+// Aviso no grupo da SIMPLE. Falha no WhatsApp não pode impedir o registro do
+// pedido: o status "ajuste" e o alerta do painel já garantem que a equipe veja.
+async function avisarEquipeAjuste(empresaId: string, clienteNome: string, titulo: string, feedback: string) {
+  const grupo = process.env.SOCIOS_GROUP_ID
+  if (!grupo) return
+  const resumo = feedback.length > 600 ? `${feedback.slice(0, 600)}...` : feedback
+  const texto = `*Pedido de ajuste* - ${clienteNome}\nConteúdo: "${titulo}"\n\n${resumo}\n\nO conteúdo saiu de aprovação e está marcado como *Ajustar* no CRM.`
+  try {
+    const r = await enviarTextoWhatsApp(grupo, texto, "grupo")
+    if (!r.ok) console.error("[portal] aviso de ajuste não enviado:", r.status, empresaId)
+  } catch (e) {
+    console.error("[portal] aviso de ajuste falhou:", e instanceof Error ? e.message : e)
+  }
+}
 
 export type EstadoPortal = { ok: boolean; erro?: string; mensagem?: string }
 
@@ -104,7 +121,8 @@ export async function enviarMaterialPortalAction(
 
 // Aprovação de conteúdo pelo cliente, direto no portal.
 // "aprovado": marca a peça como aprovada e avisa a equipe pelo canal de mensagens.
-// "ajuste": mantém em aprovação e envia o pedido de ajuste (texto) para a equipe.
+// "ajuste": tira de aprovação (status "ajuste"), para os lembretes de aprovação,
+// guarda o pedido no conteúdo e avisa a equipe no chat e no grupo do WhatsApp.
 export async function aprovarConteudoPortalAction(
   _prev: EstadoPortal,
   formData: FormData,
@@ -157,11 +175,13 @@ export async function aprovarConteudoPortalAction(
         cliente.nome,
       )
     } else {
+      await registrarPedidoAjuste(cliente.id, conteudoId, feedback)
       await adicionarMensagemCliente(
         cliente.id,
         `Pedido de ajuste no conteúdo "${titulo}": ${feedback}`,
         cliente.nome,
       )
+      await avisarEquipeAjuste(cliente.id, cliente.nome, titulo, feedback)
     }
   } catch (e) {
     console.error("[portal] falha:", e instanceof Error ? e.message : e)

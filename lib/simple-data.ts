@@ -40,6 +40,10 @@ export type Cliente = {
   desdeISO?: string // YYYY-MM-DD (para edição)
   resumoEstrategico?: string
   portalToken?: string // link secreto do portal do cliente
+  observacoesInternas?: string // só a equipe vê; nunca vai para o portal
+  contratoUrl?: string // contrato fixado, visível no CRM e no portal
+  contratoResumo?: string
+  contratoAtualizadoEm?: string // ISO
 }
 
 export type Meta = {
@@ -69,7 +73,15 @@ export const clientePorId = (id: string) => clientes.find((c) => c.id === id)
 
 // ── Detalhe do cliente (submódulos) ──────────────────────────────────────────
 
-export type StatusConteudo = "ideia" | "roteiro" | "gravacao" | "edicao" | "aprovacao" | "aprovado" | "publicado"
+export type StatusConteudo =
+  | "ideia"
+  | "roteiro"
+  | "gravacao"
+  | "edicao"
+  | "aprovacao"
+  | "ajuste"
+  | "aprovado"
+  | "publicado"
 
 // Link do drive (vídeo bruto, editado, arte...) associado a um conteúdo.
 export type LinkConteudo = {
@@ -90,6 +102,8 @@ export type ConteudoItem = {
   direcionamento?: string // direcionamento interno (filmagem/videomaker + visual/design) — nunca exibido no portal
   links?: LinkConteudo[] // links do drive do conteúdo (bruto, editado, arte...)
   referencia?: string // link de referência do conteúdo (opcional)
+  ajustePedido?: string // último pedido de ajuste do cliente (portal)
+  ajustePedidoEm?: string // ISO
 }
 
 export type EventoCliente = {
