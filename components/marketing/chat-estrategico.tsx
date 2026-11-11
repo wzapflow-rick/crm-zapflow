@@ -38,6 +38,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
   const [carregandoCtx, setCarregandoCtx] = useState(false)
   const [input, setInput] = useState("")
   const [feedbackInicial, setFeedbackInicial] = useState<Record<string, TipoFeedback | null>>({})
+  const [etapa, setEtapa] = useState("")
   const clienteIdRef = useRef(clienteId)
   clienteIdRef.current = clienteId
 
@@ -48,10 +49,16 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
         body: { messages, empresaId: clienteIdRef.current },
       }),
     }),
+    onData: (parte) => {
+      if (parte.type === "data-etapa" && typeof parte.data === "string") setEtapa(parte.data)
+    },
   })
 
   const clienteAtual = clientes.find((c) => c.id === clienteId)
   const ocupado = status === "submitted" || status === "streaming"
+  const ultimaMensagem = messages[messages.length - 1]
+  const aguardandoTexto =
+    ocupado && !(ultimaMensagem?.role === "assistant" && textoDe(ultimaMensagem).trim().length > 0)
 
   // Ao trocar de cliente: carrega resumo de contexto + histórico salvo do chat.
   useEffect(() => {
@@ -90,6 +97,7 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
   function enviar(texto: string) {
     const limpo = texto.trim()
     if (!limpo || !clienteId || ocupado) return
+    setEtapa("")
     sendMessage({ text: limpo })
     setInput("")
   }
@@ -225,10 +233,10 @@ export function ChatEstrategico({ clientes }: { clientes: ClienteOpcao[] }) {
                 )
               })}
 
-              {status === "submitted" && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {aguardandoTexto && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  SIMPLE OS está pensando...
+                  {etapa || "SIMPLE OS está pensando..."}
                 </div>
               )}
 

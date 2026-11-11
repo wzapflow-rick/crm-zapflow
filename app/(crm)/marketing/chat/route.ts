@@ -79,56 +79,61 @@ ${contexto.texto}`
     await salvarChatMensagem(empresaId, "user", textoDaMensagem(ultima)).catch(() => {})
   }
 
-  try {
-    const { text: respostaInicial } = await generateText({
-      model: openai(MODELO_CHAT),
-      system,
-      messages: await convertToModelMessages(messages),
-      abortSignal: AbortSignal.timeout(Math.min(LIMITE_GERACAO_MS, prazo - Date.now())),
-    })
-    const resultado = await avaliarECorrigirResposta({
-      empresaId,
-      pergunta: consulta,
-      contexto: system,
-      historicoConversa,
-      respostaInicial,
-      prazo,
-    })
-    await salvarChatMensagem(empresaId, "assistant", resultado.respostaFinal).catch(() => {})
+  const modelMessages = await convertToModelMessages(messages)
 
-    const stream = createUIMessageStream<UIMessage>({
-      originalMessages: messages,
-      execute: ({ writer }) => {
-        const id = crypto.randomUUID()
-        writer.write({ type: "text-start", id })
-        writer.write({ type: "text-delta", id, delta: resultado.respostaFinal })
-        writer.write({ type: "text-end", id })
-      },
-      onError: () => "Não foi possível apresentar a resposta validada.",
-    })
-    return createUIMessageStreamResponse({ stream })
-  } catch (error) {
-    const mensagem = error instanceof Error ? error.message : "erro desconhecido"
-    console.error("[chat-estrategico] falha no pipeline validado", {
-      empresaId,
-      erro: mensagem,
-    })
+  // O stream abre imediatamente e recebe etapas de progresso: sem bytes por
+  // minutos, navegador/rede podem encerrar a conexão sem exibir erro algum.
+  const stream = createUIMessageStream<UIMessage>({
+    originalMessages: messages,
+    execute: async ({ writer }) => {
+      const informarEtapa = (etapa: string) =>
+        writer.write({ type: "data-etapa", data: etapa, transient: true })
 
-    if (ehTimeout(error)) {
-      return new Response(
-        "A análise demorou mais que o esperado. Tente uma pergunta mais específica (por exemplo, com período definido) ou tente novamente.",
-        { status: 504 },
-      )
-    }
-    if (/401|incorrect api key|invalid.*key|authentication/i.test(mensagem)) {
-      return new Response("A autenticação com a OpenAI falhou. Verifique a configuração do servidor.", { status: 502 })
-    }
-    if (/429|rate limit|quota|billing/i.test(mensagem)) {
-      return new Response("A OpenAI atingiu o limite de uso no momento. Aguarde um pouco e tente novamente.", { status: 429 })
-    }
-    if (/model|does not exist|access/i.test(mensagem)) {
-      return new Response("O modelo de IA está temporariamente indisponível para esta conta.", { status: 502 })
-    }
-    return new Response("Não foi possível gerar e validar a resposta. Tente novamente.", { status: 500 })
+      informarEtapa("Analisando os dados do cliente...")
+      const { text: respostaInicial } = await generateText({
+        model: openai(MODELO_CHAT),
+        system,
+        messages: modelMessages,
+        abortSignal: AbortSignal.timeout(Math.min(LIMITE_GERACAO_MS, prazo - Date.now())),
+      })
+
+      informarEtapa("Validando a resposta com os dados reais...")
+      const resultado = await avaliarECorrigirResposta({
+        empresaId,
+        pergunta: consulta,
+        contexto: system,
+        historicoConversa,
+        respostaInicial,
+        prazo,
+      })
+      await salvarChatMensagem(empresaId, "assistant", resultado.respostaFinal).catch(() => {})
+
+      const id = crypto.randomUUID()
+      writer.write({ type: "text-start", id })
+      writer.write({ type: "text-delta", id, delta: resultado.respostaFinal })
+      writer.write({ type: "text-end", id })
+    },
+    onError: (error) => {
+      const mensagem = error instanceof Error ? error.message : "erro desconhecido"
+      console.error("[chat-estrategico] falha no pipeline validado", { empresaId, erro: mensagem })
+      return mensagemDeErro(error, mensagem)
+    },
+  })
+  return createUIMessageStreamResponse({ stream })
+}
+
+function mensagemDeErro(error: unknown, mensagem: string): string {
+  if (ehTimeout(error)) {
+    return "A análise demorou mais que o esperado. Tente uma pergunta mais específica (por exemplo, com período definido) ou tente novamente."
   }
+  if (/401|incorrect api key|invalid.*key|authentication/i.test(mensagem)) {
+    return "A autenticação com a OpenAI falhou. Verifique a configuração do servidor."
+  }
+  if (/429|rate limit|quota|billing/i.test(mensagem)) {
+    return "A OpenAI atingiu o limite de uso no momento. Aguarde um pouco e tente novamente."
+  }
+  if (/model|does not exist|access/i.test(mensagem)) {
+    return "O modelo de IA está temporariamente indisponível para esta conta."
+  }
+  return "Não foi possível gerar e validar a resposta. Tente novamente."
 }
