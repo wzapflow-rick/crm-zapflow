@@ -53,6 +53,12 @@ function hashDoTexto(texto: string): string {
   return createHash("sha256").update(texto).digest("hex")
 }
 
+function diaISO(valor: unknown): string {
+  if (valor == null || valor === "") return ""
+  const d = valor instanceof Date ? valor : new Date(String(valor))
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10)
+}
+
 function limparTexto(valor: string | null | undefined, limite = 1600): string {
   return (valor ?? "").replace(/\s+/g, " ").trim().slice(0, limite)
 }
@@ -72,7 +78,7 @@ function documentosInstagram(midias: MidiaInstagram[]): DocumentoSemantico[] {
     origemId: midia.id,
     texto: [
       `Instagram ${midia.tipo}`,
-      midia.publicadoEm ? `publicado em ${midia.publicadoEm.slice(0, 10)}` : "",
+      diaISO(midia.publicadoEm) ? `publicado em ${diaISO(midia.publicadoEm)}` : "",
       limparTexto(midia.legenda),
       midia.alcance != null ? `alcance ${midia.alcance}` : "",
       midia.curtidas != null ? `curtidas ${midia.curtidas}` : "",
@@ -107,7 +113,7 @@ function documentosReunioes(reunioes: Reuniao[]): DocumentoSemantico[] {
     origemId: `reuniao:${r.id}`,
     texto: [
       `Reunião: ${limparTexto(r.titulo, 200)}`,
-      r.data ? `data ${r.data.slice(0, 10)}` : "",
+      diaISO(r.data) ? `data ${diaISO(r.data)}` : "",
       limparTexto(r.resumo),
       r.decisoes.length ? `decisões: ${limparTexto(r.decisoes.join("; "))}` : "",
       r.problemas.length ? `problemas: ${limparTexto(r.problemas.join("; "))}` : "",

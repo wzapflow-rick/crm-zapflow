@@ -18,14 +18,14 @@ export type Reuniao = {
 type ReuniaoRow = {
   id: string
   titulo: string | null
-  data_reuniao: string | null
+  data_reuniao: Date | string | null
   resumo: string | null
   decisoes: unknown
   problemas: unknown
   proximas_acoes: unknown
   insights: unknown
   notas_originais: string | null
-  created_at: string | null
+  created_at: Date | string | null
 }
 
 function asStringArray(v: unknown): string[] {
@@ -33,18 +33,26 @@ function asStringArray(v: unknown): string[] {
   return []
 }
 
+// O driver pg devolve colunas date/timestamptz como Date; o tipo Reuniao expõe texto ISO.
+function asISO(v: Date | string | null): string | null {
+  if (v == null) return null
+  const d = v instanceof Date ? v : new Date(v)
+  return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
 function mapRow(r: ReuniaoRow): Reuniao {
+  const criadoEm = asISO(r.created_at) ?? new Date().toISOString()
   return {
     id: r.id,
     titulo: r.titulo ?? "Reunião",
-    data: r.data_reuniao ?? r.created_at ?? new Date().toISOString(),
+    data: asISO(r.data_reuniao) ?? criadoEm,
     resumo: r.resumo ?? "",
     decisoes: asStringArray(r.decisoes),
     problemas: asStringArray(r.problemas),
     proximasAcoes: asStringArray(r.proximas_acoes),
     insights: asStringArray(r.insights),
     notasOriginais: r.notas_originais ?? "",
-    criadoEm: r.created_at ?? new Date().toISOString(),
+    criadoEm,
   }
 }
 
