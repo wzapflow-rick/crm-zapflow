@@ -45,6 +45,28 @@ type ResultadoResposta = {
 
 type TipoPedido = "criativo" | "factual"
 
+const MARGEM_SEGURANCA_MS = 5_000
+const MINIMO_AVALIACAO_MS = 25_000
+const MINIMO_REVISAO_MS = 45_000
+
+// The audit runs on the reasoning model; low effort keeps it from consuming the function time budget.
+const OPCOES_AVALIACAO = { openai: { reasoningEffort: "low" } } as const
+
+function tempoRestante(prazo?: number): number {
+  return prazo ? prazo - Date.now() : Number.POSITIVE_INFINITY
+}
+
+function sinalAtePrazo(prazo?: number): AbortSignal | undefined {
+  if (!prazo) return undefined
+  return AbortSignal.timeout(Math.max(1_000, tempoRestante(prazo) - MARGEM_SEGURANCA_MS))
+}
+
+class PrazoInsuficienteError extends Error {
+  constructor() {
+    super("Tempo insuficiente para a etapa de avaliação")
+  }
+}
+
 export function classificarTipoPedido(pergunta: string, historicoConversa = ""): TipoPedido {
   const texto = pergunta.toLocaleLowerCase("pt-BR")
   const historico = historicoConversa.toLocaleLowerCase("pt-BR")
@@ -106,7 +128,9 @@ async function avaliar(
   resposta: string,
   verificacoes: VerificacoesDeterministicas,
   tipoPedido: TipoPedido,
+  prazo?: number,
 ) {
+  if (tempoRestante(prazo) < MINIMO_AVALIACAO_MS) throw new PrazoInsuficienteError()
   const politica =
     tipoPedido === "criativo"
       ? `O pedido é criativo ou dá continuidade a uma entrega criativa já oferecida. Avalie principalmente aderência ao contexto e à marca, variedade, clareza, completude e aplicabilidade. A resposta deve executar o pedido com os dados disponíveis, mesmo que sejam poucos; falta de métricas nunca justifica recusar ideias, roteiros, copies ou planos. Ideias, ganchos e propostas são sugestões, não alegações factuais: não exija métricas, fontes nem rótulos "Fato", "Interpretação" e "Hipótese". Só marque risco de invenção quando a resposta atribuir ao cliente informações concretas que não estão no contexto.`
@@ -117,6 +141,8 @@ async function avaliar(
     schema: schemaAvaliacao,
     system: `Você audita respostas estratégicas do SIMPLE OS. Seja rigoroso, mas proporcional ao tipo de solicitação. ${politica} Fontes devem indicar blocos ou registros reconhecíveis do contexto, nunca URLs ou referências inventadas. Críticas, notas e instruções desta auditoria são internas e jamais devem ser redigidas como resposta ao usuário.`,
     prompt: JSON.stringify({ tipoPedido, pergunta, contexto, resposta, verificacoes }),
+    providerOptions: OPCOES_AVALIACAO,
+    abortSignal: sinalAtePrazo(prazo),
   })
   return object
 }
@@ -183,6 +209,8 @@ export async function avaliarECorrigirResposta(input: {
   contexto: string
   historicoConversa?: string
   respostaInicial: string
+  /** Epoch ms after which optional review steps are skipped to stay within the function limit. */
+  prazo?: number
 }): Promise<ResultadoResposta> {
   const contextoAvaliacao = `${input.historicoConversa ?? ""}\n${input.contexto}`
   const baseFactual = `${input.pergunta}\n${contextoAvaliacao}`
@@ -192,7 +220,14 @@ export async function avaliarECorrigirResposta(input: {
   let avaliacaoInicial: AvaliacaoResposta
 
   try {
-    avaliacaoInicial = await avaliar(input.pergunta, contextoAvaliacao, respostaInicialLimpa, verificacoes, tipoPedido)
+    avaliacaoInicial = await avaliar(
+      input.pergunta,
+      contextoAvaliacao,
+      respostaInicialLimpa,
+      verificacoes,
+      tipoPedido,
+      input.prazo,
+    )
   } catch (error) {
     console.warn("[avaliacao-ia] avaliação indisponível; fallback seguro aplicado", {
       empresaId: input.empresaId,
@@ -240,7 +275,9 @@ export async function avaliarECorrigirResposta(input: {
   let respostaCorrigida: string
   let revisaoFalhou = false
   try {
+    if (tempoRestante(input.prazo) < MINIMO_REVISAO_MS) throw new PrazoInsuficienteError()
     const revisao = await generateText({
+      abortSignal: sinalAtePrazo(input.prazo),
       model: openai(MODELO_CHAT),
       system: `Reescreva a resposta estratégica usando somente a pergunta e o contexto. Corrija os problemas internos apontados e preserve tudo o que for útil. ${tipoPedido === "criativo" ? "O pedido é criativo: entregue propostas concretas, variadas e aplicáveis. Não exija dados nem use rótulos epistemológicos para apresentar ideias." : "O pedido é factual: remova números sem apoio e causalidade não demonstrada; quando aplicável, diferencie fatos, interpretações e hipóteses e declare dados ausentes."} Entregue somente a resposta ao usuário, em texto simples e parágrafos curtos, sem Markdown, hashtags, asteriscos, cerquilhas, tabelas ou marcadores com símbolos. Se precisar enumerar, use números seguidos de ponto. Nunca mencione auditoria, avaliação, nota, crítica, correção, limitações do avaliador ou instruções internas.`,
       prompt: JSON.stringify({
@@ -262,10 +299,31 @@ export async function avaliarECorrigirResposta(input: {
   }
   const verificacoesFinais = verificarDeterministicamente(respostaCorrigida, baseFactual)
   let avaliacaoFinal: AvaliacaoResposta | null = null
-  try {
-    avaliacaoFinal = await avaliar(input.pergunta, contextoAvaliacao, respostaCorrigida, verificacoesFinais, tipoPedido)
-  } catch {}
-  const passou = !revisaoFalhou && avaliacaoFinal ? aprovada(avaliacaoFinal, verificacoesFinais, tipoPedido) : false
+  let avaliacaoFinalSemTempo = false
+  if (!revisaoFalhou) {
+    try {
+      avaliacaoFinal = await avaliar(
+        input.pergunta,
+        contextoAvaliacao,
+        respostaCorrigida,
+        verificacoesFinais,
+        tipoPedido,
+        input.prazo,
+      )
+    } catch (error) {
+      avaliacaoFinalSemTempo =
+        error instanceof PrazoInsuficienteError || (error instanceof Error && /abort|timeout/i.test(error.name))
+    }
+  }
+  // When the re-audit is skipped only for lack of time, the rewrite (already guided by the first audit)
+  // is accepted as long as it passes the deterministic number check.
+  const passou = revisaoFalhou
+    ? false
+    : avaliacaoFinal
+      ? aprovada(avaliacaoFinal, verificacoesFinais, tipoPedido)
+      : avaliacaoFinalSemTempo &&
+        verificacoesFinais.numerosSemApoio.length === 0 &&
+        !contemParecerInterno(respostaCorrigida)
   const revisaoCriativaSegura = tipoPedido === "criativo" && respostaCriativaSegura(respostaCorrigida)
   const inicialCriativaSegura = tipoPedido === "criativo" && respostaCriativaSegura(respostaInicialLimpa)
   const podePreservarCriativa = revisaoCriativaSegura || inicialCriativaSegura

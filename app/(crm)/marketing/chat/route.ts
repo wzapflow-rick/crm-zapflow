@@ -12,7 +12,14 @@ import { montarContextoCliente } from "@/lib/contexto-cliente"
 import { salvarChatMensagem } from "@/lib/chat-db"
 import { avaliarECorrigirResposta, MODELO_CHAT } from "@/lib/avaliacao-resposta-ia"
 
-export const maxDuration = 120
+export const maxDuration = 300
+
+const ORCAMENTO_TOTAL_MS = 280_000
+const LIMITE_GERACAO_MS = 170_000
+
+function ehTimeout(error: unknown): boolean {
+  return error instanceof Error && (/abort|timeout/i.test(error.name) || /aborted|timed? ?out/i.test(error.message))
+}
 
 function textoDaMensagem(msg: UIMessage | undefined): string {
   if (!msg?.parts) return ""
@@ -23,6 +30,7 @@ function textoDaMensagem(msg: UIMessage | undefined): string {
 }
 
 export async function POST(req: Request) {
+  const prazo = Date.now() + ORCAMENTO_TOTAL_MS
   const usuario = await exigirUsuarioApi()
   if (usuario instanceof Response) return usuario
 
@@ -76,6 +84,7 @@ ${contexto.texto}`
       model: openai(MODELO_CHAT),
       system,
       messages: await convertToModelMessages(messages),
+      abortSignal: AbortSignal.timeout(Math.min(LIMITE_GERACAO_MS, prazo - Date.now())),
     })
     const resultado = await avaliarECorrigirResposta({
       empresaId,
@@ -83,6 +92,7 @@ ${contexto.texto}`
       contexto: system,
       historicoConversa,
       respostaInicial,
+      prazo,
     })
     await salvarChatMensagem(empresaId, "assistant", resultado.respostaFinal).catch(() => {})
 
@@ -104,6 +114,12 @@ ${contexto.texto}`
       erro: mensagem,
     })
 
+    if (ehTimeout(error)) {
+      return new Response(
+        "A análise demorou mais que o esperado. Tente uma pergunta mais específica (por exemplo, com período definido) ou tente novamente.",
+        { status: 504 },
+      )
+    }
     if (/401|incorrect api key|invalid.*key|authentication/i.test(mensagem)) {
       return new Response("A autenticação com a OpenAI falhou. Verifique a configuração do servidor.", { status: 502 })
     }
