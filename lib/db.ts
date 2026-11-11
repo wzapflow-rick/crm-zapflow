@@ -27,7 +27,9 @@ function makePool() {
     // Limita o fan-out por instância serverless para não saturar o Postgres.
     max: 5,
     min: 0,
-    idleTimeoutMillis: 20_000,
+    // Fecha conexões paradas antes do idle_session_timeout do Postgres,
+    // para o servidor não derrubar uma conexão que o pool ainda vai reutilizar.
+    idleTimeoutMillis: 5_000,
     // Páginas como /clientes/[id] enfileiram ~20 consultas em 5 conexões;
     // 5s de espera pela conexão estourava sob carga e derrubava a página.
     connectionTimeoutMillis: 15_000,
@@ -63,6 +65,18 @@ export function getPool(): Pool {
   return globalForDb._simplePool
 }
 
+const SOMENTE_LEITURA = /^\s*(select|with)\b/i
+
+// Conexão encerrada pelo servidor enquanto estava parada no pool: a consulta
+// não chegou a rodar, então repetir uma vez é seguro. Para "terminated
+// unexpectedly" a consulta pode ter rodado, por isso só repete leituras.
+function conexaoEncerrada(error: unknown, text: string): boolean {
+  if (!(error instanceof Error)) return false
+  const code = (error as { code?: string }).code
+  if (code === "57P05" || /idle-session timeout/i.test(error.message)) return true
+  return /connection terminated unexpectedly|ECONNRESET/i.test(error.message) && SOMENTE_LEITURA.test(text)
+}
+
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[],
@@ -71,7 +85,11 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   const inicio = performance.now()
 
   try {
-    const result = await pool.query<T>(text, params as never)
+    const result = await pool.query<T>(text, params as never).catch((error) => {
+      if (!conexaoEncerrada(error, text)) throw error
+      console.warn("[db] conexão encerrada pelo servidor; repetindo consulta uma vez")
+      return pool.query<T>(text, params as never)
+    })
     const duracaoMs = Math.round(performance.now() - inicio)
     if (duracaoMs >= 500) {
       const operacao = text.trim().split(/\s+/, 1)[0]?.toUpperCase() ?? "QUERY"

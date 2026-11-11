@@ -67,6 +67,19 @@ export async function getMembroPorId(id: string | null | undefined): Promise<Mem
   return membros.find((m) => m.id === id) ?? null
 }
 
+/**
+ * Confirma se o membro ainda faz parte da equipe. Diferente de getMembroPorId,
+ * propaga erros de banco para que a autenticação não confunda falha de
+ * conexão com membro removido.
+ */
+export async function membroExiste(id: string): Promise<boolean> {
+  const rows = await query<{ existe: boolean }>(
+    `select true as existe from public.equipe where id = $1 limit 1`,
+    [id],
+  )
+  return rows.length > 0
+}
+
 /** Busca o membro cujo PIN de acesso corresponde ao informado (usado no login). */
 export async function getMembroPorPin(pin: string): Promise<Membro | null> {
   const limpo = pin.trim()
