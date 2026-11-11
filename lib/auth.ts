@@ -2,7 +2,7 @@ import "server-only"
 import { cache } from "react"
 import { redirect } from "next/navigation"
 import { getUsuarioAtual, type UsuarioSessao } from "@/lib/sessao"
-import { getMembroPorId } from "@/lib/membros-db"
+import { membroExiste } from "@/lib/membros-db"
 
 export const ID_ADMIN = "admin"
 
@@ -20,8 +20,17 @@ export const usuarioAutenticado = cache(async (): Promise<UsuarioSessao | null> 
   const usuario = await getUsuarioAtual()
   if (!usuario) return null
   if (usuario.id === ID_ADMIN) return usuario
-  const membro = await getMembroPorId(usuario.id).catch(() => null)
-  return membro ? usuario : null
+  try {
+    return (await membroExiste(usuario.id)) ? usuario : null
+  } catch (error) {
+    // O cookie já foi validado pela assinatura; uma falha momentânea do banco
+    // não pode deslogar todo mundo. Só a confirmação de remoção revoga o acesso.
+    console.error(
+      "[auth] não foi possível confirmar o membro; mantendo a sessão:",
+      error instanceof Error ? error.message : error,
+    )
+    return usuario
+  }
 })
 
 export function ehAdmin(usuario: UsuarioSessao | null | undefined): boolean {
